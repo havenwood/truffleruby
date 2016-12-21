@@ -13,6 +13,9 @@ import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.object.DynamicObject;
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
+import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
+import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
+import org.truffleruby.language.objects.shared.SharedObjects;
 
 public abstract class ArrayStrategy {
 
@@ -46,6 +49,10 @@ public abstract class ArrayStrategy {
         return Layouts.ARRAY.getSize(array);
     }
 
+    public boolean isConcurrent() {
+        return this instanceof ConcurrentArrayStrategy;
+    }
+
     public abstract ArrayMirror newArray(int size);
 
     public final ArrayMirror newMirror(DynamicObject array) {
@@ -58,6 +65,7 @@ public abstract class ArrayStrategy {
 
     public void setStore(DynamicObject array, Object store) {
         assert !(store instanceof ArrayMirror);
+        assert !SharedObjects.isShared(array);
         Layouts.ARRAY.setStore(array, store);
     }
 
@@ -73,6 +81,10 @@ public abstract class ArrayStrategy {
         CompilerAsserts.neverPartOfCompilation();
         if (other == this) {
             return this;
+        }
+
+        if (other instanceof ConcurrentArrayStrategy) {
+            return other.generalize(this);
         }
 
         if (other instanceof NullArrayStrategy) {
@@ -129,13 +141,30 @@ public abstract class ArrayStrategy {
     }
 
     public static ArrayStrategy of(DynamicObject array) {
+        ArrayStrategy strategy = ofImpl(array);
+        assert strategy instanceof ConcurrentArrayStrategy == SharedObjects.isShared(array);
+        return strategy;
+    }
+
+    private static ArrayStrategy ofImpl(DynamicObject array) {
         CompilerAsserts.neverPartOfCompilation();
 
         if (!RubyGuards.isRubyArray(array)) {
             return FallbackArrayStrategy.INSTANCE;
         }
 
-        return ofStore(Layouts.ARRAY.getStore(array));
+        if (ArrayGuards.isConcurrentArray(array)) {
+            final ConcurrentArray concurrentArray = (ConcurrentArray) Layouts.ARRAY.getStore(array);
+            if (concurrentArray instanceof FixedSizeArray) {
+                return new FixedSizeSafepointArrayStrategy(ofStore(concurrentArray.getStore()));
+            } else if (concurrentArray instanceof SynchronizedArray) {
+                return new SynchronizedArrayStrategy(ofStore(concurrentArray.getStore()));
+            } else {
+                throw new UnsupportedOperationException(concurrentArray.getStore().getClass().getName());
+            }
+        } else {
+            return ofStore(Layouts.ARRAY.getStore(array));
+        }
     }
 
     public static ArrayStrategy forValue(Object value) {
@@ -446,6 +475,162 @@ public abstract class ArrayStrategy {
         @Override
         public String toString() {
             return "null";
+        }
+
+    }
+
+    // Concurrent strategies
+
+    private static abstract class ConcurrentArrayStrategy extends ArrayStrategy {
+
+        protected final ArrayStrategy typeStrategy;
+
+        public ConcurrentArrayStrategy(ArrayStrategy typeStrategy) {
+            this.typeStrategy = typeStrategy;
+        }
+
+        @Override
+        public Class<?> type() {
+            return typeStrategy.type();
+        }
+
+        @Override
+        public boolean canStore(Class<?> type) {
+            return typeStrategy.canStore(type);
+        }
+
+        @Override
+        public boolean accepts(Object value) {
+            return typeStrategy.accepts(value);
+        }
+
+        @Override
+        public boolean specializesFor(Object value) {
+            return typeStrategy.specializesFor(value);
+        }
+
+        @Override
+        public boolean isDefaultValue(Object value) {
+            return typeStrategy.isDefaultValue(value);
+        }
+
+        @Override
+        public void setStore(DynamicObject array, Object store) {
+            assert !(store instanceof ArrayMirror);
+            assert SharedObjects.isShared(array);
+            Layouts.ARRAY.setStore(array, wrap(store));
+        }
+
+        protected ArrayStrategy generalizeTypeStrategy(ArrayStrategy other) {
+            final ArrayStrategy otherTypeStrategy;
+            if (other instanceof ConcurrentArrayStrategy) {
+                otherTypeStrategy = ((ConcurrentArrayStrategy) other).typeStrategy;
+            } else {
+                otherTypeStrategy = other;
+            }
+
+            ArrayStrategy generalizedTypeStrategy = typeStrategy.generalize(otherTypeStrategy);
+
+            return generalizedTypeStrategy;
+        }
+
+        @Override
+        public abstract ArrayStrategy generalize(ArrayStrategy other);
+
+        @Override
+        public ArrayStrategy generalizeNew(ArrayStrategy other) {
+            return generalizeTypeStrategy(other);
+        }
+
+        @Override
+        public ArrayMirror newArray(int size) {
+            // Creating a new array, by definition local and no need for synchronization
+            return typeStrategy.newArray(size);
+        }
+
+        @Override
+        public ArrayMirror newMirrorFromStore(Object store) {
+            return typeStrategy.newMirrorFromStore(unwrap(store));
+        }
+
+        protected abstract Object wrap(Object store);
+
+        protected abstract Object unwrap(Object store);
+
+    }
+
+    private static class FixedSizeSafepointArrayStrategy extends ConcurrentArrayStrategy {
+
+        public FixedSizeSafepointArrayStrategy(ArrayStrategy typeStrategy) {
+            super(typeStrategy);
+        }
+
+        @Override
+        protected Object wrap(Object store) {
+            return new FixedSizeArray(store);
+        }
+
+        @Override
+        protected Object unwrap(Object store) {
+            final FixedSizeArray fixedSizeArray = (FixedSizeArray) store;
+            return fixedSizeArray.getStore();
+        }
+
+        @Override
+        public boolean matchesStore(Object store) {
+            return store instanceof FixedSizeArray && typeStrategy.matchesStore(((FixedSizeArray) store).getStore());
+        }
+
+        @Override
+        public ArrayStrategy generalize(ArrayStrategy other) {
+            ArrayStrategy generalizedTypeStrategy = generalizeTypeStrategy(other);
+
+            if (other instanceof SynchronizedArrayStrategy) {
+                return new SynchronizedArrayStrategy(generalizedTypeStrategy);
+            } else {
+                return new FixedSizeSafepointArrayStrategy(generalizedTypeStrategy);
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "FixedSize(" + typeStrategy + ")";
+        }
+
+    }
+
+    private static class SynchronizedArrayStrategy extends ConcurrentArrayStrategy {
+
+        public SynchronizedArrayStrategy(ArrayStrategy typeStrategy) {
+            super(typeStrategy);
+        }
+
+        @Override
+        protected Object wrap(Object store) {
+            return new SynchronizedArray(store);
+        }
+
+        @Override
+        protected Object unwrap(Object store) {
+            final SynchronizedArray synchronizedArray = (SynchronizedArray) store;
+            return synchronizedArray.getStore();
+        }
+
+        @Override
+        public boolean matchesStore(Object store) {
+            return store instanceof SynchronizedArray && typeStrategy.matchesStore(((SynchronizedArray) store).getStore());
+        }
+
+        @Override
+        public ArrayStrategy generalize(ArrayStrategy other) {
+            ArrayStrategy generalizedTypeStrategy = generalizeTypeStrategy(other);
+
+            return new SynchronizedArrayStrategy(generalizedTypeStrategy);
+        }
+
+        @Override
+        public String toString() {
+            return "Synchronized(" + typeStrategy + ")";
         }
 
     }

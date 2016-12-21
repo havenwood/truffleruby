@@ -57,7 +57,12 @@ public abstract class ArrayOperations {
 
     @TruffleBoundary
     public static Object getBackingStore(DynamicObject array) {
-        return Layouts.ARRAY.getStore(array);
+        Object store = Layouts.ARRAY.getStore(array);
+        if (store instanceof ConcurrentArray) {
+            return ((ConcurrentArray) store).getStore();
+        } else {
+            return store;
+        }
     }
 
     @TruffleBoundary

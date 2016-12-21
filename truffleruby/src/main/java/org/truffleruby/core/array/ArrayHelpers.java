@@ -12,6 +12,7 @@ package org.truffleruby.core.array;
 import com.oracle.truffle.api.object.DynamicObject;
 import org.truffleruby.Layouts;
 import org.truffleruby.RubyContext;
+import org.truffleruby.language.objects.shared.SharedObjects;
 
 public abstract class ArrayHelpers {
 
@@ -25,6 +26,7 @@ public abstract class ArrayHelpers {
 
     public static void setStoreAndSize(DynamicObject array, Object store, int size) {
         assert !(store instanceof ArrayMirror);
+        assert SharedObjects.isShared(array) == store instanceof ConcurrentArray;
         Layouts.ARRAY.setStore(array, store);
         setSize(array, size);
     }
@@ -44,6 +46,7 @@ public abstract class ArrayHelpers {
     }
 
     public static DynamicObject createArray(RubyContext context, Object store, int size) {
+        assert !(store instanceof ConcurrentArray);
         return Layouts.ARRAY.createArray(context.getCoreLibrary().getArrayFactory(), store, size);
     }
 
