@@ -89,7 +89,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "+", required = 1) // sync: need to also sync on RHS!
+    @CoreMethod(names = "+", required = 1, sync = SyncMode.ARRAY_READ) // TODO: need to also sync on RHS!
     @NodeChildren({
         @NodeChild(type = RubyNode.class, value = "a"),
         @NodeChild(type = RubyNode.class, value = "b")
@@ -550,7 +550,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "concat", required = 1, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
+    @CoreMethod(names = "concat", required = 1, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE) // TODO: + read from other
     @NodeChildren({
         @NodeChild(type = RubyNode.class, value = "array"),
         @NodeChild(type = RubyNode.class, value = "other")
@@ -1431,7 +1431,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "replace", required = 1, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
+    @CoreMethod(names = "replace", required = 1, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE) // TODO: + sync on other to get store+size atomically
     @NodeChildren({
             @NodeChild(type = RubyNode.class, value = "array"),
             @NodeChild(type = RubyNode.class, value = "other")
@@ -1492,7 +1492,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "shift", raiseIfFrozenSelf = true, optional = 1, lowerFixnum = 1, sync = SyncMode.ARRAY_CHANGE_SIZE)
+    @CoreMethod(names = "shift", raiseIfFrozenSelf = true, optional = 1, lowerFixnum = 1, sync = SyncMode.ARRAY_CHANGE_STORE)
     @NodeChildren({
             @NodeChild(type = RubyNode.class, value = "array"),
             @NodeChild(type = RubyNode.class, value = "n")
