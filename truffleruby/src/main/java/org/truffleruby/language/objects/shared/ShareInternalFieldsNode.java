@@ -52,6 +52,7 @@ public abstract class ShareInternalFieldsNode extends RubyBaseNode {
         for (int i = 0; i < size; i++) {
             writeBarrierNode.executeWriteBarrier(store[i]);
         }
+        SharedObjects.shareArray(array);
     }
 
     @Specialization(
@@ -60,6 +61,7 @@ public abstract class ShareInternalFieldsNode extends RubyBaseNode {
     protected void shareCachedOtherArray(DynamicObject array,
             @Cached("array.getShape()") Shape cachedShape) {
         /* null, int[], long[] or double[] storage */
+        SharedObjects.shareArray(array);
     }
 
     @Specialization(

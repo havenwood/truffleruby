@@ -9,6 +9,7 @@
  */
 package org.truffleruby.language.objects.shared;
 
+import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -18,8 +19,9 @@ import org.truffleruby.Layouts;
 import org.truffleruby.Log;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.language.RubyGuards;
 import org.truffleruby.language.objects.ObjectGraph;
-
+import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -96,6 +98,12 @@ public class SharedObjects {
         shareObjects(context, stack);
     }
 
+    public static boolean isShared(DynamicObject object) {
+        CompilerAsserts.neverPartOfCompilation();
+        RubyContext context = Layouts.MODULE.getFields(Layouts.BASIC_OBJECT.getLogicalClass(object)).getContext();
+        return isShared(context, object);
+    }
+
     public static boolean isShared(RubyContext context, DynamicObject object) {
         return isShared(context, object.getShape());
     }
@@ -131,6 +139,9 @@ public class SharedObjects {
     }
 
     public static void onShareHook(DynamicObject object) {
+        if (RubyGuards.isRubyArray(object)) {
+            shareArray(object);
+        }
     }
 
     @TruffleBoundary
@@ -140,6 +151,12 @@ public class SharedObjects {
         // This will also share user fields, but that's OK
         stack.addAll(ObjectGraph.getAdjacentObjects(object));
         shareObjects(context, stack);
+    }
+
+    public static void shareArray(DynamicObject array) {
+        // Trying a fixed-size strategy first
+        // TODO: should learn from the allocation site
+        Layouts.ARRAY.setStore(array, new FixedSizeArray(Layouts.ARRAY.getStore(array)));
     }
 
 }
