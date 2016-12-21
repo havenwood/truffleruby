@@ -20,6 +20,8 @@ import org.truffleruby.Layouts;
 import org.truffleruby.Log;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.RaiseIfFrozenNode;
+import org.truffleruby.core.array.ArraySyncReadNodeGen;
+import org.truffleruby.core.array.ArraySyncSetStoreNodeGen;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.cast.TaintResultNode;
 import org.truffleruby.core.module.ConstantLookupResult;
@@ -188,10 +190,14 @@ public class CoreMethodNodeManager {
         final SourceSection sourceSection = sharedMethodInfo.getSourceSection();
         final SourceIndexLength sourceIndexLength = new SourceIndexLength(sourceSection.getCharIndex(), sourceSection.getCharLength());
 
-        final RubyNode methodNode = createCoreMethodNode(context, sourceSection.getSource(), sourceIndexLength, methodDetails.getNodeFactory(), method);
+        RubyNode methodNode = createCoreMethodNode(context, sourceSection.getSource(), sourceIndexLength, methodDetails.getNodeFactory(), method);
 
         if (CHECK_DSL_USAGE) {
             AmbiguousOptionalArgumentChecker.verifyNoAmbiguousOptionalArguments(methodDetails);
+        }
+
+        if (method.sync() != SyncMode.NONE) {
+            methodNode = synchronize(methodNode, method.sync());
         }
 
         final RubyNode checkArity = Translator.createCheckArityNode(sharedMethodInfo.getArity());
@@ -205,6 +211,19 @@ public class CoreMethodNodeManager {
         final RubyRootNode rootNode = new RubyRootNode(context, sourceSection, null, sharedMethodInfo, bodyNode, false);
 
         return Truffle.getRuntime().createCallTarget(rootNode);
+    }
+
+    public static RubyNode synchronize(RubyNode builtinNode, SyncMode sync) {
+        final RubyNode readSelfNode = new ProfileArgumentNode(new ReadSelfNode());
+        switch (sync) {
+            case ARRAY_READ:
+                return ArraySyncReadNodeGen.create(builtinNode, readSelfNode);
+            case ARRAY_CHANGE_STORE:
+            case ARRAY_CHANGE_SIZE:
+                return ArraySyncSetStoreNodeGen.create(builtinNode, readSelfNode);
+            default:
+                throw new UnsupportedOperationException(sync.toString());
+        }
     }
 
     public static RubyNode createCoreMethodNode(RubyContext context, Source source, SourceIndexLength sourceSection, NodeFactory<? extends RubyNode> nodeFactory, CoreMethod method) {

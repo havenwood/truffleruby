@@ -33,4 +33,6 @@ public @interface Primitive {
      */
     boolean raiseIfFrozenSelf() default false;
 
+    SyncMode sync() default SyncMode.NONE;
+
 }

@@ -77,4 +77,6 @@ public @interface CoreMethod {
 
     String enumeratorSize() default "";
 
+    SyncMode sync() default SyncMode.NONE;
+
 }

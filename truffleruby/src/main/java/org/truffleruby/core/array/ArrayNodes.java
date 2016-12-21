@@ -34,6 +34,7 @@ import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.builtins.CoreMethodNode;
 import org.truffleruby.builtins.Primitive;
 import org.truffleruby.builtins.PrimitiveArrayArgumentsNode;
+import org.truffleruby.builtins.SyncMode;
 import org.truffleruby.builtins.YieldingCoreMethodNode;
 import org.truffleruby.core.Hashing;
 import org.truffleruby.core.array.ArrayNodesFactory.ReplaceNodeFactory;
@@ -76,7 +77,7 @@ import static org.truffleruby.core.array.ArrayHelpers.setStoreAndSize;
 @CoreClass("Array")
 public abstract class ArrayNodes {
 
-    @CoreMethod(names = "allocate", constructor = true)
+    @CoreMethod(names = "allocate", constructor = true, sync = SyncMode.NONE)
     public abstract static class AllocateNode extends CoreMethodArrayArgumentsNode {
 
         @Child private AllocateObjectNode allocateNode = AllocateObjectNode.create();
@@ -88,7 +89,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "+", required = 1)
+    @CoreMethod(names = "+", required = 1) // sync: need to also sync on RHS!
     @NodeChildren({
         @NodeChild(type = RubyNode.class, value = "a"),
         @NodeChild(type = RubyNode.class, value = "b")
@@ -133,7 +134,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @Primitive(name = "array_mul", lowerFixnum = 1)
+    @Primitive(name = "array_mul", lowerFixnum = 1, sync = SyncMode.ARRAY_READ)
     @ImportStatic(ArrayGuards.class)
     public abstract static class MulNode extends PrimitiveArrayArgumentsNode {
 
@@ -169,7 +170,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @Primitive(name = "array_aref", lowerFixnum = { 1, 2 })
+    @Primitive(name = "array_aref", lowerFixnum = { 1, 2 }, sync = SyncMode.ARRAY_READ)
     @ImportStatic(ArrayGuards.class)
     public abstract static class IndexNode extends PrimitiveArrayArgumentsNode {
 
@@ -442,7 +443,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "at", required = 1, lowerFixnum = 1)
+    @CoreMethod(names = "at", required = 1, lowerFixnum = 1, sync = SyncMode.ARRAY_READ)
     @NodeChildren({
             @NodeChild(type = RubyNode.class, value = "array"),
             @NodeChild(type = RubyNode.class, value = "index")
@@ -467,7 +468,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "clear", raiseIfFrozenSelf = true)
+    @CoreMethod(names = "clear", raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     public abstract static class ClearNode extends ArrayCoreMethodNode {
 
         @Specialization(guards = "strategy.matches(array)", limit = "ARRAY_STRATEGIES")
@@ -479,7 +480,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "compact")
+    @CoreMethod(names = "compact", sync = SyncMode.ARRAY_READ)
     @ImportStatic(ArrayGuards.class)
     public abstract static class CompactNode extends ArrayCoreMethodNode {
 
@@ -514,7 +515,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "compact!", raiseIfFrozenSelf = true)
+    @CoreMethod(names = "compact!", raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     public abstract static class CompactBangNode extends ArrayCoreMethodNode {
 
         @Specialization(guards = { "strategy.matches(array)", "!strategy.accepts(nil())" }, limit = "ARRAY_STRATEGIES")
@@ -549,7 +550,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "concat", required = 1, raiseIfFrozenSelf = true)
+    @CoreMethod(names = "concat", required = 1, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     @NodeChildren({
         @NodeChild(type = RubyNode.class, value = "array"),
         @NodeChild(type = RubyNode.class, value = "other")
@@ -627,7 +628,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "delete_at", required = 1, raiseIfFrozenSelf = true, lowerFixnum = 1)
+    @CoreMethod(names = "delete_at", required = 1, raiseIfFrozenSelf = true, lowerFixnum = 1, sync = SyncMode.ARRAY_CHANGE_STORE)
     @NodeChildren({
             @NodeChild(type = RubyNode.class, value = "array"),
             @NodeChild(type = RubyNode.class, value = "index")
@@ -1245,7 +1246,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "pop", raiseIfFrozenSelf = true, optional = 1, lowerFixnum = 1)
+    @CoreMethod(names = "pop", raiseIfFrozenSelf = true, optional = 1, lowerFixnum = 1, sync = SyncMode.ARRAY_CHANGE_SIZE)
     public abstract static class PopNode extends ArrayCoreMethodNode {
 
         @Child private ToIntNode toIntNode;
@@ -1312,7 +1313,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "<<", raiseIfFrozenSelf = true, required = 1)
+    @CoreMethod(names = "<<", raiseIfFrozenSelf = true, required = 1, sync = SyncMode.ARRAY_CHANGE_STORE)
     public abstract static class AppendNode extends ArrayCoreMethodNode {
 
         @Child private ArrayAppendOneNode appendOneNode = ArrayAppendOneNode.create();
@@ -1324,7 +1325,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = { "push", "__append__" }, rest = true, optional = 1, raiseIfFrozenSelf = true)
+    @CoreMethod(names = {"push", "__append__"}, rest = true, optional = 1, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     public abstract static class PushNode extends ArrayCoreMethodNode {
 
         @Child private ArrayAppendOneNode appendOneNode = ArrayAppendOneNode.create();
@@ -1430,7 +1431,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "replace", required = 1, raiseIfFrozenSelf = true)
+    @CoreMethod(names = "replace", required = 1, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     @NodeChildren({
             @NodeChild(type = RubyNode.class, value = "array"),
             @NodeChild(type = RubyNode.class, value = "other")
@@ -1491,7 +1492,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "shift", raiseIfFrozenSelf = true, optional = 1, lowerFixnum = 1)
+    @CoreMethod(names = "shift", raiseIfFrozenSelf = true, optional = 1, lowerFixnum = 1, sync = SyncMode.ARRAY_CHANGE_SIZE)
     @NodeChildren({
             @NodeChild(type = RubyNode.class, value = "array"),
             @NodeChild(type = RubyNode.class, value = "n")
@@ -1580,7 +1581,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = { "size", "length" })
+    @CoreMethod(names = {"size", "length"}, sync = SyncMode.ARRAY_READ)
     public abstract static class SizeNode extends ArrayCoreMethodNode {
 
         @Specialization(guards = "strategy.matches(array)", limit = "ARRAY_STRATEGIES")
