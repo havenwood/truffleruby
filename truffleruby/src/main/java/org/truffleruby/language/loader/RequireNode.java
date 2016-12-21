@@ -221,16 +221,12 @@ public abstract class RequireNode extends RubyNode {
 
     public boolean isFeatureLoaded(VirtualFrame frame, DynamicObject feature) {
         final DynamicObject loadedFeatures = getContext().getCoreLibrary().getLoadedFeatures();
-        synchronized (getContext().getFeatureLoader().getLoadedFeaturesLock()) {
-            return isInLoadedFeatures.callBoolean(frame, loadedFeatures, "include?", null, feature);
-        }
+        return isInLoadedFeatures.callBoolean(frame, loadedFeatures, "include?", null, feature);
     }
 
     private void addToLoadedFeatures(VirtualFrame frame, DynamicObject feature) {
         final DynamicObject loadedFeatures = coreLibrary().getLoadedFeatures();
-        synchronized (getContext().getFeatureLoader().getLoadedFeaturesLock()) {
-            addToLoadedFeatures.call(frame, loadedFeatures, "<<", feature);
-        }
+        addToLoadedFeatures.call(frame, loadedFeatures, "<<", feature);
     }
 
 }
