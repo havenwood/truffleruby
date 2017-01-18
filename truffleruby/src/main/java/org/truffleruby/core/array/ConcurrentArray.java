@@ -46,4 +46,12 @@ public abstract class ConcurrentArray {
 
     }
 
+    public static final class LayoutLockArray extends ConcurrentArray {
+
+        public LayoutLockArray(Object store) {
+            super(store);
+        }
+
+    }
+
 }

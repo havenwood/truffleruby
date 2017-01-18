@@ -17,6 +17,7 @@ import java.util.concurrent.locks.StampedLock;
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
+import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.language.objects.shared.SharedObjects;
@@ -165,6 +166,8 @@ public abstract class ArrayStrategy {
                 return new SynchronizedArrayStrategy(ofStore(concurrentArray.getStore()));
             } else if (concurrentArray instanceof StampedLockArray) {
                 return new StampedLockArrayStrategy(ofStore(concurrentArray.getStore()));
+            } else if (concurrentArray instanceof LayoutLockArray) {
+                return new LayoutLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else {
                 throw new UnsupportedOperationException(concurrentArray.getStore().getClass().getName());
             }
@@ -674,6 +677,42 @@ public abstract class ArrayStrategy {
         @Override
         public String toString() {
             return "StampedLock(" + typeStrategy + ")";
+        }
+
+    }
+
+    private static class LayoutLockArrayStrategy extends ConcurrentArrayStrategy {
+
+        public LayoutLockArrayStrategy(ArrayStrategy typeStrategy) {
+            super(typeStrategy);
+        }
+
+        @Override
+        protected Object wrap(DynamicObject array, Object store) {
+            return new LayoutLockArray(store);
+        }
+
+        @Override
+        protected Object unwrap(Object store) {
+            final LayoutLockArray layoutLockArray = (LayoutLockArray) store;
+            return layoutLockArray.getStore();
+        }
+
+        @Override
+        public boolean matchesStore(Object store) {
+            return store instanceof LayoutLockArray && typeStrategy.matchesStore(((LayoutLockArray) store).getStore());
+        }
+
+        @Override
+        public ArrayStrategy generalize(ArrayStrategy other) {
+            ArrayStrategy generalizedTypeStrategy = generalizeTypeStrategy(other);
+
+            return new LayoutLockArrayStrategy(generalizedTypeStrategy);
+        }
+
+        @Override
+        public String toString() {
+            return "LayoutLock(" + typeStrategy + ")";
         }
 
     }

@@ -4,6 +4,7 @@ import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
@@ -50,6 +51,16 @@ public abstract class ArraySyncReadNode extends RubyNode {
         final long stamp = lock.tryOptimisticRead();
         Object result = builtinNode.execute(frame);
         if (!lock.validate(stamp)) {
+            CompilerDirectives.transferToInterpreter();
+            throw new AssertionError();
+        }
+        return result;
+    }
+
+    @Specialization(guards = "isLayoutLockArray(array)")
+    public Object layoutLockRead(VirtualFrame frame, DynamicObject array) {
+        Object result = builtinNode.execute(frame);
+        if (((ThreadWithDirtyFlag) Thread.currentThread()).dirty) {
             CompilerDirectives.transferToInterpreter();
             throw new AssertionError();
         }

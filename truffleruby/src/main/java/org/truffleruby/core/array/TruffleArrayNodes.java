@@ -18,6 +18,7 @@ import org.truffleruby.builtins.CoreClass;
 import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.language.objects.shared.SharedObjects;
+import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.Layouts;
 import java.util.concurrent.locks.StampedLock;
@@ -69,6 +70,9 @@ public class TruffleArrayNodes {
                     switch (name) {
                         case "StampedLock":
                             Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));
+                            break;
+                        case "LayoutLock":
+                            Layouts.ARRAY.setStore(array, new LayoutLockArray(concurrentArray.getStore()));
                             break;
                         default:
                             throw new UnsupportedOperationException();
