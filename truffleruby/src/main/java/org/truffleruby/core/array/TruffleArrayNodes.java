@@ -9,6 +9,7 @@
  */
 package org.truffleruby.core.array;
 
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -16,6 +17,10 @@ import com.oracle.truffle.api.object.DynamicObject;
 import org.truffleruby.builtins.CoreClass;
 import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
+import org.truffleruby.language.objects.shared.SharedObjects;
+import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.Layouts;
+import java.util.concurrent.locks.StampedLock;
 
 import static org.truffleruby.core.array.ArrayHelpers.getSize;
 import static org.truffleruby.core.array.ArrayHelpers.getStore;
@@ -41,6 +46,35 @@ public class TruffleArrayNodes {
             strategy.setStoreAndSize(array, store, size);
             otherStrategy.setStoreAndSize(other, null, 0);
 
+            return array;
+        }
+
+    }
+
+    @CoreMethod(names = "set_strategy", onSingleton = true, required = 2)
+    @ImportStatic(ArrayGuards.class)
+    public abstract static class SetStrategyNode extends CoreMethodArrayArgumentsNode {
+
+        @TruffleBoundary
+        @Specialization(guards = "isRubySymbol(strategy)")
+        public DynamicObject setStrategy(DynamicObject array, DynamicObject strategy) {
+            if (!(SharedObjects.isShared(array))) {
+                throw new UnsupportedOperationException();
+            }
+            final Thread thread = Thread.currentThread();
+            getContext().getSafepointManager().pauseAllThreadsAndExecute(this, false, (rubyThread, currentNode) -> {
+                if (Thread.currentThread() == thread) {
+                    final ConcurrentArray concurrentArray = (ConcurrentArray) Layouts.ARRAY.getStore(array);
+                    final String name = Layouts.SYMBOL.getString(strategy);
+                    switch (name) {
+                        case "StampedLock":
+                            Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));
+                            break;
+                        default:
+                            throw new UnsupportedOperationException();
+                    }
+                }
+            });
             return array;
         }
 

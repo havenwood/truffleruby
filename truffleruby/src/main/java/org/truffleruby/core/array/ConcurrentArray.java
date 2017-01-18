@@ -1,5 +1,7 @@
 package org.truffleruby.core.array;
 
+import java.util.concurrent.locks.StampedLock;
+
 public abstract class ConcurrentArray {
 
     private final Object store;
@@ -25,6 +27,21 @@ public abstract class ConcurrentArray {
 
         public SynchronizedArray(Object store) {
             super(store);
+        }
+
+    }
+
+    public static final class StampedLockArray extends ConcurrentArray {
+
+        private final StampedLock lock;
+
+        public StampedLockArray(Object store, StampedLock lock) {
+            super(store);
+            this.lock = lock;
+        }
+
+        public StampedLock getLock() {
+            return lock;
         }
 
     }

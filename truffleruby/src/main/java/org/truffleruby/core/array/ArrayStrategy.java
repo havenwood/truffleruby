@@ -11,10 +11,14 @@ package org.truffleruby.core.array;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.object.DynamicObject;
+
+import java.util.concurrent.locks.StampedLock;
+
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
+import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.language.objects.shared.SharedObjects;
 
 public abstract class ArrayStrategy {
@@ -159,6 +163,8 @@ public abstract class ArrayStrategy {
                 return new FixedSizeSafepointArrayStrategy(ofStore(concurrentArray.getStore()));
             } else if (concurrentArray instanceof SynchronizedArray) {
                 return new SynchronizedArrayStrategy(ofStore(concurrentArray.getStore()));
+            } else if (concurrentArray instanceof StampedLockArray) {
+                return new StampedLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else {
                 throw new UnsupportedOperationException(concurrentArray.getStore().getClass().getName());
             }
@@ -518,7 +524,7 @@ public abstract class ArrayStrategy {
         public void setStore(DynamicObject array, Object store) {
             assert !(store instanceof ArrayMirror);
             assert SharedObjects.isShared(array);
-            Layouts.ARRAY.setStore(array, wrap(store));
+            Layouts.ARRAY.setStore(array, wrap(array, store));
         }
 
         protected ArrayStrategy generalizeTypeStrategy(ArrayStrategy other) {
@@ -553,7 +559,7 @@ public abstract class ArrayStrategy {
             return typeStrategy.newMirrorFromStore(unwrap(store));
         }
 
-        protected abstract Object wrap(Object store);
+        protected abstract Object wrap(DynamicObject array, Object store);
 
         protected abstract Object unwrap(Object store);
 
@@ -566,7 +572,7 @@ public abstract class ArrayStrategy {
         }
 
         @Override
-        protected Object wrap(Object store) {
+        protected Object wrap(DynamicObject array, Object store) {
             return new FixedSizeArray(store);
         }
 
@@ -606,7 +612,7 @@ public abstract class ArrayStrategy {
         }
 
         @Override
-        protected Object wrap(Object store) {
+        protected Object wrap(DynamicObject array, Object store) {
             return new SynchronizedArray(store);
         }
 
@@ -631,6 +637,43 @@ public abstract class ArrayStrategy {
         @Override
         public String toString() {
             return "Synchronized(" + typeStrategy + ")";
+        }
+
+    }
+
+    private static class StampedLockArrayStrategy extends ConcurrentArrayStrategy {
+
+        public StampedLockArrayStrategy(ArrayStrategy typeStrategy) {
+            super(typeStrategy);
+        }
+
+        @Override
+        protected Object wrap(DynamicObject array, Object store) {
+            final StampedLock lock = ((StampedLockArray) Layouts.ARRAY.getStore(array)).getLock();
+            return new StampedLockArray(store, lock);
+        }
+
+        @Override
+        protected Object unwrap(Object store) {
+            final StampedLockArray stampedLockArray = (StampedLockArray) store;
+            return stampedLockArray.getStore();
+        }
+
+        @Override
+        public boolean matchesStore(Object store) {
+            return store instanceof StampedLockArray && typeStrategy.matchesStore(((StampedLockArray) store).getStore());
+        }
+
+        @Override
+        public ArrayStrategy generalize(ArrayStrategy other) {
+            ArrayStrategy generalizedTypeStrategy = generalizeTypeStrategy(other);
+
+            return new StampedLockArrayStrategy(generalizedTypeStrategy);
+        }
+
+        @Override
+        public String toString() {
+            return "StampedLock(" + typeStrategy + ")";
         }
 
     }

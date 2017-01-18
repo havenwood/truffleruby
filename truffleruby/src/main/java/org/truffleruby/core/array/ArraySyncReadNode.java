@@ -1,6 +1,12 @@
 package org.truffleruby.core.array;
 
+import java.util.concurrent.locks.StampedLock;
+
+import org.truffleruby.Layouts;
+import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.language.RubyNode;
+
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -35,6 +41,19 @@ public abstract class ArraySyncReadNode extends RubyNode {
         synchronized (array) {
             return builtinNode.execute(frame);
         }
+    }
+
+    @Specialization(guards = "isStampedLockArray(array)")
+    public Object stampedLockRead(VirtualFrame frame, DynamicObject array) {
+        final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
+        final StampedLock lock = stampedLockArray.getLock();
+        final long stamp = lock.tryOptimisticRead();
+        Object result = builtinNode.execute(frame);
+        if (!lock.validate(stamp)) {
+            CompilerDirectives.transferToInterpreter();
+            throw new AssertionError();
+        }
+        return result;
     }
 
 }
