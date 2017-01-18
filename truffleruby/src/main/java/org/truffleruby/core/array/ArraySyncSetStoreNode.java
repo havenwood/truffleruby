@@ -23,6 +23,8 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
         this.builtinNode = builtinNode;
     }
 
+    public abstract Object executeWithSync(VirtualFrame frame, DynamicObject array);
+
     @Specialization(guards = "!isConcurrentArray(array)")
     public Object localArray(VirtualFrame frame, DynamicObject array) {
         return builtinNode.execute(frame);
@@ -34,7 +36,7 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
         getContext().getSafepointManager().pauseAllThreadsAndExecute(this, false, (rubyThread, currentNode) -> {
             if (Thread.currentThread() == thread) {
                 final Object store = Layouts.ARRAY.getStore(array);
-                if (!(store instanceof SynchronizedArray)) { // Was just migrated by another thread
+                if (store instanceof FixedSizeArray) { // Was not already migrated by another thread
                     FixedSizeArray fixedSizeArray = (FixedSizeArray) store;
                     SynchronizedArray synchronizedArray = new SynchronizedArray(fixedSizeArray.getStore());
                     Layouts.ARRAY.setStore(array, synchronizedArray);
@@ -42,7 +44,7 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             }
         });
 
-        return synchronizedArray(frame, array);
+        return executeWithSync(frame, array);
     }
 
     @Specialization(guards = "isSynchronizedArray(array)")
