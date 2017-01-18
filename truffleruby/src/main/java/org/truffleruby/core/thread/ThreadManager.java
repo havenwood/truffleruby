@@ -19,6 +19,7 @@ import org.truffleruby.Layouts;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.InterruptMode;
+import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.core.fiber.FiberManager;
 import org.truffleruby.core.fiber.FiberNodes;
 import org.truffleruby.core.proc.ProcOperations;
@@ -109,7 +110,7 @@ public class ThreadManager {
 
     public static void initialize(final DynamicObject thread, final RubyContext context, final Node currentNode, final String info, final Runnable task) {
         assert RubyGuards.isRubyThread(thread);
-        new Thread(() -> run(thread, context, currentNode, info, task)).start();
+        new ThreadWithDirtyFlag(() -> run(thread, context, currentNode, info, task)).start();
 
         FiberNodes.waitForInitialization(context, Layouts.THREAD.getFiberManager(thread).getRootFiber(), currentNode);
     }

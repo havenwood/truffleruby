@@ -47,6 +47,8 @@ package org.truffleruby;
 import com.oracle.truffle.api.TruffleOptions;
 import com.oracle.truffle.api.source.Source;
 import com.oracle.truffle.api.vm.PolyglotEngine;
+
+import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.control.JavaException;
 import org.truffleruby.options.CommandLineOptions;
 import org.truffleruby.options.CommandLineParser;
@@ -69,7 +71,13 @@ public class Main {
     private static final boolean METRICS_TIME = Boolean.getBoolean(OptionsBuilder.PREFIX + "metrics.time");
     private static final boolean METRICS_MEMORY_USED_ON_EXIT = Boolean.getBoolean(OptionsBuilder.PREFIX + "metrics.memory_used_on_exit");
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
+        Thread mainRubyThread = new ThreadWithDirtyFlag(() -> originalMain(args));
+        mainRubyThread.start();
+        mainRubyThread.join();
+    }
+
+    public static void originalMain(String[] args) {
         printTruffleTimeMetric("before-main");
 
         final CommandLineOptions config = new CommandLineOptions();

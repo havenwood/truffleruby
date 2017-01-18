@@ -28,6 +28,7 @@ import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.builtins.CoreMethodNode;
 import org.truffleruby.builtins.UnaryCoreMethodNode;
+import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.core.cast.SingleValueCastNode;
 import org.truffleruby.core.cast.SingleValueCastNodeGen;
 import org.truffleruby.core.proc.ProcOperations;
@@ -70,7 +71,7 @@ public abstract class FiberNodes {
     public static void initialize(final RubyContext context, final DynamicObject fiber, final DynamicObject block, final Node currentNode) {
         final SourceSection sourceSection = Layouts.PROC.getSharedMethodInfo(block).getSourceSection();
         final String name = "Ruby Fiber@" + RubyLanguage.fileLine(sourceSection);
-        final Thread thread = new Thread(() -> handleFiberExceptions(context, fiber, block, currentNode));
+        final Thread thread = new ThreadWithDirtyFlag(() -> handleFiberExceptions(context, fiber, block, currentNode));
         thread.setName(name);
         thread.start();
 
