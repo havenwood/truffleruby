@@ -1,13 +1,16 @@
 package org.truffleruby.core.array;
 
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
+import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -42,6 +45,28 @@ public abstract class ArraySyncReadNode extends RubyNode {
         synchronized (array) {
             return builtinNode.execute(frame);
         }
+    }
+
+    @Specialization(guards = "isReentrantLockArray(array)")
+    public Object reentrantLockRead(VirtualFrame frame, DynamicObject array) {
+        final ReentrantLockArray stampedLockArray = (ReentrantLockArray) Layouts.ARRAY.getStore(array);
+        final ReentrantLock lock = stampedLockArray.getLock();
+        try {
+            lock(lock);
+            return builtinNode.execute(frame);
+        } finally {
+            unlock(lock);
+        }
+    }
+
+    @TruffleBoundary
+    private void lock(ReentrantLock lock) {
+        lock.lock();
+    }
+
+    @TruffleBoundary
+    private void unlock(ReentrantLock lock) {
+        lock.unlock();
     }
 
     @Specialization(guards = "isStampedLockArray(array)")

@@ -14,6 +14,7 @@ import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
+import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 
@@ -58,6 +59,11 @@ public class ArrayGuards {
     public static boolean isSynchronizedArray(DynamicObject array) {
         assert RubyGuards.isRubyArray(array);
         return Layouts.ARRAY.getStore(array) instanceof SynchronizedArray;
+    }
+
+    public static boolean isReentrantLockArray(DynamicObject array) {
+        assert RubyGuards.isRubyArray(array);
+        return Layouts.ARRAY.getStore(array) instanceof ReentrantLockArray;
     }
 
     public static boolean isStampedLockArray(DynamicObject array) {

@@ -21,8 +21,11 @@ import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.language.objects.shared.SharedObjects;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
+import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.Layouts;
+
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
 import static org.truffleruby.core.array.ArrayHelpers.getSize;
@@ -72,6 +75,9 @@ public class TruffleArrayNodes {
                     switch (name) {
                         case "FixedSize":
                             Layouts.ARRAY.setStore(array, new FixedSizeArray(concurrentArray.getStore()));
+                            break;
+                        case "ReentrantLock":
+                            Layouts.ARRAY.setStore(array, new ReentrantLockArray(concurrentArray.getStore(), new ReentrantLock()));
                             break;
                         case "StampedLock":
                             Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));

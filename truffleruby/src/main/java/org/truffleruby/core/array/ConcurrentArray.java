@@ -1,5 +1,6 @@
 package org.truffleruby.core.array;
 
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
 public abstract class ConcurrentArray {
@@ -27,6 +28,21 @@ public abstract class ConcurrentArray {
 
         public SynchronizedArray(Object store) {
             super(store);
+        }
+
+    }
+
+    public static final class ReentrantLockArray extends ConcurrentArray {
+
+        private final ReentrantLock lock;
+
+        public ReentrantLockArray(Object store, ReentrantLock lock) {
+            super(store);
+            this.lock = lock;
+        }
+
+        public ReentrantLock getLock() {
+            return lock;
         }
 
     }
