@@ -9,6 +9,7 @@
  */
 package org.truffleruby.core.array;
 
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
@@ -83,6 +84,34 @@ public class TruffleArrayNodes {
                     }
                 }
             });
+            return array;
+        }
+
+    }
+
+    @CoreMethod(names = "stamped_lock_optimistic_read", onSingleton = true, required = 1)
+    public abstract static class StampedLockOptimisticReadNode extends CoreMethodArrayArgumentsNode {
+
+        @Specialization
+        public long stampedLock(DynamicObject array) {
+            final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
+            final StampedLock lock = stampedLockArray.getLock();
+            return lock.tryOptimisticRead();
+        }
+
+    }
+
+    @CoreMethod(names = "stamped_lock_validate", onSingleton = true, required = 2)
+    public abstract static class StampedLockValidateNode extends CoreMethodArrayArgumentsNode {
+
+        @Specialization
+        public DynamicObject stampedLock(DynamicObject array, long stamp) {
+            final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
+            final StampedLock lock = stampedLockArray.getLock();
+            if (!lock.validate(stamp)) {
+                CompilerDirectives.transferToInterpreter();
+                throw new AssertionError();
+            }
             return array;
         }
 
