@@ -237,4 +237,16 @@ public abstract class TruffleDebugNodes {
 
     }
 
+    @CoreMethod(names = "volatile_read", onSingleton = true)
+    public abstract static class VolatileReadNode extends CoreMethodArrayArgumentsNode {
+
+        volatile boolean dirty = false;
+
+        @Specialization
+        public boolean volatileRead() {
+            return dirty;
+        }
+
+    }
+
 }
