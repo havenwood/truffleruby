@@ -18,6 +18,7 @@ import org.truffleruby.builtins.CoreClass;
 import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.language.objects.shared.SharedObjects;
+import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.Layouts;
@@ -68,6 +69,9 @@ public class TruffleArrayNodes {
                     final ConcurrentArray concurrentArray = (ConcurrentArray) Layouts.ARRAY.getStore(array);
                     final String name = Layouts.SYMBOL.getString(strategy);
                     switch (name) {
+                        case "FixedSize":
+                            Layouts.ARRAY.setStore(array, new FixedSizeArray(concurrentArray.getStore()));
+                            break;
                         case "StampedLock":
                             Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));
                             break;
