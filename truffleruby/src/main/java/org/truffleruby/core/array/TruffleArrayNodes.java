@@ -19,10 +19,12 @@ import org.truffleruby.builtins.CoreClass;
 import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.language.objects.shared.SharedObjects;
+import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.Layouts;
 
 import java.util.concurrent.locks.ReentrantLock;
@@ -78,6 +80,9 @@ public class TruffleArrayNodes {
                             break;
                         case "ReentrantLock":
                             Layouts.ARRAY.setStore(array, new ReentrantLockArray(concurrentArray.getStore(), new ReentrantLock()));
+                            break;
+                        case "CustomLock":
+                            Layouts.ARRAY.setStore(array, new CustomLockArray(concurrentArray.getStore(), new MyBiasedLock()));
                             break;
                         case "StampedLock":
                             Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));

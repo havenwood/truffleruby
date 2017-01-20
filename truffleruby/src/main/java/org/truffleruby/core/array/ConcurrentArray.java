@@ -3,6 +3,8 @@ package org.truffleruby.core.array;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
+import org.truffleruby.core.array.layout.MyBiasedLock;
+
 public abstract class ConcurrentArray {
 
     private final Object store;
@@ -42,6 +44,21 @@ public abstract class ConcurrentArray {
         }
 
         public ReentrantLock getLock() {
+            return lock;
+        }
+
+    }
+
+    public static final class CustomLockArray extends ConcurrentArray {
+
+        private final MyBiasedLock lock;
+
+        public CustomLockArray(Object store, MyBiasedLock lock) {
+            super(store);
+            this.lock = lock;
+        }
+
+        public MyBiasedLock getLock() {
             return lock;
         }
 

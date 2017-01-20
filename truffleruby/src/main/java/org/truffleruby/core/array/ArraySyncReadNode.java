@@ -4,13 +4,16 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
+import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
+import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -69,7 +72,34 @@ public abstract class ArraySyncReadNode extends RubyNode {
         lock.unlock();
     }
 
-    @Specialization(guards = "isStampedLockArray(array)")
+    @Specialization(guards = { "array == cachedArray", "isCustomLockArray(cachedArray)" })
+    public Object customLockReadCached(VirtualFrame frame, DynamicObject array,
+            @Cached("array") DynamicObject cachedArray,
+            @Cached("getCustomLock(cachedArray)") MyBiasedLock lock) {
+        try {
+            lock.lock(getContext());
+            return builtinNode.execute(frame);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Specialization(guards = "isCustomLockArray(array)")
+    public Object customLockRead(VirtualFrame frame, DynamicObject array) {
+        final MyBiasedLock lock = getCustomLock(array);
+        try {
+            lock.lock(getContext());
+            return builtinNode.execute(frame);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    protected MyBiasedLock getCustomLock(DynamicObject array) {
+        return ((CustomLockArray) Layouts.ARRAY.getStore(array)).getLock();
+    }
+
+    @Specialization(guards = "isStampedLockArray(array)", replaces = "customLockRead")
     public Object stampedLockRead(VirtualFrame frame, DynamicObject array) {
         final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
         final StampedLock lock = stampedLockArray.getLock();

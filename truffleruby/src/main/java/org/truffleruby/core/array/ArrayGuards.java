@@ -12,6 +12,7 @@ package org.truffleruby.core.array;
 import com.oracle.truffle.api.object.DynamicObject;
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
+import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
@@ -64,6 +65,11 @@ public class ArrayGuards {
     public static boolean isReentrantLockArray(DynamicObject array) {
         assert RubyGuards.isRubyArray(array);
         return Layouts.ARRAY.getStore(array) instanceof ReentrantLockArray;
+    }
+
+    public static boolean isCustomLockArray(DynamicObject array) {
+        assert RubyGuards.isRubyArray(array);
+        return Layouts.ARRAY.getStore(array) instanceof CustomLockArray;
     }
 
     public static boolean isStampedLockArray(DynamicObject array) {

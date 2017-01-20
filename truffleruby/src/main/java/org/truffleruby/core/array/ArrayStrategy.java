@@ -17,10 +17,12 @@ import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
+import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
+import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.language.objects.shared.SharedObjects;
 
@@ -168,6 +170,8 @@ public abstract class ArrayStrategy {
                 return new SynchronizedArrayStrategy(ofStore(concurrentArray.getStore()));
             } else if (concurrentArray instanceof ReentrantLockArray) {
                 return new ReentrantLockArrayStrategy(ofStore(concurrentArray.getStore()));
+            } else if (concurrentArray instanceof CustomLockArray) {
+                return new CustomLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else if (concurrentArray instanceof StampedLockArray) {
                 return new StampedLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else if (concurrentArray instanceof LayoutLockArray) {
@@ -681,6 +685,43 @@ public abstract class ArrayStrategy {
         @Override
         public String toString() {
             return "ReentrantLock(" + typeStrategy + ")";
+        }
+
+    }
+
+    private static class CustomLockArrayStrategy extends ConcurrentArrayStrategy {
+
+        public CustomLockArrayStrategy(ArrayStrategy typeStrategy) {
+            super(typeStrategy);
+        }
+
+        @Override
+        protected Object wrap(DynamicObject array, Object store) {
+            final MyBiasedLock lock = ((CustomLockArray) Layouts.ARRAY.getStore(array)).getLock();
+            return new CustomLockArray(store, lock);
+        }
+
+        @Override
+        protected Object unwrap(Object store) {
+            final CustomLockArray customLockArray = (CustomLockArray) store;
+            return customLockArray.getStore();
+        }
+
+        @Override
+        public boolean matchesStore(Object store) {
+            return store instanceof CustomLockArray && typeStrategy.matchesStore(((CustomLockArray) store).getStore());
+        }
+
+        @Override
+        public ArrayStrategy generalize(ArrayStrategy other) {
+            ArrayStrategy generalizedTypeStrategy = generalizeTypeStrategy(other);
+
+            return new CustomLockArrayStrategy(generalizedTypeStrategy);
+        }
+
+        @Override
+        public String toString() {
+            return "CustomLock(" + typeStrategy + ")";
         }
 
     }
