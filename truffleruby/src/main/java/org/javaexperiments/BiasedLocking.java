@@ -5,7 +5,10 @@ import java.util.concurrent.locks.StampedLock;
 
 public class BiasedLocking {
 
-    final int[] array = new int[2000000 / 200];
+    static final int ITERS = 100000;
+
+    final int[] array = new int[1000];
+    final Object MONITOR = new Object();
     final ReentrantLock reentrantLock = new ReentrantLock();
     final StampedLock stampedLock = new StampedLock();
 
@@ -17,38 +20,35 @@ public class BiasedLocking {
 
     public int bench() {
         int sum = 0;
-        for (int i = 0; i < 100; i++) {
-            System.out.println();
-            long t0, t1;
+        long t0, t1;
 
-            t0 = System.nanoTime();
-            for (int j = 0; j < 10000; j++) {
-                sum = unsyncSum();
-            }
-            t1 = System.nanoTime();
-            System.out.println("unsync " + (t1 - t0));
-
-            t0 = System.nanoTime();
-            for (int j = 0; j < 10000; j++) {
-                sum = syncSum();
-            }
-            t1 = System.nanoTime();
-            System.out.println("sync   " + (t1 - t0));
-
-            t0 = System.nanoTime();
-            for (int j = 0; j < 10000; j++) {
-                sum = reentrantSum();
-            }
-            t1 = System.nanoTime();
-            System.out.println("reent  " + (t1 - t0));
-
-            t0 = System.nanoTime();
-            for (int j = 0; j < 10000; j++) {
-                sum = stampedSum();
-            }
-            t1 = System.nanoTime();
-            System.out.println("stamp  " + (t1 - t0));
+        t0 = System.nanoTime();
+        for (int j = 0; j < ITERS; j++) {
+            sum = unsyncSum();
         }
+        t1 = System.nanoTime();
+        System.out.println("unsync " + (t1 - t0) / 1000);
+
+        t0 = System.nanoTime();
+        for (int j = 0; j < ITERS; j++) {
+            sum = syncSum();
+        }
+        t1 = System.nanoTime();
+        System.out.println("sync   " + (t1 - t0) / 1000);
+
+        t0 = System.nanoTime();
+        for (int j = 0; j < ITERS; j++) {
+            sum = reentrantSum();
+        }
+        t1 = System.nanoTime();
+        System.out.println("reent  " + (t1 - t0) / 1000);
+
+        t0 = System.nanoTime();
+        for (int j = 0; j < ITERS; j++) {
+            sum = stampedSum();
+        }
+        t1 = System.nanoTime();
+        System.out.println("stamp  " + (t1 - t0) / 1000);
         return sum;
     }
 
@@ -64,7 +64,7 @@ public class BiasedLocking {
         int sum = 0;
         for (int i = 0; i < array.length; i++) {
             int e;
-            synchronized (array) {
+            synchronized (MONITOR) {
                 e = array[i];
             }
             sum += e;
