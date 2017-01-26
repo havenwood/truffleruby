@@ -7,8 +7,10 @@ public class BiasedLocking {
 
     static final int ITERS = 100000;
 
+    static class Monitor {}
+
     final int[] array = new int[1000];
-    final Object MONITOR = new Object();
+    final Monitor MONITOR = new Monitor();
     final ReentrantLock reentrantLock = new ReentrantLock();
     final StampedLock stampedLock = new StampedLock();
 
