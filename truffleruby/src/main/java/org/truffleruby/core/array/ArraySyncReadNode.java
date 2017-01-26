@@ -84,7 +84,7 @@ public abstract class ArraySyncReadNode extends RubyNode {
         }
     }
 
-    @Specialization(guards = "isCustomLockArray(array)")
+    @Specialization(guards = "isCustomLockArray(array)", replaces = "customLockReadCached")
     public Object customLockRead(VirtualFrame frame, DynamicObject array) {
         final MyBiasedLock lock = getCustomLock(array);
         try {
@@ -99,7 +99,7 @@ public abstract class ArraySyncReadNode extends RubyNode {
         return ((CustomLockArray) Layouts.ARRAY.getStore(array)).getLock();
     }
 
-    @Specialization(guards = "isStampedLockArray(array)", replaces = "customLockRead")
+    @Specialization(guards = "isStampedLockArray(array)")
     public Object stampedLockRead(VirtualFrame frame, DynamicObject array) {
         final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
         final StampedLock lock = stampedLockArray.getLock();
