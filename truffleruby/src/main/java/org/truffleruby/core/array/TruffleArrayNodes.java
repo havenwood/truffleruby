@@ -66,7 +66,7 @@ public class TruffleArrayNodes {
         @TruffleBoundary
         @Specialization(guards = "isRubySymbol(strategy)")
         public DynamicObject setStrategy(DynamicObject array, DynamicObject strategy) {
-            if (!(SharedObjects.isShared(array))) {
+            if (!(SharedObjects.isShared(getContext(), array))) {
                 throw new UnsupportedOperationException();
             }
             final Thread thread = Thread.currentThread();
