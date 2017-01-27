@@ -24,6 +24,7 @@ import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.Layouts;
 
@@ -77,6 +78,9 @@ public class TruffleArrayNodes {
                     switch (name) {
                         case "FixedSize":
                             Layouts.ARRAY.setStore(array, new FixedSizeArray(concurrentArray.getStore()));
+                            break;
+                        case "Synchronized":
+                            Layouts.ARRAY.setStore(array, new SynchronizedArray(concurrentArray.getStore()));
                             break;
                         case "ReentrantLock":
                             Layouts.ARRAY.setStore(array, new ReentrantLockArray(concurrentArray.getStore(), new ReentrantLock()));

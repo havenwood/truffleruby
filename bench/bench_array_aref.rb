@@ -50,7 +50,7 @@ Thread.new {}
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :fixed)
 
-ary << ary.pop
+Truffle::Array.set_strategy(ary, :Synchronized)
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :synchd)
 # p measure(ary, :synchd)
