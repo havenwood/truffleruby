@@ -91,7 +91,7 @@ public class LayoutLock {
             return dirty.get();
         }
 
-        void resetDirty() {
+        public void resetDirty() {
             while (state.get() == LAYOUT_CHANGE) {
             }
             dirty.set(false);

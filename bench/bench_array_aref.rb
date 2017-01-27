@@ -42,9 +42,11 @@ EOR
 	results.min
 end
 
+setup(:first)
+p bench_first(ary)
+
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :local)
-p bench_local(ary)
 
 Thread.new {}
 puts Truffle::Debug.array_storage(ary)
@@ -69,6 +71,7 @@ puts Truffle::Debug.array_storage(ary)
 p measure(ary, :stamped)
 
 Truffle::Array.set_strategy(ary, :LayoutLock)
+# ary << ary.pop
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :layout)
 p measure(ary, :layout)

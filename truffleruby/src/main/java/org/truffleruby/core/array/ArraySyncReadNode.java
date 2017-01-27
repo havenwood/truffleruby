@@ -7,6 +7,7 @@ import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
@@ -21,6 +22,8 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.NodeCost;
 import com.oracle.truffle.api.nodes.NodeInfo;
 import com.oracle.truffle.api.object.DynamicObject;
+import com.oracle.truffle.api.profiles.BranchProfile;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @NodeInfo(cost = NodeCost.NONE)
 @NodeChild("self")
@@ -113,11 +116,17 @@ public abstract class ArraySyncReadNode extends RubyNode {
     }
 
     @Specialization(guards = "isLayoutLockArray(array)")
-    public Object layoutLockRead(VirtualFrame frame, DynamicObject array) {
-        Object result = builtinNode.execute(frame);
-        if (((ThreadWithDirtyFlag) Thread.currentThread()).dirty) {
-            CompilerDirectives.transferToInterpreter();
-            throw new AssertionError();
+    public Object layoutLockRead(VirtualFrame frame, DynamicObject array,
+            @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
+        Object result;
+        final LayoutLock.Accessor accessor = ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
+        while (true) {
+            result = builtinNode.execute(frame);
+            if (dirtyProfile.profile(accessor.isDirty())) {
+                accessor.resetDirty();
+            } else {
+                break;
+            }
         }
         return result;
     }
