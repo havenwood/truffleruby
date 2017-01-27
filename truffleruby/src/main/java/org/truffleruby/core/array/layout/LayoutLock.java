@@ -62,7 +62,7 @@ public class LayoutLock {
                 accessors[i].layoutChangeIntended.getAndIncrement();
             }
             for (int i = 0; i < nextThread.get(); i++) {
-                while (!accessors[i].state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                while (accessors[i] == null || !accessors[i].state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                 }
             }
             for (int i = 0; i < n; i++) {
