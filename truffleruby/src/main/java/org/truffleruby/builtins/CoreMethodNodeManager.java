@@ -22,6 +22,7 @@ import org.truffleruby.RubyContext;
 import org.truffleruby.core.RaiseIfFrozenNode;
 import org.truffleruby.core.array.ArraySyncReadNodeGen;
 import org.truffleruby.core.array.ArraySyncSetStoreNodeGen;
+import org.truffleruby.core.array.ArraySyncWriteNodeGen;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.cast.TaintResultNode;
 import org.truffleruby.core.module.ConstantLookupResult;
@@ -217,8 +218,9 @@ public class CoreMethodNodeManager {
         final RubyNode readSelfNode = new ProfileArgumentNode(new ReadSelfNode());
         switch (sync) {
             case ARRAY_READ:
-            case ARRAY_WRITE:
                 return ArraySyncReadNodeGen.create(builtinNode, readSelfNode);
+            case ARRAY_WRITE:
+                return ArraySyncWriteNodeGen.create(builtinNode, readSelfNode);
             case ARRAY_CHANGE_STORE:
             case ARRAY_CHANGE_SIZE:
                 return ArraySyncSetStoreNodeGen.create(builtinNode, readSelfNode);

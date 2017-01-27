@@ -27,33 +27,33 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 @NodeInfo(cost = NodeCost.NONE)
 @NodeChild("self")
 @ImportStatic(ArrayGuards.class)
-public abstract class ArraySyncReadNode extends RubyNode {
+public abstract class ArraySyncWriteNode extends RubyNode {
 
     @Child RubyNode builtinNode;
 
-    public ArraySyncReadNode(RubyNode builtinNode) {
+    public ArraySyncWriteNode(RubyNode builtinNode) {
         this.builtinNode = builtinNode;
     }
 
     @Specialization(guards = "!isConcurrentArray(array)")
-    public Object localRead(VirtualFrame frame, DynamicObject array) {
+    public Object local(VirtualFrame frame, DynamicObject array) {
         return builtinNode.execute(frame);
     }
 
     @Specialization(guards = "isFixedSizeArray(array)")
-    public Object fixedSizeRead(VirtualFrame frame, DynamicObject array) {
+    public Object fixedSize(VirtualFrame frame, DynamicObject array) {
         return builtinNode.execute(frame);
     }
 
     @Specialization(guards = "isSynchronizedArray(array)")
-    public Object synchronizedRead(VirtualFrame frame, DynamicObject array) {
+    public Object synchronizedWrite(VirtualFrame frame, DynamicObject array) {
         synchronized (array) {
             return builtinNode.execute(frame);
         }
     }
 
     @Specialization(guards = "isReentrantLockArray(array)")
-    public Object reentrantLockRead(VirtualFrame frame, DynamicObject array) {
+    public Object reentrantLock(VirtualFrame frame, DynamicObject array) {
         final ReentrantLockArray stampedLockArray = (ReentrantLockArray) Layouts.ARRAY.getStore(array);
         final ReentrantLock lock = stampedLockArray.getLock();
         try {
@@ -75,7 +75,7 @@ public abstract class ArraySyncReadNode extends RubyNode {
     }
 
     @Specialization(guards = { "array == cachedArray", "isCustomLockArray(cachedArray)" })
-    public Object customLockReadCached(VirtualFrame frame, DynamicObject array,
+    public Object customLockCached(VirtualFrame frame, DynamicObject array,
             @Cached("array") DynamicObject cachedArray,
             @Cached("getCustomLock(cachedArray)") MyBiasedLock lock) {
         try {
@@ -86,8 +86,8 @@ public abstract class ArraySyncReadNode extends RubyNode {
         }
     }
 
-    @Specialization(guards = "isCustomLockArray(array)", replaces = "customLockReadCached")
-    public Object customLockRead(VirtualFrame frame, DynamicObject array) {
+    @Specialization(guards = "isCustomLockArray(array)", replaces = "customLockCached")
+    public Object customLock(VirtualFrame frame, DynamicObject array) {
         final MyBiasedLock lock = getCustomLock(array);
         try {
             lock.lock(getContext());
@@ -102,32 +102,37 @@ public abstract class ArraySyncReadNode extends RubyNode {
     }
 
     @Specialization(guards = "isStampedLockArray(array)")
-    public Object stampedLockRead(VirtualFrame frame, DynamicObject array) {
+    public Object stampedLock(VirtualFrame frame, DynamicObject array) {
         final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
         final StampedLock lock = stampedLockArray.getLock();
-        final long stamp = lock.tryOptimisticRead();
-        Object result = builtinNode.execute(frame);
-        if (!lock.validate(stamp)) {
-            CompilerDirectives.transferToInterpreter();
-            throw new AssertionError();
+        final long stamp = stampedLockRead(lock);
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            stampedLockUnlock(lock, stamp);
         }
-        return result;
+    }
+
+    @TruffleBoundary
+    private long stampedLockRead(StampedLock lock) {
+        return lock.readLock();
+    }
+
+    @TruffleBoundary
+    private void stampedLockUnlock(StampedLock lock, long stamp) {
+        lock.unlockRead(stamp);
     }
 
     @Specialization(guards = "isLayoutLockArray(array)")
-    public Object layoutLockRead(VirtualFrame frame, DynamicObject array,
+    public Object layoutLockWrite(VirtualFrame frame, DynamicObject array,
             @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
-        Object result;
         final LayoutLock.Accessor accessor = ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
-        while (true) {
-            result = builtinNode.execute(frame);
-            if (dirtyProfile.profile(accessor.isDirty())) {
-                accessor.resetDirty();
-            } else {
-                break;
-            }
+        accessor.startWrite();
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            accessor.finishWrite();
         }
-        return result;
     }
 
 }
