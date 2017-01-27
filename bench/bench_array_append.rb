@@ -19,7 +19,6 @@ end
 def setup(name)
   eval <<EOR
 def bench_#{name}(ary)
-  ary.clear
   i = 0
   while i < N
     ary << i
@@ -35,10 +34,13 @@ def measure(input, name)
   n = 100
   results = eval <<EOR
   n.times.map do
+    input.clear
+    input << 0
+
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
     #{meth}(input)
     t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
-    (t1-t0) / 1000.0
+    (t1-t0) / 1000
   end
 EOR
 
@@ -46,18 +48,19 @@ EOR
   results.min
 end
 
+setup(:first)
+p bench_first(ary).size
+
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :local)
-p bench_local(ary).size
 
 Thread.new {}
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :fixed)
 
-ary << ary.pop
+Truffle::Array.set_strategy(ary, :Synchronized)
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :synchd)
-# p measure(ary, :synchd)
 
 Truffle::Array.set_strategy(ary, :ReentrantLock)
 puts Truffle::Debug.array_storage(ary)
@@ -66,7 +69,6 @@ p measure(ary, :reentrant)
 Truffle::Array.set_strategy(ary, :CustomLock)
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :custom)
-p measure(ary, :custom)
 
 Truffle::Array.set_strategy(ary, :StampedLock)
 puts Truffle::Debug.array_storage(ary)
@@ -74,5 +76,4 @@ p measure(ary, :stamped)
 
 Truffle::Array.set_strategy(ary, :LayoutLock)
 puts Truffle::Debug.array_storage(ary)
-p measure(ary, :layout)
 p measure(ary, :layout)
