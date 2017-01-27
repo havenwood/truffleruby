@@ -132,9 +132,11 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             CompilerDirectives.transferToInterpreter();
             throw new AssertionError();
         }
-        Object result = builtinNode.execute(frame);
-        stampedUnlockWrite(lock, stamp);
-        return result;
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            stampedUnlockWrite(lock, stamp);
+        }
     }
 
     @TruffleBoundary
