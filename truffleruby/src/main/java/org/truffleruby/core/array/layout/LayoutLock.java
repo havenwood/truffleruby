@@ -61,19 +61,19 @@ public class LayoutLock {
                 }
                 accessors[i].layoutChangeIntended.getAndIncrement();
             }
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < nextThread.get(); i++) {
                 while (!accessors[i].state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                 }
+            }
             for (int i = 0; i < n; i++) {
                 accessors[i].layoutChangeIntended.getAndDecrement();
             }
 
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; i < nextThread.get(); i++) {
                 while (accessors[i] == null) {
                 }
                 accessors[i].dirty = true;
             }
-
         }
 
         @TruffleBoundary
@@ -103,7 +103,14 @@ public class LayoutLock {
 
     public Accessor access() {
         Accessor ac = new Accessor(this);
-        accessors[nextThread.getAndIncrement()] = ac;
+        final int n = nextThread.getAndIncrement();
+        accessors[n] = ac;
+        if (n > 0) {
+            // Wait for no Layout changes
+            while (accessors[0].state.get() == LAYOUT_CHANGE) {
+                Thread.yield();
+            }
+        }
         return ac;
     }
 
