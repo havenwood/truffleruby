@@ -1,6 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -25,12 +24,12 @@ public class LayoutLock {
     public class Accessor {
 
         private final AtomicInteger state = new AtomicInteger();
-        private final AtomicBoolean dirty = new AtomicBoolean();
+        private volatile boolean dirty;
         private final AtomicInteger layoutChangeIntended = new AtomicInteger(0);
 
         private Accessor(LayoutLock layoutLock) {
             this.state.set(INACTIVE);
-            this.dirty.set(false);
+            this.dirty = false;
             this.layoutChangeIntended.set(0);
         }
 
@@ -38,7 +37,7 @@ public class LayoutLock {
         }
 
         public boolean finishRead() {
-            if (dirty.get()) {
+            if (dirty) {
                 resetDirty();
                 return false;
             }
@@ -72,7 +71,7 @@ public class LayoutLock {
             for (int i = 0; i < n; i++) {
                 while (accessors[i] == null) {
                 }
-                accessors[i].dirty.set(true);
+                accessors[i].dirty = true;
             }
 
         }
@@ -88,15 +87,15 @@ public class LayoutLock {
         }
 
         public boolean isDirty() {
-            return dirty.get();
+            return dirty;
         }
 
         public void resetDirty() {
             while (state.get() == LAYOUT_CHANGE) {
             }
-            dirty.set(false);
+            dirty = false;
             if (state.get() == LAYOUT_CHANGE) {
-                dirty.set(true);
+                dirty = true;
             }
         }
 
