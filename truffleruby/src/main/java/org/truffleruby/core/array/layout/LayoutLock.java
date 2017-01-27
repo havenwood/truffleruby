@@ -26,12 +26,12 @@ public class LayoutLock {
 
         private final AtomicInteger state = new AtomicInteger();
         private final AtomicBoolean dirty = new AtomicBoolean();
-        private final AtomicInteger writeIntended = new AtomicInteger(0);
+        private final AtomicInteger layoutChangeIntended = new AtomicInteger(0);
 
         private Accessor(LayoutLock layoutLock) {
             this.state.set(INACTIVE);
             this.dirty.set(false);
-            this.writeIntended.set(0);
+            this.layoutChangeIntended.set(0);
         }
 
         public void startRead() {
@@ -46,7 +46,7 @@ public class LayoutLock {
         }
 
         public void startWrite() {
-            while (writeIntended.get() > 0 || !state.compareAndSet(INACTIVE, WRITE)) {
+            while (layoutChangeIntended.get() > 0 || !state.compareAndSet(INACTIVE, WRITE)) {
             }
         }
 
@@ -60,13 +60,13 @@ public class LayoutLock {
             for (int i = 0; i < n; i++) {
                 while (accessors[i] == null) {
                 }
-                accessors[i].writeIntended.getAndIncrement();
+                accessors[i].layoutChangeIntended.getAndIncrement();
             }
             for (int i = 0; i < n; i++)
                 while (!accessors[i].state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                 }
             for (int i = 0; i < n; i++) {
-                accessors[i].writeIntended.getAndDecrement();
+                accessors[i].layoutChangeIntended.getAndDecrement();
             }
 
             for (int i = 0; i < n; i++) {
