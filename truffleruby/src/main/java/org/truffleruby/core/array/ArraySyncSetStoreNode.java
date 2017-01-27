@@ -9,7 +9,9 @@ import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
+import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
+import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
@@ -146,8 +148,13 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
 
     @Specialization(guards = "isLayoutLockArray(array)")
     public Object layoutLockChangeLayout(VirtualFrame frame, DynamicObject array) {
-        builtinNode.execute(frame);
-        throw new AssertionError("TODO");
+        final LayoutLock.Accessor accessor = ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
+        accessor.startLayoutChange();
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            accessor.finishLayoutChange();
+        }
     }
 
 }
