@@ -217,6 +217,7 @@ public class CoreMethodNodeManager {
         final RubyNode readSelfNode = new ProfileArgumentNode(new ReadSelfNode());
         switch (sync) {
             case ARRAY_READ:
+            case ARRAY_WRITE:
                 return ArraySyncReadNodeGen.create(builtinNode, readSelfNode);
             case ARRAY_CHANGE_STORE:
             case ARRAY_CHANGE_SIZE:

@@ -242,7 +242,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @Primitive(name = "array_aset", lowerFixnum = { 1, 2 }, raiseIfFrozenSelf = true)
+    @Primitive(name = "array_aset", lowerFixnum = { 1, 2 }, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_WRITE) // TODO needs to upgrade in many cases
     @ImportStatic(ArrayGuards.class)
     public abstract static class IndexSetNode extends PrimitiveArrayArgumentsNode {
 
