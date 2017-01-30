@@ -3,7 +3,6 @@ package org.truffleruby.core.array.layout;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.oracle.truffle.api.CompilerDirectives;
-import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 /**
  * LayoutLock based on Scalable RW Lock using accessors
