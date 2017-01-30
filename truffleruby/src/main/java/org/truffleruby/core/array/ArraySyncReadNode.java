@@ -7,9 +7,9 @@ import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
-import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
@@ -116,8 +116,9 @@ public abstract class ArraySyncReadNode extends RubyNode {
 
     @Specialization(guards = "isLayoutLockArray(array)")
     public Object layoutLockRead(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
             @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
-        final LayoutLock.Accessor accessor = ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
+        final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
         Object result;
         while (true) {
             result = builtinNode.execute(frame);
