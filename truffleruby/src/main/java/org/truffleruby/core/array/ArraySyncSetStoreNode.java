@@ -156,11 +156,11 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
     public Object layoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetLayoutLockAccessorNode getAccessorNode) {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
-        accessor.startLayoutChange();
+        final int threads = accessor.startLayoutChange();
         try {
             return builtinNode.execute(frame);
         } finally {
-            accessor.finishLayoutChange();
+            accessor.finishLayoutChange(threads);
         }
     }
 

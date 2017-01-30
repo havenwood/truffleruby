@@ -2,6 +2,7 @@ package org.truffleruby.core.array.layout;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 /**
@@ -53,35 +54,41 @@ public class LayoutLock {
             state.set(INACTIVE);
         }
 
-        @TruffleBoundary
-        public void startLayoutChange() {
-            final int n = nextThread.get();
-            for (int i = 0; i < n; i++) {
-                while (accessors[i] == null) {
+        public int startLayoutChange() {
+            final Accessor first = accessors[0];
+            if (!first.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                first.layoutChangeIntended.getAndIncrement();
+                while (!first.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                    Thread.yield();
                 }
-                accessors[i].layoutChangeIntended.getAndIncrement();
-            }
-            for (int i = 0; i < nextThread.get(); i++) {
-                while (accessors[i] == null || !accessors[i].state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                }
-            }
-            for (int i = 0; i < n; i++) {
-                accessors[i].layoutChangeIntended.getAndDecrement();
+                first.layoutChangeIntended.getAndDecrement();
             }
 
-            for (int i = 0; i < nextThread.get(); i++) {
-                while (accessors[i] == null) {
+            final int n = nextThread.get();
+            while (accessors[n - 1] == null) {
+                CompilerDirectives.transferToInterpreter();
+            }
+
+            for (int i = 1; i < n; i++) {
+                final Accessor accessor = accessors[i];
+                if (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                    accessor.layoutChangeIntended.getAndIncrement();
+                    while (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                        Thread.yield();
+                    }
+                    accessor.layoutChangeIntended.getAndDecrement();
                 }
+            }
+
+            for (int i = 0; i < n; i++) {
                 accessors[i].dirty = true;
             }
+
+            return n;
         }
 
-        @TruffleBoundary
-        public void finishLayoutChange() {
-            final int n = nextThread.get();
+        public void finishLayoutChange(int n) {
             for (int i = 0; i < n; i++) {
-                while (accessors[i] == null) {
-                }
                 accessors[i].state.set(INACTIVE);
             }
         }
