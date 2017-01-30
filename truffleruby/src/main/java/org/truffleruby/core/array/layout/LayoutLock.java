@@ -65,12 +65,13 @@ public class LayoutLock {
             }
 
             final int n = nextThread.get();
-            while (accessors[n - 1] == null) {
-                CompilerDirectives.transferToInterpreter();
-            }
 
             for (int i = 1; i < n; i++) {
-                final Accessor accessor = accessors[i];
+                Accessor accessor = accessors[i];
+                while (accessor == null) {
+                    CompilerDirectives.transferToInterpreter();
+                    accessor = accessors[i];
+                }
                 if (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                     accessor.layoutChangeIntended.getAndIncrement();
                     while (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
