@@ -13,9 +13,9 @@ public class LayoutLock {
 
     private static final int MAX_THREADS = 66;
 
-    private static final int INACTIVE = 0;
-    private static final int WRITE = 1;
-    private static final int LAYOUT_CHANGE = 2;
+    public static final int INACTIVE = 0;
+    public static final int WRITE = 1;
+    public static final int LAYOUT_CHANGE = 2;
 
     private final Accessor accessors[] = new Accessor[MAX_THREADS];
     private final Accessor accessorsByTid[] = new Accessor[MAX_THREADS];
@@ -23,9 +23,9 @@ public class LayoutLock {
 
     public class Accessor {
 
-        private final AtomicInteger state = new AtomicInteger();
+        public final AtomicInteger state = new AtomicInteger();
         private volatile boolean dirty;
-        private final AtomicInteger layoutChangeIntended = new AtomicInteger(0);
+        public final AtomicInteger layoutChangeIntended = new AtomicInteger(0);
 
         private Accessor(LayoutLock layoutLock) {
             this.state.set(INACTIVE);
@@ -92,6 +92,7 @@ public class LayoutLock {
 
         public void resetDirty() {
             while (state.get() == LAYOUT_CHANGE) {
+                Thread.yield();
             }
             dirty = false;
             if (state.get() == LAYOUT_CHANGE) {

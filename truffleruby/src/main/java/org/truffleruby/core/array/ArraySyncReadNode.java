@@ -117,8 +117,8 @@ public abstract class ArraySyncReadNode extends RubyNode {
     @Specialization(guards = "isLayoutLockArray(array)")
     public Object layoutLockRead(VirtualFrame frame, DynamicObject array,
             @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
-        Object result;
         final LayoutLock.Accessor accessor = ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
+        Object result;
         while (true) {
             result = builtinNode.execute(frame);
             if (dirtyProfile.profile(accessor.isDirty())) {

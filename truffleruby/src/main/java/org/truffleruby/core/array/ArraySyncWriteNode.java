@@ -8,11 +8,11 @@ import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.layout.LayoutLock;
+import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
@@ -22,7 +22,6 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.NodeCost;
 import com.oracle.truffle.api.nodes.NodeInfo;
 import com.oracle.truffle.api.object.DynamicObject;
-import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @NodeInfo(cost = NodeCost.NONE)
 @NodeChild("self")
@@ -125,9 +124,10 @@ public abstract class ArraySyncWriteNode extends RubyNode {
 
     @Specialization(guards = "isLayoutLockArray(array)")
     public Object layoutLockWrite(VirtualFrame frame, DynamicObject array,
-            @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
+            @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
         final LayoutLock.Accessor accessor = ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
-        accessor.startWrite();
+        // accessor.startWrite();
+        startWriteNode.executeStartWrite(accessor);
         try {
             return builtinNode.execute(frame);
         } finally {
