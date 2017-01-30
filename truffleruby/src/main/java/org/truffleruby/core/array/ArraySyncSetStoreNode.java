@@ -24,6 +24,7 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.NodeCost;
 import com.oracle.truffle.api.nodes.NodeInfo;
 import com.oracle.truffle.api.object.DynamicObject;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @NodeInfo(cost = NodeCost.NONE)
 @NodeChild("self")
@@ -126,13 +127,13 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
     }
 
     @Specialization(guards = "isStampedLockArray(array)")
-    public Object stampedLockWrite(VirtualFrame frame, DynamicObject array) {
+    public Object stampedLockWrite(VirtualFrame frame, DynamicObject array,
+            @Cached("createBinaryProfile()") ConditionProfile contendedProfile) {
         final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
         final StampedLock lock = stampedLockArray.getLock();
-        final long stamp = lock.tryWriteLock();
-        if (stamp == 0L) {
-            CompilerDirectives.transferToInterpreter();
-            throw new AssertionError();
+        long stamp = lock.tryWriteLock();
+        if (contendedProfile.profile(stamp == 0L)) {
+            stamp = stampedLockWrite(lock);
         }
         try {
             return builtinNode.execute(frame);
@@ -142,7 +143,12 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
     }
 
     @TruffleBoundary
-    private void stampedUnlockWrite(final StampedLock lock, final long stamp) {
+    private long stampedLockWrite(StampedLock lock) {
+        return lock.writeLock();
+    }
+
+    @TruffleBoundary
+    private void stampedUnlockWrite(StampedLock lock, long stamp) {
         lock.unlockWrite(stamp);
     }
 
