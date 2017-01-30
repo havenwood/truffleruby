@@ -7,10 +7,10 @@ import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
 import org.truffleruby.core.array.layout.MyBiasedLock;
-import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -124,8 +124,9 @@ public abstract class ArraySyncWriteNode extends RubyNode {
 
     @Specialization(guards = "isLayoutLockArray(array)")
     public Object layoutLockWrite(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
             @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
-        final LayoutLock.Accessor accessor = ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
+        final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
         // accessor.startWrite();
         startWriteNode.executeStartWrite(accessor);
         try {

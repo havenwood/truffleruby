@@ -5,11 +5,8 @@ import org.truffleruby.language.RubyNode;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.nodes.NodeCost;
-import com.oracle.truffle.api.nodes.NodeInfo;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
-@NodeInfo(cost = NodeCost.NONE)
 @NodeChild("self")
 public abstract class LayoutLockStartWriteNode extends RubyNode {
 
