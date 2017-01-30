@@ -121,6 +121,8 @@ public abstract class ArraySyncReadNode extends RubyNode {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
         Object result;
         while (true) {
+            // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
+            // Out-of-thin-air values are prevented by the dirty flag check
             result = builtinNode.execute(frame);
             if (dirtyProfile.profile(accessor.isDirty())) {
                 accessor.resetDirty();
