@@ -11,10 +11,11 @@ import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
+import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
+import org.truffleruby.core.array.layout.LayoutLockStartLayoutChangeNode;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
@@ -154,13 +155,17 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
 
     @Specialization(guards = "isLayoutLockArray(array)")
     public Object layoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
-            @Cached("create()") GetLayoutLockAccessorNode getAccessorNode) {
+            @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
+            @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+            @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
-        final int threads = accessor.startLayoutChange();
+        // final int threads = accessor.startLayoutChange();
+        final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
         try {
             return builtinNode.execute(frame);
         } finally {
-            accessor.finishLayoutChange(threads);
+            // accessor.finishLayoutChange(threads);
+            finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
         }
     }
 

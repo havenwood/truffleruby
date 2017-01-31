@@ -3,6 +3,8 @@ package org.truffleruby.core.array.layout;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 /**
  * LayoutLock based on Scalable RW Lock using accessors
@@ -17,20 +19,28 @@ public class LayoutLock {
     public static final int WRITE = 1;
     public static final int LAYOUT_CHANGE = 2;
 
-    private final Accessor accessors[] = new Accessor[MAX_THREADS];
-    private final Accessor accessorsByTid[] = new Accessor[MAX_THREADS];
+    @CompilationFinal private final Accessor[] accessors = new Accessor[MAX_THREADS];
+    @CompilationFinal private final Accessor[] accessorsByTid = new Accessor[MAX_THREADS];
     private final AtomicInteger nextThread = new AtomicInteger(0);
 
     public class Accessor {
 
         public final AtomicInteger state = new AtomicInteger();
-        private volatile boolean dirty;
+        volatile boolean dirty;
         public final AtomicInteger layoutChangeIntended = new AtomicInteger(0);
 
         private Accessor(LayoutLock layoutLock) {
             this.state.set(INACTIVE);
             this.dirty = false;
             this.layoutChangeIntended.set(0);
+        }
+
+        public Accessor[] getAccessors() {
+            return accessors;
+        }
+
+        public int getNextThread() {
+            return nextThread.get();
         }
 
         public void startRead() {
@@ -68,13 +78,13 @@ public class LayoutLock {
             for (int i = 1; i < n; i++) {
                 Accessor accessor = accessors[i];
                 while (accessor == null) {
-                    CompilerDirectives.transferToInterpreter();
+                    CompilerDirectives.transferToInterpreterAndInvalidate();
                     accessor = accessors[i];
                 }
                 if (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                     accessor.layoutChangeIntended.getAndIncrement();
                     while (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                        Thread.yield();
+                        yield();
                     }
                     accessor.layoutChangeIntended.getAndDecrement();
                 }
@@ -99,7 +109,7 @@ public class LayoutLock {
 
         public void resetDirty() {
             while (state.get() == LAYOUT_CHANGE) {
-                Thread.yield();
+                yield();
             }
             dirty = false;
             if (state.get() == LAYOUT_CHANGE) {
@@ -109,6 +119,11 @@ public class LayoutLock {
 
     }
 
+    @TruffleBoundary
+    public static void yield() {
+        Thread.yield();
+    }
+
     public Accessor access() {
         Accessor ac = new Accessor(this);
         final int n = nextThread.getAndIncrement();
@@ -116,7 +131,7 @@ public class LayoutLock {
         if (n > 0) {
             // Wait for no Layout changes
             while (accessors[0].state.get() == LAYOUT_CHANGE) {
-                Thread.yield();
+                yield();
             }
         }
         return ac;
