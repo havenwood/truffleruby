@@ -1,6 +1,8 @@
 N = 10_000_000 / 5 # / 100 # for interp
 ary = []
 
+Thread.abort_on_exception = true
+
 unless defined?(Truffle)
   module Truffle
     module Array
