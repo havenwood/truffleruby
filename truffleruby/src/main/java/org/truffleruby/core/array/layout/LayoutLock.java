@@ -22,6 +22,7 @@ public class LayoutLock {
     @CompilationFinal private final Accessor[] accessors = new Accessor[MAX_THREADS];
     @CompilationFinal private final Accessor[] accessorsByTid = new Accessor[MAX_THREADS];
     private final AtomicInteger nextThread = new AtomicInteger(0);
+    private boolean cleanedAfterLayoutChange = true;
 
     public class Accessor {
 
@@ -41,6 +42,14 @@ public class LayoutLock {
 
         public int getNextThread() {
             return nextThread.get();
+        }
+
+        public boolean getCleanedAfterLayoutChange() {
+            return cleanedAfterLayoutChange;
+        }
+
+        public void setCleanedAfterLayoutChange(boolean cleaned) {
+            cleanedAfterLayoutChange = cleaned;
         }
 
         public void startRead() {
@@ -73,20 +82,25 @@ public class LayoutLock {
                 first.layoutChangeIntended.getAndDecrement();
             }
 
+            final boolean cleaned = cleanedAfterLayoutChange;
+            // what if new threads?
+
             final int n = nextThread.get();
 
-            for (int i = 1; i < n; i++) {
-                Accessor accessor = accessors[i];
-                while (accessor == null) {
-                    CompilerDirectives.transferToInterpreterAndInvalidate();
-                    accessor = accessors[i];
-                }
-                if (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                    accessor.layoutChangeIntended.getAndIncrement();
-                    while (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                        yield();
+            if (cleaned) {
+                for (int i = 1; i < n; i++) {
+                    Accessor accessor = accessors[i];
+                    while (accessor == null) {
+                        CompilerDirectives.transferToInterpreterAndInvalidate();
+                        accessor = accessors[i];
                     }
-                    accessor.layoutChangeIntended.getAndDecrement();
+                    if (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                        accessor.layoutChangeIntended.getAndIncrement();
+                        while (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                            yield();
+                        }
+                        accessor.layoutChangeIntended.getAndDecrement();
+                    }
                 }
             }
 
@@ -98,8 +112,15 @@ public class LayoutLock {
         }
 
         public void finishLayoutChange(int n) {
-            for (int i = 0; i < n; i++) {
-                accessors[i].state.set(INACTIVE);
+            final Accessor first = accessors[0];
+            if (first.layoutChangeIntended.get() > 0) { // Another layout change is going to follow
+                cleanedAfterLayoutChange = false;
+                first.state.set(INACTIVE);
+            } else {
+                cleanedAfterLayoutChange = true;
+                for (int i = n - 1; i >= 0; i--) {
+                    accessors[i].state.set(INACTIVE);
+                }
             }
         }
 

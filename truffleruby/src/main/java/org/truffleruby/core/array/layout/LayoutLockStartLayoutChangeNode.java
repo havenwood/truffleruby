@@ -26,7 +26,8 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
     @Specialization
     protected int startLayoutChange(LayoutLock.Accessor layoutLock,
             @Cached("createBinaryProfile()") ConditionProfile casFirstProfile,
-            @Cached("createBinaryProfile()") ConditionProfile casProfile) {
+            @Cached("createBinaryProfile()") ConditionProfile casProfile,
+            @Cached("createBinaryProfile()") ConditionProfile multiLayoutChangesProfile) {
         final Accessor[] accessors = layoutLock.getAccessors();
 
         final Accessor first = accessors[0];
@@ -34,20 +35,23 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
             waitAndCAS(first);
         }
 
+        final boolean cleaned = layoutLock.getCleanedAfterLayoutChange();
         final int n = layoutLock.getNextThread();
         if (n != threads) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             threads = n;
         }
 
-        for (int i = 1; i < threads; i++) {
-            Accessor accessor = accessors[i];
-            while (accessor == null) {
-                CompilerDirectives.transferToInterpreterAndInvalidate();
-                accessor = accessors[i];
-            }
-            if (!casFirstProfile.profile(accessor.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
-                waitAndCAS(accessor);
+        if (multiLayoutChangesProfile.profile(cleaned)) {
+            for (int i = 1; i < threads; i++) {
+                Accessor accessor = accessors[i];
+                while (accessor == null) {
+                    CompilerDirectives.transferToInterpreterAndInvalidate();
+                    accessor = accessors[i];
+                }
+                if (!casFirstProfile.profile(accessor.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
+                    waitAndCAS(accessor);
+                }
             }
         }
 
