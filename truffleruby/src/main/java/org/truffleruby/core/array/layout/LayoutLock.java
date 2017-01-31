@@ -102,10 +102,12 @@ public class LayoutLock {
                         accessor.layoutChangeIntended.getAndDecrement();
                     }
                 }
-            }
 
-            for (int i = 0; i < n; i++) {
-                accessors[i].dirty = true;
+                for (int i = 0; i < n; i++) {
+                    accessors[i].dirty = true;
+                }
+            } else {
+                first.dirty = true;
             }
 
             return n;

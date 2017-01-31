@@ -53,11 +53,14 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
                     waitAndCAS(accessor);
                 }
             }
+
+            for (int i = 0; i < threads; i++) {
+                accessors[i].dirty = true;
+            }
+        } else {
+            first.dirty = true;
         }
 
-        for (int i = 0; i < threads; i++) {
-            accessors[i].dirty = true;
-        }
 
         return threads;
     }
