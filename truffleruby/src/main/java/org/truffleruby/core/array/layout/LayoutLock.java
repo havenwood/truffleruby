@@ -77,7 +77,7 @@ public class LayoutLock {
             if (!first.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                 first.layoutChangeIntended.getAndIncrement();
                 while (!first.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                    Thread.yield();
+                    yield();
                 }
                 first.layoutChangeIntended.getAndDecrement();
             }
