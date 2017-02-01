@@ -1,15 +1,7 @@
+require_relative 'common'
+
 n = 10_000_000 / 5
 ary = Array.new(n) { |i| i % 2 }
-
-unless defined?(Truffle)
-  module Truffle
-    module Debug
-      def self.array_storage(ary)
-        ary.class.to_s
-      end
-    end
-  end
-end
 
 def setup(name, barrier = "")
   eval <<EOR

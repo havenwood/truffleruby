@@ -1,17 +1,7 @@
+require_relative 'common'
+
 n = 10_000_000 / 5 # / 100 # for interp
 ary = Array.new(n) { |i| i % 2 }
-
-Thread.abort_on_exception = true
-
-unless defined?(Truffle)
-  module Truffle
-    module Debug
-      def self.array_storage(ary)
-        ary.class.to_s
-      end
-    end
-  end
-end
 
 def setup(name)
 	eval <<EOR
