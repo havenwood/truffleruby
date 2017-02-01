@@ -10,8 +10,6 @@ import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 public class MyBiasedLock {
 
-    // static final AtomicReferenceFieldUpdater<MyBiasedLock, Thread> BIASED_THREAD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(MyBiasedLock.class, Thread.class, "biasedThread");
-
     @CompilationFinal private volatile Thread biasedThread = Thread.currentThread();
     @CompilationFinal private volatile ReentrantLock fullLock = null;
 
@@ -38,9 +36,6 @@ public class MyBiasedLock {
                     this.fullLock = new ReentrantLock();
                 }
             });
-            // if (BIASED_THREAD_UPDATER.compareAndSet(this, biasedThread, null)) {
-            // fullLock = new ReentrantLock();
-            // }
             doLock();
         }
     }
