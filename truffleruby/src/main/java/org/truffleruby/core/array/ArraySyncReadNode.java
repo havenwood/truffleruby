@@ -102,15 +102,17 @@ public abstract class ArraySyncReadNode extends RubyNode {
     }
 
     @Specialization(guards = "isStampedLockArray(array)")
-    public Object stampedLockRead(VirtualFrame frame, DynamicObject array) {
+    public Object stampedLockRead(VirtualFrame frame, DynamicObject array,
+            @Cached("createBinaryProfile()") ConditionProfile validateProfile) {
         final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
         final StampedLock lock = stampedLockArray.getLock();
-        final long stamp = lock.tryOptimisticRead();
-        Object result = builtinNode.execute(frame);
-        if (!lock.validate(stamp)) {
-            CompilerDirectives.transferToInterpreter();
-            throw new AssertionError();
-        }
+
+        Object result;
+        long stamp;
+        do {
+            stamp = lock.tryOptimisticRead();
+            result = builtinNode.execute(frame);
+        } while (!validateProfile.profile(lock.validate(stamp)));
         return result;
     }
 
