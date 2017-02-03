@@ -9,6 +9,8 @@
  */
 package org.truffleruby.core.hash;
 
+import org.truffleruby.core.UnsafeHolder;
+
 /**
  * An entry in the Ruby hash. That is, a container for a key and a value, and a member of two lists - the chain of
  * buckets for a given index, and the chain of entries for the insertion order across the whole hash.
@@ -23,6 +25,9 @@ public final class Entry {
 
     private Entry previousInSequence;
     private Entry nextInSequence;
+
+    private static final long NEXT_IN_LOOKUP_OFFSET = UnsafeHolder.getFieldOffset(Entry.class, "nextInLookup");
+    private static final long NEXT_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(Entry.class, "nextInSequence");
 
     public Entry(int hashed, Object key, Object value) {
         this.hashed = hashed;
@@ -58,6 +63,10 @@ public final class Entry {
         this.nextInLookup = nextInLookup;
     }
 
+    public boolean compareAndSetNextInLookup(Entry old, Entry nextInLookup) {
+        return UnsafeHolder.UNSAFE.compareAndSwapObject(this, NEXT_IN_LOOKUP_OFFSET, old, nextInLookup);
+    }
+
     public Entry getPreviousInSequence() {
         return previousInSequence;
     }
@@ -72,6 +81,10 @@ public final class Entry {
 
     public void setNextInSequence(Entry nextInSequence) {
         this.nextInSequence = nextInSequence;
+    }
+
+    public boolean compareAndSetNextInSequence(Entry old, Entry nextInSequence) {
+        return UnsafeHolder.UNSAFE.compareAndSwapObject(this, NEXT_IN_SEQ_OFFSET, old, nextInSequence);
     }
 
 }

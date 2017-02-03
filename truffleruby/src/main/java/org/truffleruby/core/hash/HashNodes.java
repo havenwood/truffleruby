@@ -31,6 +31,8 @@ import org.truffleruby.builtins.Primitive;
 import org.truffleruby.builtins.PrimitiveArrayArgumentsNode;
 import org.truffleruby.builtins.YieldingCoreMethodNode;
 import org.truffleruby.core.array.ArrayBuilderNode;
+import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
+import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.hash.HashNodesFactory.GetIndexNodeFactory;
 import org.truffleruby.core.hash.HashNodesFactory.InternalRehashNodeGen;
 import org.truffleruby.language.NotProvided;
@@ -208,6 +210,53 @@ public abstract class HashNodes {
             return callDefaultNode.call(frame, hash, "default", key);
         }
 
+        static final boolean ONLY_IF_ABSENT = true;
+
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public Object getConcurrent(VirtualFrame frame, DynamicObject hash, Object key,
+                @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
+                @Cached("createBinaryProfile()") ConditionProfile foundProfile,
+                @Cached("createBinaryProfile()") ConditionProfile defaultBlockProfile,
+                @Cached("createBinaryProfile()") ConditionProfile insertedNewKeyProfile,
+                @Cached("new()") YieldNode yieldNode,
+                @Cached("create(ONLY_IF_ABSENT)") SetNode putIfAbsentNode) {
+            final HashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
+
+            if (foundProfile.profile(hashLookupResult.getEntry() != null)) {
+                return hashLookupResult.getEntry().getValue();
+            }
+
+            if (undefinedValue != null) {
+                return undefinedValue;
+            } else {
+                // h = Hash.new { |h,k| h[k] = [] }; h[new_key] << 1; should behave like putIfAbsent?
+                // BUT doesnt work on MRI
+
+                // TODO: this should actually call #default => move this logic in "invoke_default_block" or in Ruby?
+                // Or set a thread-local flag to put-if-absent on next put?
+                final DynamicObject defaultBlock = Layouts.HASH.getDefaultBlock(hash);
+                if (defaultBlockProfile.profile(defaultBlock != null)) {
+                    final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
+                    final DynamicObject newHash = Layouts.HASH.createHash(coreLibrary().getHashFactory(),
+                            null, 0, null, null, null, null, compareByIdentity);
+                    final Object result = yieldNode.dispatch(frame, defaultBlock, newHash, key);
+                    // store the value only if the block does
+                    final int newHashSize = Layouts.HASH.getSize(newHash);
+                    if (insertedNewKeyProfile.profile(newHashSize == 1)) {
+                        return putIfAbsentNode.executeSet(frame, hash, key, result, compareByIdentity);
+                    } else {
+                        assert newHashSize == 0;
+                        return result;
+                    }
+                    //synchronized (hash) { // TODO: synchronize with a specific initialization lock?
+                                          // Or allow LayoutLock recursive write lock?
+                    //}
+                } else {
+                    return callDefaultNode.call(frame, hash, "default", key);
+                }
+            }
+        }
+
     }
 
     @CoreMethod(names = "_get_or_undefined", required = 1)
@@ -231,7 +280,7 @@ public abstract class HashNodes {
     @ImportStatic(HashGuards.class)
     public abstract static class SetIndexNode extends CoreMethodArrayArgumentsNode {
 
-        @Child private SetNode setNode = SetNode.create();
+        @Child private SetNode setNode = SetNode.create(false);
 
         @Specialization
         public Object set(VirtualFrame frame, DynamicObject hash, Object key, Object value) {
@@ -429,6 +478,53 @@ public abstract class HashNodes {
             return entry.getValue();
         }
 
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public Object deleteConcurrent(VirtualFrame frame, DynamicObject hash, Object key, Object maybeBlock,
+                @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode) {
+            // TODO: all
+            assert HashOperations.verifyStore(getContext(), hash);
+            final HashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
+
+            if (hashLookupResult.getEntry() == null) {
+                if (maybeBlock == NotProvided.INSTANCE) {
+                    return nil();
+                } else {
+                    return yieldNode.dispatch(frame, (DynamicObject) maybeBlock, key);
+                }
+            }
+
+            final Entry entry = hashLookupResult.getEntry();
+
+            // Remove from the sequence chain
+
+            if (entry.getPreviousInSequence() == null) {
+                // assert Layouts.HASH.getFirstInSequence(hash) == entry; // TODO
+                Layouts.HASH.setFirstInSequence(hash, entry.getNextInSequence());
+            } else {
+                assert Layouts.HASH.getFirstInSequence(hash) != entry;
+                entry.getPreviousInSequence().setNextInSequence(entry.getNextInSequence());
+            }
+
+            if (entry.getNextInSequence() == null) {
+                Layouts.HASH.setLastInSequence(hash, entry.getPreviousInSequence());
+            } else {
+                entry.getNextInSequence().setPreviousInSequence(entry.getPreviousInSequence());
+            }
+
+            // Remove from the lookup chain
+
+            if (hashLookupResult.getPreviousEntry() == null) {
+                ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().set(hashLookupResult.getIndex(), entry.getNextInLookup());
+            } else {
+                hashLookupResult.getPreviousEntry().setNextInLookup(entry.getNextInLookup());
+            }
+
+            Layouts.HASH.setSize(hash, Layouts.HASH.getSize(hash) - 1);
+
+            assert HashOperations.verifyStore(getContext(), hash);
+            return entry.getValue();
+        }
+
         protected boolean equalKeys(VirtualFrame frame, boolean compareByIdentity, Object key, int hashed, Object otherKey, int otherHashed) {
             return compareHashKeysNode.equalKeys(frame, compareByIdentity, key, hashed, otherKey, otherHashed);
         }
@@ -479,6 +575,18 @@ public abstract class HashNodes {
 
         @Specialization(guards = "isBucketHash(hash)")
         public DynamicObject eachBuckets(VirtualFrame frame, DynamicObject hash, DynamicObject block) {
+            assert HashOperations.verifyStore(getContext(), hash);
+
+            for (KeyValue keyValue : BucketsStrategy.iterableKeyValues(Layouts.HASH.getFirstInSequence(hash))) {
+                yieldPair(frame, block, keyValue.getKey(), keyValue.getValue());
+            }
+
+            return hash;
+        }
+
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public DynamicObject eachConcurrent(VirtualFrame frame, DynamicObject hash, DynamicObject block) {
+            // TODO
             assert HashOperations.verifyStore(getContext(), hash);
 
             for (KeyValue keyValue : BucketsStrategy.iterableKeyValues(Layouts.HASH.getFirstInSequence(hash))) {
@@ -720,7 +828,7 @@ public abstract class HashNodes {
     public abstract static class MergeNode extends YieldingCoreMethodNode {
 
         @Child private LookupEntryNode lookupEntryNode;
-        @Child private SetNode setNode = SetNode.create();
+        @Child private SetNode setNode = SetNode.create(false);
         @Child private AllocateObjectNode allocateObjectNode = AllocateObjectNode.create();
         @Child private CompareHashKeysNode compareHashKeysNode = new CompareHashKeysNode();
 

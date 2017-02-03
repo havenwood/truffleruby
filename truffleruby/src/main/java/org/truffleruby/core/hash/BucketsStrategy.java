@@ -38,6 +38,8 @@ public abstract class BucketsStrategy {
 
     private static final int[] CAPACITIES = MRI_PRIMES;
 
+    public static final int INITIAL_CAPACITY = MRI_PRIMES[0];
+
     @TruffleBoundary
     public static DynamicObject create(RubyContext context, Collection<KeyValue> entries, boolean byIdentity) {
         int actualSize = entries.size();

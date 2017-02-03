@@ -34,6 +34,11 @@ public abstract class HashGuards {
         return Layouts.HASH.getStore(hash) instanceof Entry[];
     }
 
+    public static boolean isConcurrentHash(DynamicObject hash) {
+        assert RubyGuards.isRubyHash(hash);
+        return Layouts.HASH.getStore(hash) instanceof ConcurrentHash;
+    }
+
     // Higher level properties
 
     public static boolean isEmptyHash(DynamicObject hash) {

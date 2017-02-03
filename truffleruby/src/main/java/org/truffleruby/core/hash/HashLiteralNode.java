@@ -150,7 +150,7 @@ public abstract class HashLiteralNode extends RubyNode {
         public Object execute(VirtualFrame frame) {
             if (setNode == null) {
                 CompilerDirectives.transferToInterpreterAndInvalidate();
-                setNode = insert(SetNode.create());
+                setNode = insert(SetNode.create(false));
             }
 
             final int bucketsCount = BucketsStrategy.capacityGreaterThan(keyValues.length / 2) * BucketsStrategy.OVERALLOCATE_FACTOR;

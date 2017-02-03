@@ -27,7 +27,13 @@ public abstract class HashOperations {
     }
 
     public static boolean verifyStore(RubyContext context, Object store, int size, Entry firstInSequence, Entry lastInSequence) {
-        assert store == null || store.getClass() == Object[].class || store instanceof Entry[];
+        assert store == null || store.getClass() == Object[].class || store instanceof Entry[] || store instanceof ConcurrentHash;
+
+        if (store instanceof ConcurrentHash) {
+            // store = ((ConcurrentHash) store).toBucketArray();
+            // TODO
+            return true;
+        }
 
         if (store == null) {
             assert size == 0;

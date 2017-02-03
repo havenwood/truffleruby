@@ -10,6 +10,7 @@
 package org.truffleruby.core.hash;
 
 import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.NodeChild;
@@ -20,8 +21,12 @@ import com.oracle.truffle.api.nodes.ExplodeLoop;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.BranchProfile;
 import com.oracle.truffle.api.profiles.ConditionProfile;
+
+import java.util.concurrent.atomic.AtomicReferenceArray;
+
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.objects.shared.WriteBarrierNode;
 
 @ImportStatic(HashGuards.class)
 @NodeChildren({
@@ -37,8 +42,14 @@ public abstract class SetNode extends RubyNode {
     @Child private CompareHashKeysNode compareHashKeysNode = new CompareHashKeysNode();
     @Child private FreezeHashKeyIfNeededNode freezeHashKeyIfNeededNode = FreezeHashKeyIfNeededNodeGen.create(null, null);
 
-    public static SetNode create() {
-        return SetNodeGen.create(null, null, null, null);
+    protected final boolean onlyIfAbsent;
+
+    public static SetNode create(boolean onlyIfAbsent) {
+        return SetNodeGen.create(onlyIfAbsent, null, null, null, null);
+    }
+
+    public SetNode(boolean onlyIfAbsent) {
+        this.onlyIfAbsent = onlyIfAbsent;
     }
 
     public abstract Object executeSet(VirtualFrame frame, DynamicObject hash, Object key, Object value, boolean byIdentity);
@@ -153,6 +164,85 @@ public abstract class SetNode extends RubyNode {
             }
         } else {
             entry.setValue(value);
+        }
+
+        assert HashOperations.verifyStore(getContext(), hash);
+
+        return value;
+    }
+
+    @Specialization(guards = "isConcurrentHash(hash)")
+    public Object setConcurrent(VirtualFrame frame, DynamicObject hash, Object originalKey, Object value, boolean byIdentity,
+            @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile,
+            @Cached("createBinaryProfile()") ConditionProfile foundProfile,
+            @Cached("createBinaryProfile()") ConditionProfile bucketCollisionProfile,
+            @Cached("createBinaryProfile()") ConditionProfile appendingProfile,
+            @Cached("createBinaryProfile()") ConditionProfile resizeProfile,
+            @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
+            @Cached("create()") WriteBarrierNode writeBarrierNode,
+            @Cached("create(onlyIfAbsent)") SetNode retrySetNode) {
+        assert HashOperations.verifyStore(getContext(), hash);
+        final boolean compareByIdentity = byIdentityProfile.profile(byIdentity);
+        final Object key = freezeHashKeyIfNeededNode.executeFreezeIfNeeded(frame, originalKey, compareByIdentity);
+
+        final HashLookupResult result = lookupEntryNode.lookup(frame, hash, key);
+        final Entry entry = result.getEntry();
+
+        if (foundProfile.profile(entry == null)) {
+            final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
+
+            writeBarrierNode.executeWriteBarrier(value);
+            final Entry newEntry = new Entry(result.getHashed(), key, value);
+
+            Entry previousEntry = result.getPreviousEntry();
+            if (bucketCollisionProfile.profile(previousEntry == null)) {
+                if (!entries.compareAndSet(result.getIndex(), null, newEntry)) {
+                    previousEntry = entries.get(result.getIndex());
+                    // TODO: should avoid recursing too much
+                    return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
+                }
+            } else {
+                if (!previousEntry.compareAndSetNextInLookup(null, newEntry)) {
+                    assert false;// TODO
+                }
+            }
+
+            // TODO: is ordering OK here?
+            final Entry lastInSequence = Layouts.HASH.getLastInSequence(hash);
+            newEntry.setPreviousInSequence(lastInSequence);
+            if (appendingProfile.profile(lastInSequence == null)) {
+                if (!ConcurrentHash.compareAndSetFirstInSeq(hash, null, newEntry)) {
+                    assert false; // TODO
+                }
+            } else {
+                if (!lastInSequence.compareAndSetNextInSequence(null, newEntry)) {
+                    assert false; // TODO
+                }
+            }
+
+            if (!ConcurrentHash.compareAndSetLastInSeq(hash, lastInSequence, newEntry)) {
+                assert false;// TODO
+            }
+
+            int size;
+            while (!ConcurrentHash.compareAndSetSize(hash, size = Layouts.HASH.getSize(hash), size + 1)) {
+            }
+            final int newSize = size + 1;
+
+            // TODO CS 11-May-15 could store the next size for resize instead of doing a float
+            // operation each time
+
+            if (resizeProfile.profile(newSize / (double) entries.length() > BucketsStrategy.LOAD_FACTOR)) {
+                assert false; // TODO
+                BucketsStrategy.resize(getContext(), hash);
+            }
+        } else {
+            if (onlyIfAbsent) {
+                return entry.getValue();
+            } else {
+                writeBarrierNode.executeWriteBarrier(value);
+                entry.setValue(value);
+            }
         }
 
         assert HashOperations.verifyStore(getContext(), hash);
