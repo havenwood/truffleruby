@@ -25,6 +25,9 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.truffleruby.Layouts;
+import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
+import org.truffleruby.core.array.layout.LayoutLock;
+import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.objects.shared.WriteBarrierNode;
 
@@ -188,7 +191,9 @@ public abstract class SetNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile resizeProfile,
             @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
             @Cached("create()") WriteBarrierNode writeBarrierNode,
-            @Cached("create(onlyIfAbsent)") SetNode retrySetNode) {
+            @Cached("create(onlyIfAbsent)") SetNode retrySetNode,
+            @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
+            @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
         assert HashOperations.verifyStore(getContext(), hash);
         final boolean compareByIdentity = byIdentityProfile.profile(byIdentity);
         final Object key = freezeHashKeyIfNeededNode.executeFreezeIfNeeded(frame, originalKey, compareByIdentity);
@@ -204,10 +209,16 @@ public abstract class SetNode extends RubyNode {
 
             Entry previousEntry = result.getPreviousEntry();
             if (bucketCollisionProfile.profile(previousEntry == null)) {
-                if (!entries.compareAndSet(result.getIndex(), null, newEntry)) {
-                    previousEntry = entries.get(result.getIndex());
-                    // TODO: should avoid recursing too much
-                    return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
+                final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+                startWriteNode.executeStartWrite(accessor);
+                try {
+                    if (!entries.compareAndSet(result.getIndex(), null, newEntry)) {
+                        previousEntry = entries.get(result.getIndex());
+                        // TODO: should avoid recursing too much
+                        return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
+                    }
+                } finally {
+                    accessor.finishWrite();
                 }
             } else {
                 if (!previousEntry.compareAndSetNextInLookup(null, newEntry)) {
@@ -249,6 +260,7 @@ public abstract class SetNode extends RubyNode {
                 return entry.getValue();
             } else {
                 writeBarrierNode.executeWriteBarrier(value);
+                // No need for write lock as long as we keep existing Entry instances during layout changes
                 entry.setValue(value);
             }
         }
