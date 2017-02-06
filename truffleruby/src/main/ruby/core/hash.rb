@@ -185,7 +185,19 @@ class Hash
 
   def default(key=undefined)
     if default_proc and !undefined.equal?(key)
-      default_proc.call(self, key)
+      if Truffle::Debug.shared?(self)
+        # To make h=Hash.new { |h,k| h[k] = [] }; h[new_key] << 1; behave like put_if_absent
+        h = {}
+        h.compare_by_identity if compare_by_identity?
+        value = default_proc.call(h, key)
+        if h.size == 1 # inserted one key
+          put_if_absent(key, value)
+        else
+          value
+        end
+      else
+        default_proc.call(self, key)
+      end
     else
       Truffle.invoke_primitive :hash_default_value, self
     end

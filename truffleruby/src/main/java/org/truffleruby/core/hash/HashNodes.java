@@ -210,16 +210,10 @@ public abstract class HashNodes {
             return callDefaultNode.call(frame, hash, "default", key);
         }
 
-        static final boolean ONLY_IF_ABSENT = true;
-
         @Specialization(guards = "isConcurrentHash(hash)")
         public Object getConcurrent(VirtualFrame frame, DynamicObject hash, Object key,
                 @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
-                @Cached("createBinaryProfile()") ConditionProfile foundProfile,
-                @Cached("createBinaryProfile()") ConditionProfile defaultBlockProfile,
-                @Cached("createBinaryProfile()") ConditionProfile insertedNewKeyProfile,
-                @Cached("new()") YieldNode yieldNode,
-                @Cached("create(ONLY_IF_ABSENT)") SetNode putIfAbsentNode) {
+                @Cached("createBinaryProfile()") ConditionProfile foundProfile) {
             final HashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
 
             if (foundProfile.profile(hashLookupResult.getEntry() != null)) {
@@ -229,31 +223,7 @@ public abstract class HashNodes {
             if (undefinedValue != null) {
                 return undefinedValue;
             } else {
-                // h = Hash.new { |h,k| h[k] = [] }; h[new_key] << 1; should behave like putIfAbsent?
-                // BUT doesnt work on MRI
-
-                // TODO: this should actually call #default => move this logic in "invoke_default_block" or in Ruby?
-                // Or set a thread-local flag to put-if-absent on next put?
-                final DynamicObject defaultBlock = Layouts.HASH.getDefaultBlock(hash);
-                if (defaultBlockProfile.profile(defaultBlock != null)) {
-                    final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
-                    final DynamicObject newHash = Layouts.HASH.createHash(coreLibrary().getHashFactory(),
-                            null, 0, null, null, null, null, compareByIdentity);
-                    final Object result = yieldNode.dispatch(frame, defaultBlock, newHash, key);
-                    // store the value only if the block does
-                    final int newHashSize = Layouts.HASH.getSize(newHash);
-                    if (insertedNewKeyProfile.profile(newHashSize == 1)) {
-                        return putIfAbsentNode.executeSet(frame, hash, key, result, compareByIdentity);
-                    } else {
-                        assert newHashSize == 0;
-                        return result;
-                    }
-                    //synchronized (hash) { // TODO: synchronize with a specific initialization lock?
-                                          // Or allow LayoutLock recursive write lock?
-                    //}
-                } else {
-                    return callDefaultNode.call(frame, hash, "default", key);
-                }
+                return callDefaultNode.call(frame, hash, "default", key);
             }
         }
 
