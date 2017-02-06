@@ -33,6 +33,8 @@ import org.truffleruby.builtins.YieldingCoreMethodNode;
 import org.truffleruby.core.array.ArrayBuilderNode;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
+import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
+import org.truffleruby.core.array.layout.LayoutLockStartLayoutChangeNode;
 import org.truffleruby.core.hash.HashNodesFactory.GetIndexNodeFactory;
 import org.truffleruby.core.hash.HashNodesFactory.InternalRehashNodeGen;
 import org.truffleruby.language.NotProvided;
@@ -277,18 +279,45 @@ public abstract class HashNodes {
     public abstract static class ClearNode extends CoreMethodArrayArgumentsNode {
 
         @Specialization(guards = "isNullHash(hash)")
-        public DynamicObject emptyNull(DynamicObject hash) {
+        public DynamicObject clearNull(DynamicObject hash) {
             return hash;
         }
 
-        @Specialization(guards = "!isNullHash(hash)")
-        public DynamicObject empty(DynamicObject hash) {
+        @Specialization(guards = "isPackedHash(hash)")
+        public DynamicObject clearPacked(DynamicObject hash) {
+            return clearBuckets(hash);
+        }
+
+        @Specialization(guards = "isBucketHash(hash)")
+        public DynamicObject clearBuckets(DynamicObject hash) {
             assert HashOperations.verifyStore(getContext(), hash);
             assert HashOperations.verifyStore(getContext(), null, 0, null, null);
             Layouts.HASH.setStore(hash, null);
             Layouts.HASH.setSize(hash, 0);
             Layouts.HASH.setFirstInSequence(hash, null);
             Layouts.HASH.setLastInSequence(hash, null);
+
+            assert HashOperations.verifyStore(getContext(), hash);
+            return hash;
+        }
+
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public DynamicObject clearConcurrent(DynamicObject hash,
+                @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
+                @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+            assert HashOperations.verifyStore(getContext(), hash);
+
+            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+            final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+            try {
+                Layouts.HASH.setStore(hash, new ConcurrentHash(new Entry[BucketsStrategy.INITIAL_CAPACITY]));
+                Layouts.HASH.setSize(hash, 0);
+                Layouts.HASH.setFirstInSequence(hash, null);
+                Layouts.HASH.setLastInSequence(hash, null);
+            } finally {
+                finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+            }
 
             assert HashOperations.verifyStore(getContext(), hash);
             return hash;
