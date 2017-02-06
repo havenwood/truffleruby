@@ -33,5 +33,4 @@ threads = N_THREADS.times.map { |t|
   raise h[0].to_s unless h[0].size == N_THREADS
 
   h.clear
-  p h
 end
