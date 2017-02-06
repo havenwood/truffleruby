@@ -94,9 +94,13 @@ public abstract class SetNode extends RubyNode {
                 final int otherHashed = PackedArrayStrategy.getHashed(store, n);
                 final Object otherKey = PackedArrayStrategy.getKey(store, n);
                 if (equalKeys(frame, compareByIdentity, key, hashed, otherKey, otherHashed)) {
-                    PackedArrayStrategy.setValue(store, n, value);
-                    assert HashOperations.verifyStore(getContext(), hash);
-                    return value;
+                    if (onlyIfAbsent) {
+                        return PackedArrayStrategy.getValue(store, n);
+                    } else {
+                        PackedArrayStrategy.setValue(store, n, value);
+                        assert HashOperations.verifyStore(getContext(), hash);
+                        return value;
+                    }
                 }
             }
         }
@@ -163,7 +167,11 @@ public abstract class SetNode extends RubyNode {
                 BucketsStrategy.resize(getContext(), hash);
             }
         } else {
-            entry.setValue(value);
+            if (onlyIfAbsent) {
+                return entry.getValue();
+            } else {
+                entry.setValue(value);
+            }
         }
 
         assert HashOperations.verifyStore(getContext(), hash);

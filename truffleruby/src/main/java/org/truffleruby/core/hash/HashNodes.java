@@ -289,6 +289,19 @@ public abstract class HashNodes {
 
     }
 
+    @CoreMethod(names = "put_if_absent", required = 2, raiseIfFrozenSelf = true)
+    @ImportStatic(HashGuards.class)
+    public abstract static class PutIfAbsentNode extends CoreMethodArrayArgumentsNode {
+
+        @Child private SetNode setNode = SetNode.create(true);
+
+        @Specialization
+        public Object putIfAbsent(VirtualFrame frame, DynamicObject hash, Object key, Object value) {
+            return setNode.executeSet(frame, hash, key, value, Layouts.HASH.getCompareByIdentity(hash));
+        }
+
+    }
+
     @CoreMethod(names = "clear", raiseIfFrozenSelf = true)
     @ImportStatic(HashGuards.class)
     public abstract static class ClearNode extends CoreMethodArrayArgumentsNode {
