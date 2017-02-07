@@ -11,12 +11,49 @@ package org.truffleruby.core.hash;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.truffleruby.Layouts;
+import org.truffleruby.RubyContext;
 
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
 
 public abstract class ConcurrentBucketsStrategy {
+
+    @TruffleBoundary
+    public static void resize(RubyContext context, DynamicObject hash, int newSize) {
+        assert HashGuards.isConcurrentHash(hash);
+        assert HashOperations.verifyStore(context, hash);
+
+        final int bucketsCount = BucketsStrategy.capacityGreaterThan(newSize) * BucketsStrategy.OVERALLOCATE_FACTOR;
+        final ConcurrentHash newConcurrentHash = new ConcurrentHash(bucketsCount);
+        final AtomicReferenceArray<Entry> newEntries = newConcurrentHash.getBuckets();
+
+        final Entry last = Layouts.HASH.getLastInSequence(hash);
+        Entry entry = Layouts.HASH.getFirstInSequence(hash).getNextInSequence();
+
+        while (entry != last) {
+            final int bucketIndex = BucketsStrategy.getBucketIndex(entry.getHashed(), bucketsCount);
+            Entry previousInLookup = newEntries.get(bucketIndex);
+
+            if (previousInLookup == null) {
+                newEntries.set(bucketIndex, entry);
+            } else {
+                while (previousInLookup.getNextInLookup() != null) {
+                    previousInLookup = previousInLookup.getNextInLookup();
+                }
+
+                previousInLookup.setNextInLookup(entry);
+            }
+
+            entry.setNextInLookup(null);
+            entry = entry.getNextInSequence();
+        }
+
+        Layouts.HASH.setStore(hash, newConcurrentHash);
+        assert HashOperations.verifyStore(context, hash);
+    }
 
     public static Iterator<KeyValue> iterateKeyValues(DynamicObject hash) {
         final Entry firstInSequence = Layouts.HASH.getFirstInSequence(hash);

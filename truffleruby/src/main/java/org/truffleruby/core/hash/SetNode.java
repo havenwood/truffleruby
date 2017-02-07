@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
+import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
+import org.truffleruby.core.array.layout.LayoutLockStartLayoutChangeNode;
 import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.objects.shared.WriteBarrierNode;
@@ -186,13 +188,15 @@ public abstract class SetNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile,
             @Cached("createBinaryProfile()") ConditionProfile foundProfile,
             @Cached("createBinaryProfile()") ConditionProfile bucketCollisionProfile,
-            @Cached("createBinaryProfile()") ConditionProfile appendingProfile,
+            @Cached("createBinaryProfile()") ConditionProfile dirtyProfile,
             @Cached("createBinaryProfile()") ConditionProfile resizeProfile,
             @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
             @Cached("create()") WriteBarrierNode writeBarrierNode,
             @Cached("create(onlyIfAbsent)") SetNode retrySetNode,
             @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
-            @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
+            @Cached("create()") LayoutLockStartWriteNode startWriteNode,
+            @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+            @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
         assert HashOperations.verifyStore(getContext(), hash);
         final boolean compareByIdentity = byIdentityProfile.profile(byIdentity);
         final Object key = freezeHashKeyIfNeededNode.executeFreezeIfNeeded(frame, originalKey, compareByIdentity);
@@ -201,7 +205,6 @@ public abstract class SetNode extends RubyNode {
         final Entry entry = result.getEntry();
 
         if (foundProfile.profile(entry == null)) {
-            final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
 
             writeBarrierNode.executeWriteBarrier(value);
             final Entry newEntry = new Entry(result.getHashed(), key, value);
@@ -210,18 +213,23 @@ public abstract class SetNode extends RubyNode {
             if (bucketCollisionProfile.profile(previousEntry == null)) {
                 final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
                 startWriteNode.executeStartWrite(accessor);
+                final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
+                boolean success;
                 try {
-                    if (!entries.compareAndSet(result.getIndex(), null, newEntry)) {
-                        previousEntry = entries.get(result.getIndex());
-                        // TODO: should avoid recursing too much
-                        return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
-                    }
+                    success = entries.compareAndSet(result.getIndex(), null, newEntry);
                 } finally {
                     accessor.finishWrite();
                 }
+                if (!success) {
+                    // An entry got inserted in this bucket concurrently
+                    // TODO: should avoid recursing too much
+                    return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
+                }
             } else {
                 if (!previousEntry.compareAndSetNextInLookup(null, newEntry)) {
-                    assert false;// TODO
+                    // An entry got inserted after the last we saw in this bucket
+                    // TODO: should avoid recursing too much
+                    return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
                 }
             }
 
@@ -244,12 +252,29 @@ public abstract class SetNode extends RubyNode {
             }
             final int newSize = size + 1;
 
-            // TODO CS 11-May-15 could store the next size for resize instead of doing a float
-            // operation each time
+            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+            boolean resize;
+            while (true) {
+                int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
+                resize = newSize * 4 > bucketsCount * 3;
+                if (dirtyProfile.profile(accessor.isDirty())) {
+                    accessor.resetDirty();
+                } else {
+                    break;
+                }
+            }
 
-            if (resizeProfile.profile(newSize / (double) entries.length() > BucketsStrategy.LOAD_FACTOR)) {
-                assert false; // TODO
-                BucketsStrategy.resize(getContext(), hash);
+            if (resizeProfile.profile(resize)) {
+                final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+                try {
+                    // Check again to make sure another thread did not already resized
+                    int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
+                    if (newSize * 4 > bucketsCount * 3) {
+                        ConcurrentBucketsStrategy.resize(getContext(), hash, newSize);
+                    }
+                } finally {
+                    finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+                }
             }
         } else {
             if (onlyIfAbsent) {

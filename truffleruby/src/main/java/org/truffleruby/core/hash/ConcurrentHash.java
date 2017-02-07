@@ -13,7 +13,11 @@ public final class ConcurrentHash {
     private final AtomicReferenceArray<Entry> buckets;
 
     public ConcurrentHash() {
-        this.buckets = new AtomicReferenceArray<>(BucketsStrategy.INITIAL_CAPACITY);
+        this(BucketsStrategy.INITIAL_CAPACITY);
+    }
+
+    public ConcurrentHash(int capacity) {
+        this.buckets = new AtomicReferenceArray<>(capacity);
     }
 
     public ConcurrentHash(DynamicObject hash, Entry[] buckets) {
