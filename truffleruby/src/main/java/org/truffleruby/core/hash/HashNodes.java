@@ -524,29 +524,44 @@ public abstract class HashNodes {
 
             // Remove from the sequence chain
 
-            if (entry.getPreviousInSequence() == null) {
-                // assert Layouts.HASH.getFirstInSequence(hash) == entry; // TODO
-                Layouts.HASH.setFirstInSequence(hash, entry.getNextInSequence());
+            final Entry previousInSequence = entry.getPreviousInSequence();
+            final Entry nextInSequence = entry.getNextInSequence();
+            if (previousInSequence == null) {
+                if (!ConcurrentHash.compareAndSetFirstInSeq(hash, entry, nextInSequence)) {
+                    assert false; // TODO
+                }
             } else {
-                assert Layouts.HASH.getFirstInSequence(hash) != entry;
-                entry.getPreviousInSequence().setNextInSequence(entry.getNextInSequence());
+                // assert Layouts.HASH.getFirstInSequence(hash) != entry;
+                if (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence)) {
+                    assert false; // TODO
+                }
             }
 
-            if (entry.getNextInSequence() == null) {
-                Layouts.HASH.setLastInSequence(hash, entry.getPreviousInSequence());
+            if (nextInSequence == null) {
+                if (!ConcurrentHash.compareAndSetLastInSeq(hash, entry, previousInSequence)) {
+                    assert false; // TODO
+                }
             } else {
-                entry.getNextInSequence().setPreviousInSequence(entry.getPreviousInSequence());
+                if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
+                    assert false; // TODO
+                }
             }
 
             // Remove from the lookup chain
 
-            if (hashLookupResult.getPreviousEntry() == null) {
-                ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().set(hashLookupResult.getIndex(), entry.getNextInLookup());
+            final Entry previousEntry = hashLookupResult.getPreviousEntry();
+            if (previousEntry == null) {
+                final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
+                entries.set(hashLookupResult.getIndex(), entry.getNextInLookup());
             } else {
-                hashLookupResult.getPreviousEntry().setNextInLookup(entry.getNextInLookup());
+                if (!previousEntry.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
+                    assert false; // TODO
+                }
             }
 
-            Layouts.HASH.setSize(hash, Layouts.HASH.getSize(hash) - 1);
+            int size;
+            while (!ConcurrentHash.compareAndSetSize(hash, size = Layouts.HASH.getSize(hash), size - 1)) {
+            }
 
             assert HashOperations.verifyStore(getContext(), hash);
             return entry.getValue();

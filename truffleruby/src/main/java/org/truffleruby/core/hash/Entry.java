@@ -27,6 +27,7 @@ public final class Entry {
     private Entry nextInSequence;
 
     private static final long NEXT_IN_LOOKUP_OFFSET = UnsafeHolder.getFieldOffset(Entry.class, "nextInLookup");
+    private static final long PREVIOUS_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(Entry.class, "previousInSequence");
     private static final long NEXT_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(Entry.class, "nextInSequence");
 
     public Entry(int hashed, Object key, Object value) {
@@ -73,6 +74,10 @@ public final class Entry {
 
     public void setPreviousInSequence(Entry previousInSequence) {
         this.previousInSequence = previousInSequence;
+    }
+
+    public boolean compareAndSetPreviousInSequence(Entry old, Entry previousInSequence) {
+        return UnsafeHolder.UNSAFE.compareAndSwapObject(this, PREVIOUS_IN_SEQ_OFFSET, old, previousInSequence);
     }
 
     public Entry getNextInSequence() {
