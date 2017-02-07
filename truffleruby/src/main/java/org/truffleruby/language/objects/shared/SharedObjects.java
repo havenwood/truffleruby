@@ -179,7 +179,7 @@ public class SharedObjects {
         } else {
             buckets = (Entry[]) store;
         }
-        Layouts.HASH.setStore(hash, new ConcurrentHash(buckets));
+        Layouts.HASH.setStore(hash, new ConcurrentHash(hash, buckets));
     }
 
 }

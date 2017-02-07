@@ -2,6 +2,7 @@ package org.truffleruby.core.hash;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.truffleruby.Layouts;
 import org.truffleruby.core.UnsafeHolder;
 
 import com.oracle.truffle.api.object.DynamicObject;
@@ -11,7 +12,22 @@ public final class ConcurrentHash {
 
     private final AtomicReferenceArray<Entry> buckets;
 
-    public ConcurrentHash(Entry[] buckets) {
+    public ConcurrentHash() {
+        this.buckets = new AtomicReferenceArray<>(BucketsStrategy.INITIAL_CAPACITY);
+    }
+
+    public ConcurrentHash(DynamicObject hash, Entry[] buckets) {
+        Entry sentinelFirst = new Entry(0, null, null);
+        Entry sentinelLast = new Entry(0, null, null);
+
+        Entry first = Layouts.HASH.getFirstInSequence(hash);
+        sentinelFirst.setNextInSequence(first != null ? first : sentinelLast);
+        Layouts.HASH.setFirstInSequence(hash, sentinelFirst);
+
+        Entry last = Layouts.HASH.getLastInSequence(hash);
+        sentinelLast.setPreviousInSequence(last != null ? last : sentinelFirst);
+        Layouts.HASH.setLastInSequence(hash, sentinelLast);
+
         this.buckets = new AtomicReferenceArray<>(buckets);
     }
 
@@ -35,19 +51,8 @@ public final class ConcurrentHash {
     // "size":int@0,
     // "store":Object@0}
 
-    private static final long FIRST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object2");
-    private static final long LAST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object3");
-
     private static final long SIZE_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive1");
     private static final long COMPARE_BY_IDENTITY_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive2");
-
-    public static boolean compareAndSetFirstInSeq(DynamicObject hash, Entry old, Entry newFirst) {
-        return UnsafeHolder.UNSAFE.compareAndSwapObject(hash, FIRST_IN_SEQ_OFFSET, old, newFirst);
-    }
-
-    public static boolean compareAndSetLastInSeq(DynamicObject hash, Entry old, Entry newLast) {
-        return UnsafeHolder.UNSAFE.compareAndSwapObject(hash, LAST_IN_SEQ_OFFSET, old, newLast);
-    }
 
     public static boolean compareAndSetSize(DynamicObject hash, int old, int newSize) {
         return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, SIZE_OFFSET, old, newSize);

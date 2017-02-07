@@ -227,20 +227,17 @@ public abstract class SetNode extends RubyNode {
             }
 
             // TODO: is ordering OK here?
-            final Entry lastInSequence = Layouts.HASH.getLastInSequence(hash);
-            newEntry.setPreviousInSequence(lastInSequence);
-            if (appendingProfile.profile(lastInSequence == null)) {
-                if (!ConcurrentHash.compareAndSetFirstInSeq(hash, null, newEntry)) {
-                    assert false; // TODO
-                }
-            } else {
-                if (!lastInSequence.compareAndSetNextInSequence(null, newEntry)) {
-                    assert false; // TODO
-                }
-            }
+            final Entry sentinelLast = Layouts.HASH.getLastInSequence(hash);
+            newEntry.setNextInSequence(sentinelLast);
 
-            if (!ConcurrentHash.compareAndSetLastInSeq(hash, lastInSequence, newEntry)) {
-                assert false;// TODO
+            Entry lastInSequence;
+            do {
+                lastInSequence = sentinelLast.getPreviousInSequence();
+                newEntry.setPreviousInSequence(lastInSequence);
+            } while (!lastInSequence.compareAndSetNextInSequence(sentinelLast, newEntry));
+
+            if (!sentinelLast.compareAndSetPreviousInSequence(lastInSequence, newEntry)) {
+                assert false; // TODO
             }
 
             int size;

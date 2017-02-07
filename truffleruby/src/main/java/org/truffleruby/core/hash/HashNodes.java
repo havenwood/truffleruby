@@ -312,10 +312,10 @@ public abstract class HashNodes {
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
-                Layouts.HASH.setStore(hash, new ConcurrentHash(new Entry[BucketsStrategy.INITIAL_CAPACITY]));
+                Layouts.HASH.getFirstInSequence(hash).setNextInSequence(Layouts.HASH.getLastInSequence(hash));
+                Layouts.HASH.getLastInSequence(hash).setPreviousInSequence(Layouts.HASH.getFirstInSequence(hash));
+                Layouts.HASH.setStore(hash, new ConcurrentHash());
                 Layouts.HASH.setSize(hash, 0);
-                Layouts.HASH.setFirstInSequence(hash, null);
-                Layouts.HASH.setLastInSequence(hash, null);
             } finally {
                 finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
             }
@@ -526,25 +526,12 @@ public abstract class HashNodes {
 
             final Entry previousInSequence = entry.getPreviousInSequence();
             final Entry nextInSequence = entry.getNextInSequence();
-            if (previousInSequence == null) {
-                if (!ConcurrentHash.compareAndSetFirstInSeq(hash, entry, nextInSequence)) {
-                    assert false; // TODO
-                }
-            } else {
-                // assert Layouts.HASH.getFirstInSequence(hash) != entry;
-                if (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence)) {
-                    assert false; // TODO
-                }
+            if (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence)) {
+                assert false; // TODO
             }
 
-            if (nextInSequence == null) {
-                if (!ConcurrentHash.compareAndSetLastInSeq(hash, entry, previousInSequence)) {
-                    assert false; // TODO
-                }
-            } else {
-                if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
-                    assert false; // TODO
-                }
+            if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
+                assert false; // TODO
             }
 
             // Remove from the lookup chain
@@ -631,7 +618,7 @@ public abstract class HashNodes {
             // TODO
             assert HashOperations.verifyStore(getContext(), hash);
 
-            for (KeyValue keyValue : BucketsStrategy.iterableKeyValues(Layouts.HASH.getFirstInSequence(hash))) {
+            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(hash)) {
                 yieldPair(frame, block, keyValue.getKey(), keyValue.getValue());
             }
 
@@ -1366,9 +1353,10 @@ public abstract class HashNodes {
                     entries.set(i, null);
                 }
 
-                Entry entry = Layouts.HASH.getFirstInSequence(hash);
+                final Entry last = Layouts.HASH.getLastInSequence(hash);
+                Entry entry = Layouts.HASH.getFirstInSequence(hash).getNextInSequence();
 
-                while (entry != null) {
+                while (entry != last) {
                     final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity);
                     entry.setHashed(newHash);
                     entry.setNextInLookup(null);

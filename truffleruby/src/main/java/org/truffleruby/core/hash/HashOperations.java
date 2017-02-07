@@ -30,6 +30,25 @@ public abstract class HashOperations {
         assert store == null || store.getClass() == Object[].class || store instanceof Entry[] || store instanceof ConcurrentHash;
 
         if (store instanceof ConcurrentHash) {
+            assert firstInSequence != null;
+            assert firstInSequence.getKey() == null;
+            assert firstInSequence.getValue() == null;
+            assert firstInSequence.getNextInLookup() == null;
+            assert firstInSequence.getNextInSequence() != null;
+            assert firstInSequence.getPreviousInSequence() == null;
+
+            assert lastInSequence != null;
+            assert lastInSequence.getKey() == null;
+            assert lastInSequence.getValue() == null;
+            assert lastInSequence.getNextInLookup() == null;
+            assert lastInSequence.getNextInSequence() == null;
+            assert lastInSequence.getPreviousInSequence() != null;
+
+            Entry entry = firstInSequence.getNextInSequence();
+            while (entry != lastInSequence) {
+                entry = entry.getNextInSequence();
+            }
+
             // store = ((ConcurrentHash) store).toBucketArray();
             // TODO
             return true;
