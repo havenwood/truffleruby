@@ -53,8 +53,9 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
 
         final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
         final int index = BucketsStrategy.getBucketIndex(hashed, entries.length());
-        Entry entry = entries.get(index);
+        final Entry firstEntry = entries.get(index);
 
+        Entry entry = firstEntry;
         Entry previousEntry = null;
 
         while (entry != null) {
@@ -66,7 +67,7 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
             entry = entry.getNextInLookup();
         }
 
-        return new HashLookupResult(hashed, index, previousEntry, null);
+        return new HashLookupResult(hashed, index, firstEntry, null);
     }
 
     protected boolean equalKeys(VirtualFrame frame, boolean compareByIdentity, Object key, int hashed, Object otherKey, int otherHashed) {

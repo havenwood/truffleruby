@@ -187,7 +187,7 @@ public abstract class SetNode extends RubyNode {
     public Object setConcurrent(VirtualFrame frame, DynamicObject hash, Object originalKey, Object value, boolean byIdentity,
             @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile,
             @Cached("createBinaryProfile()") ConditionProfile foundProfile,
-            @Cached("createBinaryProfile()") ConditionProfile bucketCollisionProfile,
+            @Cached("createBinaryProfile()") ConditionProfile insertionProfile,
             @Cached("createBinaryProfile()") ConditionProfile dirtyProfile,
             @Cached("createBinaryProfile()") ConditionProfile resizeProfile,
             @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
@@ -205,32 +205,25 @@ public abstract class SetNode extends RubyNode {
         final Entry entry = result.getEntry();
 
         if (foundProfile.profile(entry == null)) {
-
             writeBarrierNode.executeWriteBarrier(value);
-            final Entry newEntry = new Entry(result.getHashed(), key, value);
 
-            Entry previousEntry = result.getPreviousEntry();
-            if (bucketCollisionProfile.profile(previousEntry == null)) {
-                final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
-                startWriteNode.executeStartWrite(accessor);
+            final Entry firstEntry = result.getPreviousEntry();
+            final Entry newEntry = new Entry(result.getHashed(), key, value);
+            newEntry.setNextInLookup(firstEntry);
+
+            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+            boolean success;
+            startWriteNode.executeStartWrite(accessor);
+            try {
                 final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
-                boolean success;
-                try {
-                    success = entries.compareAndSet(result.getIndex(), null, newEntry);
-                } finally {
-                    accessor.finishWrite();
-                }
-                if (!success) {
-                    // An entry got inserted in this bucket concurrently
-                    // TODO: should avoid recursing too much
-                    return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
-                }
-            } else {
-                if (!previousEntry.compareAndSetNextInLookup(null, newEntry)) {
-                    // An entry got inserted after the last we saw in this bucket
-                    // TODO: should avoid recursing too much
-                    return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
-                }
+                success = entries.compareAndSet(result.getIndex(), firstEntry, newEntry);
+            } finally {
+                accessor.finishWrite();
+            }
+            if (!insertionProfile.profile(success)) {
+                // An entry got inserted in this bucket concurrently
+                // TODO: should avoid recursing too much
+                return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
             }
 
             // TODO: is ordering OK here?
@@ -252,7 +245,6 @@ public abstract class SetNode extends RubyNode {
             }
             final int newSize = size + 1;
 
-            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             boolean resize;
             while (true) {
                 int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
