@@ -539,7 +539,9 @@ public abstract class HashNodes {
             final Entry previousEntry = hashLookupResult.getPreviousEntry();
             if (previousEntry == null) {
                 final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
-                entries.set(hashLookupResult.getIndex(), entry.getNextInLookup());
+                if (!entries.compareAndSet(hashLookupResult.getIndex(), entry, entry.getNextInLookup())) {
+                    assert false; // TODO
+                }
             } else {
                 if (!previousEntry.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
                     assert false; // TODO
