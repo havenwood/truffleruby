@@ -18,6 +18,8 @@ threads = N_THREADS.times.map { |t|
   work
 }
 
+# h.compare_by_identity
+
 20.times do
   $go = false
   threads.each { |t| t << :work }
