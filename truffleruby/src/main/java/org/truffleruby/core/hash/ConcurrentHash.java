@@ -49,7 +49,7 @@ public final class ConcurrentHash {
     }
 
     public static boolean compareAndSetSize(DynamicObject hash, int old, int newSize) {
-        return UnsafeHolder.UNSAFE.compareAndSwapInt(hash, SIZE_OFFSET, old, newSize);
+        return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, SIZE_OFFSET, old, newSize);
     }
 
 }
