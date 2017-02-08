@@ -1,14 +1,16 @@
 package org.truffleruby.core.hash;
 
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.UnsafeHolder;
+import org.truffleruby.language.objects.ObjectGraphNode;
 
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.object.basic.DynamicObjectBasic;
 
-public final class ConcurrentHash {
+public final class ConcurrentHash implements ObjectGraphNode {
 
     private final AtomicReferenceArray<Entry> buckets;
 
@@ -56,6 +58,21 @@ public final class ConcurrentHash {
             array[i] = buckets.get(i);
         }
         return array;
+    }
+
+    public void getAdjacentObjects(Set<DynamicObject> reachable) {
+        for (int i = 0; i < buckets.length(); i++) {
+            Entry entry = buckets.get(i);
+            while (entry != null) {
+                if (entry.getKey() instanceof DynamicObject) {
+                    reachable.add((DynamicObject) entry.getKey());
+                }
+                if (entry.getValue() instanceof DynamicObject) {
+                    reachable.add((DynamicObject) entry.getValue());
+                }
+                entry = entry.getNextInLookup();
+            }
+        }
     }
 
     // {"compareByIdentity":boolean@1,

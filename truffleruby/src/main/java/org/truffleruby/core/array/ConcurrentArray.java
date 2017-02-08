@@ -1,11 +1,15 @@
 package org.truffleruby.core.array;
 
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.core.array.layout.MyBiasedLock;
+import org.truffleruby.language.objects.ObjectGraphNode;
 
-public abstract class ConcurrentArray {
+import com.oracle.truffle.api.object.DynamicObject;
+
+public abstract class ConcurrentArray implements ObjectGraphNode {
 
     private final Object store;
 
@@ -16,6 +20,17 @@ public abstract class ConcurrentArray {
 
     public final Object getStore() {
         return store;
+    }
+
+    @Override
+    public void getAdjacentObjects(Set<DynamicObject> adjacent) {
+        if (store instanceof Object[]) {
+            for (Object element : (Object[]) store) {
+                if (element instanceof DynamicObject) {
+                    adjacent.add((DynamicObject) element);
+                }
+            }
+        }
     }
 
     public static final class FixedSizeArray extends ConcurrentArray {
