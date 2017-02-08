@@ -1088,6 +1088,31 @@ public abstract class HashNodes {
             return merged;
         }
 
+        @Specialization(guards = { "isPackedHash(hash)", "!isEmptyHash(hash)", "isRubyHash(other)", "isConcurrentHash(other)", "!isEmptyHash(other)" })
+        public DynamicObject mergePackedConcurrent(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
+            final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
+            final int capacity = BucketsStrategy.capacityGreaterThan(Layouts.HASH.getSize(hash) + ConcurrentHash.getSize(other));
+            final ConcurrentHash newConcurrentHash = new ConcurrentHash(capacity);
+            final DynamicObject merged = newHash(hash, newConcurrentHash, 0, compareByIdentity);
+            newConcurrentHash.setupSentinels(merged, null, null);
+
+            final Object[] hashStore = (Object[]) Layouts.HASH.getStore(hash);
+            final int hashSize = Layouts.HASH.getSize(hash);
+
+            for (int n = 0; n < getContext().getOptions().HASH_PACKED_ARRAY_MAX; n++) {
+                if (n < hashSize) {
+                    setNode.executeSet(frame, merged, PackedArrayStrategy.getKey(hashStore, n), PackedArrayStrategy.getValue(hashStore, n), compareByIdentity);
+                }
+            }
+
+            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(hash)) {
+                setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
+            }
+
+            assert HashOperations.verifyStore(getContext(), hash);
+            return merged;
+        }
+
         @Specialization(guards = {"isBucketHash(hash)", "!isEmptyHash(hash)", "isRubyHash(other)", "isPackedHash(other)", "!isEmptyHash(other)"})
         public DynamicObject mergeBucketsPacked(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
             final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
@@ -1095,6 +1120,31 @@ public abstract class HashNodes {
             final DynamicObject merged = newHash(hash, newStore, 0, compareByIdentity);
 
             for (KeyValue keyValue : BucketsStrategy.iterableKeyValues(Layouts.HASH.getFirstInSequence(hash))) {
+                setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
+            }
+
+            final Object[] otherStore = (Object[]) Layouts.HASH.getStore(other);
+            final int otherSize = Layouts.HASH.getSize(other);
+
+            for (int n = 0; n < getContext().getOptions().HASH_PACKED_ARRAY_MAX; n++) {
+                if (n < otherSize) {
+                    setNode.executeSet(frame, merged, PackedArrayStrategy.getKey(otherStore, n), PackedArrayStrategy.getValue(otherStore, n), compareByIdentity);
+                }
+            }
+
+            assert HashOperations.verifyStore(getContext(), hash);
+            return merged;
+        }
+
+        @Specialization(guards = { "isConcurrentHash(hash)", "!isEmptyHash(hash)", "isRubyHash(other)", "isPackedHash(other)", "!isEmptyHash(other)" })
+        public DynamicObject mergeConcurrentPacked(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
+            final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
+            final int capacity = BucketsStrategy.capacityGreaterThan(ConcurrentHash.getSize(hash) + Layouts.HASH.getSize(other));
+            final ConcurrentHash newConcurrentHash = new ConcurrentHash(capacity);
+            final DynamicObject merged = newHash(hash, newConcurrentHash, 0, compareByIdentity);
+            newConcurrentHash.setupSentinels(merged, null, null);
+
+            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(hash)) {
                 setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
             }
 
@@ -1169,7 +1219,7 @@ public abstract class HashNodes {
             return fallbackCallNode.callWithBlock(frame, hash, "merge_fallback", block, other);
         }
 
-        private DynamicObject newHash(DynamicObject hash, Object[] store, int size, boolean compareByIdentity) {
+        private DynamicObject newHash(DynamicObject hash, Object store, int size, boolean compareByIdentity) {
             return allocateObjectNode.allocateHash(
                             Layouts.BASIC_OBJECT.getLogicalClass(hash),
                             store, size,
