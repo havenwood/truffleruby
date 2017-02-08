@@ -138,6 +138,8 @@ public abstract class HashOperations {
             return PackedArrayStrategy.iterateKeyValues((Object[]) Layouts.HASH.getStore(hash), Layouts.HASH.getSize(hash));
         } else if (HashGuards.isBucketHash(hash)) {
             return BucketsStrategy.iterateKeyValues(Layouts.HASH.getFirstInSequence(hash));
+        } else if (HashGuards.isConcurrentHash(hash)) {
+            return ConcurrentBucketsStrategy.iterateKeyValues(hash);
         } else {
             throw new UnsupportedOperationException();
         }
