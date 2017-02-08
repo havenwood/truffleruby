@@ -51,7 +51,7 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
         final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
         int hashed = hashNode.hash(frame, key, compareByIdentity);
 
-        final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
+        final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
         final int index = BucketsStrategy.getBucketIndex(hashed, entries.length());
         final Entry firstEntry = entries.get(index);
 

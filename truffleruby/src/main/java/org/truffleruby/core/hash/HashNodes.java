@@ -538,7 +538,7 @@ public abstract class HashNodes {
 
             final Entry previousEntry = hashLookupResult.getPreviousEntry();
             if (previousEntry == null) {
-                final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
+                final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
                 if (!entries.compareAndSet(hashLookupResult.getIndex(), entry, entry.getNextInLookup())) {
                     assert false; // TODO
                 }
@@ -1370,7 +1370,7 @@ public abstract class HashNodes {
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
                 final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
-                final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
+                final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
                 for (int i = 0; i < entries.length(); i++) {
                     entries.set(i, null);
                 }

@@ -215,7 +215,7 @@ public abstract class SetNode extends RubyNode {
             boolean success;
             startWriteNode.executeStartWrite(accessor);
             try {
-                final AtomicReferenceArray<Entry> entries = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets();
+                final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
                 success = entries.compareAndSet(result.getIndex(), firstEntry, newEntry);
             } finally {
                 accessor.finishWrite();
