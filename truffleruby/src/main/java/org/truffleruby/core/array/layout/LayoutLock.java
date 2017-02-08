@@ -20,7 +20,6 @@ public class LayoutLock {
     public static final int LAYOUT_CHANGE = 2;
 
     @CompilationFinal private final Accessor[] accessors = new Accessor[MAX_THREADS];
-    @CompilationFinal private final Accessor[] accessorsByTid = new Accessor[MAX_THREADS];
     private final AtomicInteger nextThread = new AtomicInteger(0);
     private boolean cleanedAfterLayoutChange = true;
 
@@ -158,13 +157,6 @@ public class LayoutLock {
             }
         }
         return ac;
-    }
-
-    public Accessor access(int tid) {
-        if (accessorsByTid[tid] != null) {
-            return accessorsByTid[tid];
-        }
-        return accessorsByTid[tid] = access();
     }
 
 }
