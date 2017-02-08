@@ -857,6 +857,28 @@ public abstract class HashNodes {
             return createArray(arrayBuilderNode.finish(store, length), length);
         }
 
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public DynamicObject mapConcurrent(VirtualFrame frame, DynamicObject hash, DynamicObject block,
+                @Cached("create()") ArrayBuilderNode arrayBuilderNode) {
+            assert HashOperations.verifyStore(getContext(), hash);
+
+            Object store = arrayBuilderNode.start(ConcurrentHash.getSize(hash));
+            int size = 0;
+
+            try {
+                for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(hash)) {
+                    arrayBuilderNode.appendValue(store, size, yieldPair(frame, block, keyValue.getKey(), keyValue.getValue()));
+                    size++;
+                }
+            } finally {
+                if (CompilerDirectives.inInterpreter()) {
+                    LoopNode.reportLoopCount(this, size);
+                }
+            }
+
+            return createArray(arrayBuilderNode.finish(store, size), size);
+        }
+
         private Object yieldPair(VirtualFrame frame, DynamicObject block, Object key, Object value) {
             return yield(frame, block, createArray(new Object[]{key, value}, 2));
         }
