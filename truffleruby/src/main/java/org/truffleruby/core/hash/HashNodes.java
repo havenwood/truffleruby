@@ -511,16 +511,15 @@ public abstract class HashNodes {
             // TODO: all
             assert HashOperations.verifyStore(getContext(), hash);
             final HashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
+            final Entry entry = hashLookupResult.getEntry();
 
-            if (hashLookupResult.getEntry() == null) {
+            if (entry == null) {
                 if (maybeBlock == NotProvided.INSTANCE) {
                     return nil();
                 } else {
                     return yieldNode.dispatch(frame, (DynamicObject) maybeBlock, key);
                 }
             }
-
-            final Entry entry = hashLookupResult.getEntry();
 
             // Remove from the sequence chain
 
