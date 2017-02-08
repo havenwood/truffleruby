@@ -208,8 +208,10 @@ public abstract class SetNode extends RubyNode {
             writeBarrierNode.executeWriteBarrier(value);
 
             final Entry firstEntry = result.getPreviousEntry();
+            final Entry sentinelLast = Layouts.HASH.getLastInSequence(hash);
             final Entry newEntry = new Entry(result.getHashed(), key, value);
             newEntry.setNextInLookup(firstEntry);
+            newEntry.setNextInSequence(sentinelLast);
 
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             boolean success;
@@ -227,9 +229,6 @@ public abstract class SetNode extends RubyNode {
             }
 
             // TODO: is ordering OK here?
-            final Entry sentinelLast = Layouts.HASH.getLastInSequence(hash);
-            newEntry.setNextInSequence(sentinelLast);
-
             Entry lastInSequence;
             do {
                 lastInSequence = sentinelLast.getPreviousInSequence();
@@ -270,6 +269,7 @@ public abstract class SetNode extends RubyNode {
             }
         } else {
             if (onlyIfAbsent) {
+                assert HashOperations.verifyStore(getContext(), hash);
                 return entry.getValue();
             } else {
                 writeBarrierNode.executeWriteBarrier(value);
