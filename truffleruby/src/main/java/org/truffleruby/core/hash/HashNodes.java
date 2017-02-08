@@ -939,6 +939,25 @@ public abstract class HashNodes {
             return mergeEmptyBuckets(other, hash, block);
         }
 
+        @Specialization(guards = { "isEmptyHash(hash)", "isRubyHash(other)", "isConcurrentHash(other)" })
+        public DynamicObject mergeEmptyConcurrent(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
+            final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
+            final Entry[] newStore = new Entry[ConcurrentHash.getStore(other).getBuckets().length()];
+            final DynamicObject merged = newHash(hash, newStore, 0, compareByIdentity);
+
+            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(other)) {
+                setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
+            }
+
+            assert HashOperations.verifyStore(getContext(), hash);
+            return merged;
+        }
+
+        @Specialization(guards = { "isConcurrentHash(hash)", "isRubyHash(other)", "isEmptyHash(other)" })
+        public DynamicObject mergeConcurrentEmpty(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
+            return mergeEmptyConcurrent(frame, other, hash, block);
+        }
+
         // Merge non-empty packed with non-empty packed, without a block
 
         @ExplodeLoop
@@ -1063,6 +1082,24 @@ public abstract class HashNodes {
             return merged;
         }
 
+        @Specialization(guards = { "isConcurrentHash(hash)", "!isEmptyHash(hash)", "isRubyHash(other)", "isConcurrentHash(other)", "!isEmptyHash(other)" })
+        public DynamicObject mergeConcurrentConcurrent(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
+            final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
+            final Entry[] newStore = new Entry[BucketsStrategy.capacityGreaterThan(ConcurrentHash.getSize(hash) + ConcurrentHash.getSize(other))];
+            final DynamicObject merged = newHash(hash, newStore, 0, compareByIdentity);
+
+            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(hash)) {
+                setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
+            }
+
+            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(other)) {
+                setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
+            }
+
+            assert HashOperations.verifyStore(getContext(), hash);
+            return merged;
+        }
+
         // Merge combinations of packed and buckets, without a block
 
         @Specialization(guards = {"isPackedHash(hash)", "!isEmptyHash(hash)", "isRubyHash(other)", "isBucketHash(other)", "!isEmptyHash(other)"})
@@ -1091,10 +1128,8 @@ public abstract class HashNodes {
         @Specialization(guards = { "isPackedHash(hash)", "!isEmptyHash(hash)", "isRubyHash(other)", "isConcurrentHash(other)", "!isEmptyHash(other)" })
         public DynamicObject mergePackedConcurrent(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
             final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
-            final int capacity = BucketsStrategy.capacityGreaterThan(Layouts.HASH.getSize(hash) + ConcurrentHash.getSize(other));
-            final ConcurrentHash newConcurrentHash = new ConcurrentHash(capacity);
-            final DynamicObject merged = newHash(hash, newConcurrentHash, 0, compareByIdentity);
-            newConcurrentHash.setupSentinels(merged, null, null);
+            final Entry[] newStore = new Entry[BucketsStrategy.capacityGreaterThan(Layouts.HASH.getSize(hash) + ConcurrentHash.getSize(other))];
+            final DynamicObject merged = newHash(hash, newStore, 0, compareByIdentity);
 
             final Object[] hashStore = (Object[]) Layouts.HASH.getStore(hash);
             final int hashSize = Layouts.HASH.getSize(hash);
@@ -1139,10 +1174,8 @@ public abstract class HashNodes {
         @Specialization(guards = { "isConcurrentHash(hash)", "!isEmptyHash(hash)", "isRubyHash(other)", "isPackedHash(other)", "!isEmptyHash(other)" })
         public DynamicObject mergeConcurrentPacked(VirtualFrame frame, DynamicObject hash, DynamicObject other, NotProvided block) {
             final boolean compareByIdentity = Layouts.HASH.getCompareByIdentity(hash);
-            final int capacity = BucketsStrategy.capacityGreaterThan(ConcurrentHash.getSize(hash) + Layouts.HASH.getSize(other));
-            final ConcurrentHash newConcurrentHash = new ConcurrentHash(capacity);
-            final DynamicObject merged = newHash(hash, newConcurrentHash, 0, compareByIdentity);
-            newConcurrentHash.setupSentinels(merged, null, null);
+            final Entry[] newStore = new Entry[BucketsStrategy.capacityGreaterThan(ConcurrentHash.getSize(hash) + Layouts.HASH.getSize(other))];
+            final DynamicObject merged = newHash(hash, newStore, 0, compareByIdentity);
 
             for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(hash)) {
                 setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
