@@ -21,10 +21,14 @@ public final class ConcurrentHash {
     }
 
     public ConcurrentHash(DynamicObject hash, Entry[] buckets) {
+        setupSentinels(hash, Layouts.HASH.getFirstInSequence(hash), Layouts.HASH.getLastInSequence(hash));
+        this.buckets = new AtomicReferenceArray<>(buckets);
+    }
+
+    public void setupSentinels(DynamicObject hash, Entry first, Entry last) {
         Entry sentinelFirst = new Entry(0, null, null);
         Entry sentinelLast = new Entry(0, null, null);
 
-        Entry first = Layouts.HASH.getFirstInSequence(hash);
         if (first != null) {
             sentinelFirst.setNextInSequence(first);
             first.setPreviousInSequence(sentinelFirst);
@@ -33,7 +37,6 @@ public final class ConcurrentHash {
         }
         Layouts.HASH.setFirstInSequence(hash, sentinelFirst);
 
-        Entry last = Layouts.HASH.getLastInSequence(hash);
         if (last != null) {
             sentinelLast.setPreviousInSequence(last);
             last.setNextInSequence(sentinelLast);
@@ -41,8 +44,6 @@ public final class ConcurrentHash {
             sentinelLast.setPreviousInSequence(sentinelFirst);
         }
         Layouts.HASH.setLastInSequence(hash, sentinelLast);
-
-        this.buckets = new AtomicReferenceArray<>(buckets);
     }
 
     public AtomicReferenceArray<Entry> getBuckets() {

@@ -723,7 +723,7 @@ public abstract class HashNodes {
     @ImportStatic(HashGuards.class)
     public abstract static class InitializeCopyNode extends CoreMethodArrayArgumentsNode {
 
-        @Specialization(guards = {"isRubyHash(from)", "isNullHash(from)"})
+        @Specialization(guards = { "!isConcurrentHash(self)", "isRubyHash(from)", "isNullHash(from)" })
         public DynamicObject replaceNull(DynamicObject self, DynamicObject from) {
             if (self == from) {
                 return self;
@@ -740,7 +740,7 @@ public abstract class HashNodes {
             return self;
         }
 
-        @Specialization(guards = {"isRubyHash(from)", "isPackedHash(from)"})
+        @Specialization(guards = { "!isConcurrentHash(self)", "isRubyHash(from)", "isPackedHash(from)" })
         public DynamicObject replacePackedArray(DynamicObject self, DynamicObject from) {
             if (self == from) {
                 return self;
@@ -763,7 +763,7 @@ public abstract class HashNodes {
         }
 
         @TruffleBoundary
-        @Specialization(guards = {"isRubyHash(from)", "isBucketHash(from)"})
+        @Specialization(guards = { "!isConcurrentHash(self)", "isRubyHash(from)", "isBucketHash(from)" })
         public DynamicObject replaceBuckets(DynamicObject self, DynamicObject from) {
             if (self == from) {
                 return self;
@@ -772,6 +772,20 @@ public abstract class HashNodes {
             BucketsStrategy.copyInto(getContext(), from, self);
             copyOtherFields(self, from);
 
+            assert HashOperations.verifyStore(getContext(), self);
+
+            return self;
+        }
+
+        @TruffleBoundary
+        @Specialization(guards = { "!isConcurrentHash(self)", "isRubyHash(from)", "isConcurrentHash(from)" })
+        public DynamicObject replaceConcurrent(DynamicObject self, DynamicObject from) {
+            if (self == from) {
+                return self;
+            }
+
+            ConcurrentBucketsStrategy.copyInto(getContext(), from, self);
+            copyOtherFields(self, from);
             assert HashOperations.verifyStore(getContext(), self);
 
             return self;

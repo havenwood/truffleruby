@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.RubyContext;
+import org.truffleruby.language.RubyGuards;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -53,6 +54,51 @@ public abstract class ConcurrentBucketsStrategy {
 
         Layouts.HASH.setStore(hash, newConcurrentHash);
         assert HashOperations.verifyStore(context, hash);
+    }
+
+    public static void copyInto(RubyContext context, DynamicObject from, DynamicObject to) {
+        assert RubyGuards.isRubyHash(from);
+        assert HashGuards.isConcurrentHash(from);
+        assert HashOperations.verifyStore(context, from);
+        assert RubyGuards.isRubyHash(to);
+        assert HashOperations.verifyStore(context, to);
+
+        final ConcurrentHash newConcurrentHash = new ConcurrentHash(ConcurrentHash.getStore(from).getBuckets().length());
+        final AtomicReferenceArray<Entry> newEntries = newConcurrentHash.getBuckets();
+
+        Entry firstInSequence = null;
+        Entry lastInSequence = null;
+
+        final Entry last = Layouts.HASH.getLastInSequence(from);
+        Entry entry = Layouts.HASH.getFirstInSequence(from).getNextInSequence();
+
+        while (entry != last) {
+            final Entry newEntry = new Entry(entry.getHashed(), entry.getKey(), entry.getValue());
+
+            final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), newEntries.length());
+
+            newEntry.setNextInLookup(newEntries.get(index));
+            newEntries.set(index, newEntry);
+
+            if (firstInSequence == null) {
+                firstInSequence = newEntry;
+            }
+
+            if (lastInSequence != null) {
+                lastInSequence.setNextInSequence(newEntry);
+                newEntry.setPreviousInSequence(lastInSequence);
+            }
+
+            lastInSequence = newEntry;
+
+            entry = entry.getNextInSequence();
+        }
+
+        int size = Layouts.HASH.getSize(from);
+        Layouts.HASH.setStore(to, newConcurrentHash);
+        Layouts.HASH.setSize(to, size);
+        newConcurrentHash.setupSentinels(to, firstInSequence, lastInSequence);
+        assert HashOperations.verifyStore(context, to);
     }
 
     public static Iterator<KeyValue> iterateKeyValues(DynamicObject hash) {

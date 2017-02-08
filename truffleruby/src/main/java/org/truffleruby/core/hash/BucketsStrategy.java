@@ -287,7 +287,6 @@ public abstract class BucketsStrategy {
         Layouts.HASH.setSize(to, size);
         Layouts.HASH.setFirstInSequence(to, firstInSequence);
         Layouts.HASH.setLastInSequence(to, lastInSequence);
-
     }
 
     private static int hashKey(RubyContext context, Object key) {
