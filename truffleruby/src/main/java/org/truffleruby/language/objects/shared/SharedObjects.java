@@ -26,6 +26,7 @@ import org.truffleruby.core.hash.BucketsStrategy;
 import org.truffleruby.core.hash.ConcurrentHash;
 import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.HashGuards;
+import org.truffleruby.core.hash.HashOperations;
 import org.truffleruby.core.hash.PackedArrayStrategy;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -180,6 +181,7 @@ public class SharedObjects {
             buckets = (Entry[]) store;
         }
         Layouts.HASH.setStore(hash, new ConcurrentHash(hash, buckets));
+        assert HashOperations.verifyStore(RubyContext.getInstance(), hash);
     }
 
 }

@@ -25,11 +25,21 @@ public final class ConcurrentHash {
         Entry sentinelLast = new Entry(0, null, null);
 
         Entry first = Layouts.HASH.getFirstInSequence(hash);
-        sentinelFirst.setNextInSequence(first != null ? first : sentinelLast);
+        if (first != null) {
+            sentinelFirst.setNextInSequence(first);
+            first.setPreviousInSequence(sentinelFirst);
+        } else {
+            sentinelFirst.setNextInSequence(sentinelLast);
+        }
         Layouts.HASH.setFirstInSequence(hash, sentinelFirst);
 
         Entry last = Layouts.HASH.getLastInSequence(hash);
-        sentinelLast.setPreviousInSequence(last != null ? last : sentinelFirst);
+        if (last != null) {
+            sentinelLast.setPreviousInSequence(last);
+            last.setNextInSequence(sentinelLast);
+        } else {
+            sentinelLast.setPreviousInSequence(sentinelFirst);
+        }
         Layouts.HASH.setLastInSequence(hash, sentinelLast);
 
         this.buckets = new AtomicReferenceArray<>(buckets);
