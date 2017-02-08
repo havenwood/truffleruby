@@ -13,7 +13,7 @@ public class LayoutLock {
 
     public static final LayoutLock GLOBAL_LOCK = new LayoutLock();
 
-    private static final int MAX_THREADS = 200;
+    private static final int MAX_THREADS = 600;
 
     public static final int INACTIVE = 0;
     public static final int WRITE = 1;
