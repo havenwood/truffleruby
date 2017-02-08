@@ -1343,6 +1343,67 @@ public abstract class HashNodes {
             return createArray(objects, objects.length);
         }
 
+        @Specialization(guards = { "!isEmptyHash(hash)", "isConcurrentHash(hash)" })
+        public DynamicObject shiftConcurrent(DynamicObject hash) {
+            assert HashOperations.verifyStore(getContext(), hash);
+
+            final Entry head = Layouts.HASH.getFirstInSequence(hash);
+            final Entry tail = Layouts.HASH.getLastInSequence(hash);
+
+            final Entry entry = head.getNextInSequence();
+            assert entry != tail;
+
+            if (!head.compareAndSetNextInSequence(entry, entry.getNextInSequence())) {
+                assert false; // TODO
+            }
+
+            if (!entry.getNextInSequence().compareAndSetPreviousInSequence(entry, head)) {
+                assert false; // TODO
+            }
+
+            /*
+             * TODO CS 7-Mar-15 this isn't great - we need to remove from the lookup sequence for
+             * which we need the previous entry in the bucket. However we normally get that from the
+             * search result, and we haven't done a search here - we've just taken the first result.
+             * For the moment we'll just do a manual search.
+             */
+
+            final AtomicReferenceArray<Entry> store = ConcurrentHash.getStore(hash).getBuckets();
+
+            bucketLoop: for (int n = 0; n < store.length(); n++) {
+                Entry previous = null;
+                Entry e = store.get(n);
+
+                while (e != null) {
+                    if (e == entry) {
+                        if (previous == null) {
+                            if (!store.compareAndSet(n, entry, entry.getNextInLookup())) {
+                                assert false; // TODO
+                            }
+                        } else {
+                            if (!previous.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
+                                assert false; // TODO
+                            }
+                        }
+
+                        break bucketLoop;
+                    }
+
+                    previous = e;
+                    e = e.getNextInLookup();
+                }
+            }
+
+            int size;
+            while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size - 1)) {
+            }
+
+            assert HashOperations.verifyStore(getContext(), hash);
+
+            Object[] objects = new Object[]{ entry.getKey(), entry.getValue() };
+            return createArray(objects, objects.length);
+        }
+
     }
 
     @CoreMethod(names = {"size", "length"})
