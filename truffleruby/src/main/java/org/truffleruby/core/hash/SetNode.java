@@ -241,7 +241,7 @@ public abstract class SetNode extends RubyNode {
             }
 
             int size;
-            while (!ConcurrentHash.compareAndSetSize(hash, size = Layouts.HASH.getSize(hash), size + 1)) {
+            while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size + 1)) {
             }
             final int newSize = size + 1;
 

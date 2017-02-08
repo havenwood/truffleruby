@@ -549,7 +549,7 @@ public abstract class HashNodes {
             }
 
             int size;
-            while (!ConcurrentHash.compareAndSetSize(hash, size = Layouts.HASH.getSize(hash), size - 1)) {
+            while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size - 1)) {
             }
 
             assert HashOperations.verifyStore(getContext(), hash);
@@ -653,9 +653,19 @@ public abstract class HashNodes {
             return true;
         }
 
-        @Specialization(guards = "!isNullHash(hash)")
+        @Specialization(guards = "isPackedHash(hash)")
         public boolean emptyPackedArray(DynamicObject hash) {
             return Layouts.HASH.getSize(hash) == 0;
+        }
+
+        @Specialization(guards = "isBucketHash(hash)")
+        public boolean emptyBuckets(DynamicObject hash) {
+            return Layouts.HASH.getSize(hash) == 0;
+        }
+
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public boolean emptyConcurrent(DynamicObject hash) {
+            return ConcurrentHash.getSize(hash) == 0;
         }
 
     }
@@ -1259,9 +1269,19 @@ public abstract class HashNodes {
             return 0;
         }
 
-        @Specialization(guards = "!isNullHash(hash)")
+        @Specialization(guards = "isPackedHash(hash)")
         public int sizePackedArray(DynamicObject hash) {
             return Layouts.HASH.getSize(hash);
+        }
+
+        @Specialization(guards = "isBucketHash(hash)")
+        public int sizeBuckets(DynamicObject hash) {
+            return Layouts.HASH.getSize(hash);
+        }
+
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public int sizeConcurrent(DynamicObject hash) {
+            return ConcurrentHash.getSize(hash);
         }
 
     }

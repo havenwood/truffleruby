@@ -58,6 +58,10 @@ public final class ConcurrentHash {
     private static final long SIZE_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive1");
     private static final long COMPARE_BY_IDENTITY_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive2");
 
+    public static int getSize(DynamicObject hash) {
+        return (int) UnsafeHolder.UNSAFE.getLongVolatile(hash, SIZE_OFFSET);
+    }
+
     public static boolean compareAndSetSize(DynamicObject hash, int old, int newSize) {
         return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, SIZE_OFFSET, old, newSize);
     }
