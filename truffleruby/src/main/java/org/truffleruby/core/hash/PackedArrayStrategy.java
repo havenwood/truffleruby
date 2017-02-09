@@ -82,6 +82,13 @@ public abstract class PackedArrayStrategy {
 
     @TruffleBoundary
     public static void promoteToBuckets(RubyContext context, DynamicObject hash, Object[] store, int size) {
+        final Entry[] buckets = promoteToBucketsStore(context, hash, store, size);
+        Layouts.HASH.setStore(hash, buckets);
+        assert HashOperations.verifyStore(context, hash);
+    }
+
+    @TruffleBoundary
+    public static Entry[] promoteToBucketsStore(RubyContext context, DynamicObject hash, Object[] store, int size) {
         final Entry[] buckets = new Entry[BucketsStrategy.capacityGreaterThan(size)];
 
         Entry firstInSequence = null;
@@ -118,12 +125,10 @@ public abstract class PackedArrayStrategy {
         }
 
         assert HashOperations.verifyStore(context, buckets, size, firstInSequence, lastInSequence);
-        Layouts.HASH.setStore(hash, buckets);
         Layouts.HASH.setSize(hash, size);
         Layouts.HASH.setFirstInSequence(hash, firstInSequence);
         Layouts.HASH.setLastInSequence(hash, lastInSequence);
-
-        assert HashOperations.verifyStore(context, hash);
+        return buckets;
     }
 
     @TruffleBoundary

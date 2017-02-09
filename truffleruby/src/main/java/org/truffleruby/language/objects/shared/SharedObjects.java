@@ -175,8 +175,7 @@ public class SharedObjects {
             buckets = new Entry[BucketsStrategy.INITIAL_CAPACITY];
         } else if (HashGuards.isPackedHash(hash)) {
             RubyContext context = Layouts.MODULE.getFields(Layouts.BASIC_OBJECT.getLogicalClass(hash)).getContext();
-            PackedArrayStrategy.promoteToBuckets(context, hash, (Object[]) store, Layouts.HASH.getSize(hash));
-            buckets = (Entry[]) Layouts.HASH.getStore(hash);
+            buckets = PackedArrayStrategy.promoteToBucketsStore(context, hash, (Object[]) store, Layouts.HASH.getSize(hash));
         } else {
             buckets = (Entry[]) store;
         }
