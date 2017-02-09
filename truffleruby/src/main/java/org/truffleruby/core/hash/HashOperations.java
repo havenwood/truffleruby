@@ -16,6 +16,7 @@ import org.truffleruby.RubyContext;
 import org.truffleruby.collections.BoundaryIterable;
 import org.truffleruby.core.string.StringUtils;
 import org.truffleruby.language.RubyGuards;
+import org.truffleruby.language.objects.shared.SharedObjects;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -23,7 +24,9 @@ import java.util.Iterator;
 public abstract class HashOperations {
 
     public static boolean verifyStore(RubyContext context, DynamicObject hash) {
-        return verifyStore(context, Layouts.HASH.getStore(hash), Layouts.HASH.getSize(hash), Layouts.HASH.getFirstInSequence(hash), Layouts.HASH.getLastInSequence(hash));
+        final Object store = Layouts.HASH.getStore(hash);
+        assert (store instanceof ConcurrentHash) == SharedObjects.isShared(hash);
+        return verifyStore(context, store, Layouts.HASH.getSize(hash), Layouts.HASH.getFirstInSequence(hash), Layouts.HASH.getLastInSequence(hash));
     }
 
     public static boolean verifyStore(RubyContext context, Object store, int size, Entry firstInSequence, Entry lastInSequence) {
