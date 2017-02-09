@@ -183,14 +183,36 @@ class Hash
     nil
   end
 
+  class DefaultValueHash < BasicObject
+    attr_reader :stored_to_key
+
+    def initialize(source, key)
+      @source = source
+      @key = key
+      @stored_to_key = false
+    end
+
+    def []=(key, value)
+      if key.eql?(@key)
+        @stored_to_key = true
+        value
+      else
+        @source[key] = value
+      end
+    end
+
+    def method_missing(meth, *args, &block)
+      @source.public_send(meth, *args, &block)
+    end
+  end
+
   def default(key=undefined)
     if default_proc and !undefined.equal?(key)
       if Truffle::Debug.shared?(self)
         # To make h=Hash.new { |h,k| h[k] = [] }; h[new_key] << 1; behave like put_if_absent
-        h = {}
-        h.compare_by_identity if compare_by_identity?
+        h = DefaultValueHash.new(self, key)
         value = default_proc.call(h, key)
-        if h.size == 1 # inserted one key
+        if h.stored_to_key # the key was inserted
           put_if_absent(key, value)
         else
           value
