@@ -25,6 +25,7 @@ import com.oracle.truffle.api.object.DynamicObjectFactory;
 import com.oracle.truffle.api.source.SourceSection;
 import org.jcodings.specific.UTF8Encoding;
 import org.truffleruby.Layouts;
+import org.truffleruby.core.hash.ConcurrentHash;
 import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.string.StringOperations;
 import org.truffleruby.language.RubyNode;
@@ -72,6 +73,7 @@ public abstract class AllocateObjectNode extends RubyNode {
             DynamicObject defaultBlock,
             Object defaultValue,
             boolean compareByIdentity) {
+        assert !(store instanceof ConcurrentHash);
         return allocate(
                 classToAllocate,
                 store,
