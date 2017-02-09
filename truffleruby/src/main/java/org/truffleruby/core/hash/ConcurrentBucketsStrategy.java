@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.truffleruby.Layouts;
 import org.truffleruby.RubyContext;
 import org.truffleruby.language.RubyGuards;
+import org.truffleruby.language.objects.shared.SharedObjects;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -61,6 +62,7 @@ public abstract class ConcurrentBucketsStrategy {
         assert HashGuards.isConcurrentHash(from);
         assert HashOperations.verifyStore(context, from);
         assert RubyGuards.isRubyHash(to);
+        assert !HashGuards.isConcurrentHash(to) && !SharedObjects.isShared(to);
         assert HashOperations.verifyStore(context, to);
 
         final Entry[] newEntries = new Entry[ConcurrentHash.getStore(from).getBuckets().length()];
