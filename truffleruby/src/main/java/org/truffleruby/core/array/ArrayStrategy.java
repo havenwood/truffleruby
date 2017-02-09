@@ -93,7 +93,8 @@ public abstract class ArrayStrategy {
         }
 
         if (other instanceof ConcurrentArrayStrategy) {
-            return other.generalize(this);
+            // local.generalize(shared) => local
+            other = ((ConcurrentArrayStrategy) other).typeStrategy;
         }
 
         if (other instanceof NullArrayStrategy) {
