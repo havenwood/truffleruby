@@ -35,6 +35,7 @@ import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
 import org.truffleruby.core.array.layout.LayoutLockStartLayoutChangeNode;
+import org.truffleruby.core.hash.HashNodesFactory.ClearNodeFactory;
 import org.truffleruby.core.hash.HashNodesFactory.GetIndexNodeFactory;
 import org.truffleruby.core.hash.HashNodesFactory.InternalRehashNodeGen;
 import org.truffleruby.language.NotProvided;
@@ -278,6 +279,12 @@ public abstract class HashNodes {
     @CoreMethod(names = "clear", raiseIfFrozenSelf = true)
     @ImportStatic(HashGuards.class)
     public abstract static class ClearNode extends CoreMethodArrayArgumentsNode {
+
+        public static ClearNode create() {
+            return ClearNodeFactory.create(null);
+        }
+
+        public abstract DynamicObject executeClear(DynamicObject hash);
 
         @Specialization(guards = "isNullHash(hash)")
         public DynamicObject clearNull(DynamicObject hash) {
@@ -788,6 +795,56 @@ public abstract class HashNodes {
             copyOtherFields(self, from);
             assert HashOperations.verifyStore(getContext(), self);
 
+            return self;
+        }
+
+        @Specialization(guards = { "isConcurrentHash(self)", "isRubyHash(from)", "isNullHash(from)" })
+        public DynamicObject replaceConcurrentNull(DynamicObject self, DynamicObject from,
+                @Cached("create()") ClearNode clearNode) {
+            clearNode.executeClear(self);
+            return self;
+        }
+
+        @Specialization(guards = { "isConcurrentHash(self)", "isRubyHash(from)", "isPackedHash(from)" })
+        public DynamicObject replaceConcurrentPacked(DynamicObject self, DynamicObject from,
+                @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
+                @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+            assert HashOperations.verifyStore(getContext(), self);
+
+            final int size = Layouts.HASH.getSize(from);
+            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(self);
+            final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+            try {
+                Entry[] buckets = PackedArrayStrategy.promoteToBucketsStore(getContext(), self, (Object[]) Layouts.HASH.getStore(from), size);
+                Layouts.HASH.setStore(self, new ConcurrentHash(self, buckets));
+                copyOtherFields(self, from);
+            } finally {
+                finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+            }
+
+            assert HashOperations.verifyStore(getContext(), self);
+            return self;
+        }
+
+        @Specialization(guards = { "isConcurrentHash(self)", "isRubyHash(from)", "isBucketHash(from)" })
+        public DynamicObject replaceConcurrentBuckets(DynamicObject self, DynamicObject from,
+                @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
+                @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+            assert HashOperations.verifyStore(getContext(), self);
+
+            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(self);
+            final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+            try {
+                final Entry[] buckets = BucketsStrategy.copyStore(getContext(), from, self);
+                Layouts.HASH.setStore(self, new ConcurrentHash(self, buckets));
+                copyOtherFields(self, from);
+            } finally {
+                finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+            }
+
+            assert HashOperations.verifyStore(getContext(), self);
             return self;
         }
 
