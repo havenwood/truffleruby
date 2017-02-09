@@ -63,8 +63,7 @@ public abstract class ConcurrentBucketsStrategy {
         assert RubyGuards.isRubyHash(to);
         assert HashOperations.verifyStore(context, to);
 
-        final ConcurrentHash newConcurrentHash = new ConcurrentHash(ConcurrentHash.getStore(from).getBuckets().length());
-        final AtomicReferenceArray<Entry> newEntries = newConcurrentHash.getBuckets();
+        final Entry[] newEntries = new Entry[ConcurrentHash.getStore(from).getBuckets().length()];
 
         Entry firstInSequence = null;
         Entry lastInSequence = null;
@@ -75,10 +74,10 @@ public abstract class ConcurrentBucketsStrategy {
         while (entry != last) {
             final Entry newEntry = new Entry(entry.getHashed(), entry.getKey(), entry.getValue());
 
-            final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), newEntries.length());
+            final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), newEntries.length);
 
-            newEntry.setNextInLookup(newEntries.get(index));
-            newEntries.set(index, newEntry);
+            newEntry.setNextInLookup(newEntries[index]);
+            newEntries[index] = newEntry;
 
             if (firstInSequence == null) {
                 firstInSequence = newEntry;
@@ -95,9 +94,10 @@ public abstract class ConcurrentBucketsStrategy {
         }
 
         int size = Layouts.HASH.getSize(from);
-        Layouts.HASH.setStore(to, newConcurrentHash);
+        Layouts.HASH.setStore(to, newEntries);
         Layouts.HASH.setSize(to, size);
-        newConcurrentHash.setupSentinels(to, firstInSequence, lastInSequence);
+        Layouts.HASH.setFirstInSequence(to, firstInSequence);
+        Layouts.HASH.setLastInSequence(to, lastInSequence);
         assert HashOperations.verifyStore(context, to);
     }
 
