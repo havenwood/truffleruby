@@ -104,6 +104,7 @@ public abstract class ConcurrentBucketsStrategy {
     }
 
     public static Iterator<KeyValue> iterateKeyValues(DynamicObject hash) {
+        assert HashGuards.isConcurrentHash(hash);
         final Entry firstInSequence = Layouts.HASH.getFirstInSequence(hash);
         final Entry lastInSequence = Layouts.HASH.getLastInSequence(hash);
 

@@ -1140,7 +1140,7 @@ public abstract class HashNodes {
                 }
             }
 
-            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(hash)) {
+            for (KeyValue keyValue : ConcurrentBucketsStrategy.iterableKeyValues(other)) {
                 setNode.executeSet(frame, merged, keyValue.getKey(), keyValue.getValue(), compareByIdentity);
             }
 
