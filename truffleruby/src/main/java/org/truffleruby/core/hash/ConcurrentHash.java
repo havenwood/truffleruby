@@ -14,6 +14,27 @@ public final class ConcurrentHash implements ObjectGraphNode {
 
     private final AtomicReferenceArray<Entry> buckets;
 
+    public static void initialize(DynamicObject hash) {
+        Layouts.HASH.setFirstInSequence(hash, new Entry(0, null, null));
+        Layouts.HASH.setLastInSequence(hash, new Entry(0, null, null));
+    }
+
+    public static void linkFirstLast(DynamicObject hash, Entry first, Entry last) {
+        Entry sentinelFirst = Layouts.HASH.getFirstInSequence(hash);
+        Entry sentinelLast = Layouts.HASH.getLastInSequence(hash);
+
+        if (first != null) {
+            sentinelFirst.setNextInSequence(first);
+            first.setPreviousInSequence(sentinelFirst);
+
+            sentinelLast.setPreviousInSequence(last);
+            last.setNextInSequence(sentinelLast);
+        } else {
+            sentinelFirst.setNextInSequence(sentinelLast);
+            sentinelLast.setPreviousInSequence(sentinelFirst);
+        }
+    }
+
     public ConcurrentHash() {
         this(BucketsStrategy.INITIAL_CAPACITY);
     }
@@ -22,30 +43,8 @@ public final class ConcurrentHash implements ObjectGraphNode {
         this.buckets = new AtomicReferenceArray<>(capacity);
     }
 
-    public ConcurrentHash(DynamicObject hash, Entry[] buckets) {
-        setupSentinels(hash, Layouts.HASH.getFirstInSequence(hash), Layouts.HASH.getLastInSequence(hash));
+    public ConcurrentHash(Entry[] buckets) {
         this.buckets = new AtomicReferenceArray<>(buckets);
-    }
-
-    public void setupSentinels(DynamicObject hash, Entry first, Entry last) {
-        Entry sentinelFirst = new Entry(0, null, null);
-        Entry sentinelLast = new Entry(0, null, null);
-
-        if (first != null) {
-            sentinelFirst.setNextInSequence(first);
-            first.setPreviousInSequence(sentinelFirst);
-        } else {
-            sentinelFirst.setNextInSequence(sentinelLast);
-        }
-        Layouts.HASH.setFirstInSequence(hash, sentinelFirst);
-
-        if (last != null) {
-            sentinelLast.setPreviousInSequence(last);
-            last.setNextInSequence(sentinelLast);
-        } else {
-            sentinelLast.setPreviousInSequence(sentinelFirst);
-        }
-        Layouts.HASH.setLastInSequence(hash, sentinelLast);
     }
 
     public AtomicReferenceArray<Entry> getBuckets() {

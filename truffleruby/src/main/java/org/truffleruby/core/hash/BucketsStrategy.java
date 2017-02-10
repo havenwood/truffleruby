@@ -245,12 +245,10 @@ public abstract class BucketsStrategy {
         return () -> iterateKeyValues(firstInSequence);
     }
 
-    public static Entry[] copyStore(RubyContext context, DynamicObject from, DynamicObject to) {
+    public static BucketsPromotionResult copy(RubyContext context, DynamicObject from) {
         assert RubyGuards.isRubyHash(from);
         assert HashGuards.isBucketHash(from);
         assert HashOperations.verifyStore(context, from);
-        assert RubyGuards.isRubyHash(to);
-        assert HashOperations.verifyStore(context, to);
 
         final Entry[] newEntries = new Entry[((Entry[]) Layouts.HASH.getStore(from)).length];
 
@@ -283,17 +281,8 @@ public abstract class BucketsStrategy {
 
         int size = Layouts.HASH.getSize(from);
         assert HashOperations.verifyStore(context, newEntries, size, firstInSequence, lastInSequence);
-        Layouts.HASH.setSize(to, size);
-        Layouts.HASH.setFirstInSequence(to, firstInSequence);
-        Layouts.HASH.setLastInSequence(to, lastInSequence);
 
-        return newEntries;
-    }
-
-    public static void copyInto(RubyContext context, DynamicObject from, DynamicObject to) {
-        final Entry[] newEntries = copyStore(context, from, to);
-        Layouts.HASH.setStore(to, newEntries);
-
+        return new BucketsPromotionResult(newEntries, size, firstInSequence, lastInSequence);
     }
 
     private static int hashKey(RubyContext context, Object key) {

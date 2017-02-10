@@ -116,7 +116,7 @@ public abstract class SetNode extends RubyNode {
             Layouts.HASH.setSize(hash, size + 1);
             return value;
         } else {
-            PackedArrayStrategy.promoteToBuckets(getContext(), hash, store, size);
+            PackedArrayStrategy.promoteToBuckets(getContext(), store, size).apply(hash);
             BucketsStrategy.addNewEntry(getContext(), hash, hashed, key, value);
         }
 

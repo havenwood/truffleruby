@@ -319,8 +319,7 @@ public abstract class HashNodes {
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
-                Layouts.HASH.getFirstInSequence(hash).setNextInSequence(Layouts.HASH.getLastInSequence(hash));
-                Layouts.HASH.getLastInSequence(hash).setPreviousInSequence(Layouts.HASH.getFirstInSequence(hash));
+                ConcurrentHash.linkFirstLast(hash, null, null);
                 Layouts.HASH.setStore(hash, new ConcurrentHash());
                 Layouts.HASH.setSize(hash, 0);
             } finally {
@@ -776,7 +775,7 @@ public abstract class HashNodes {
                 return self;
             }
 
-            BucketsStrategy.copyInto(getContext(), from, self);
+            BucketsStrategy.copy(getContext(), from).apply(self);
             copyOtherFields(self, from);
 
             assert HashOperations.verifyStore(getContext(), self);
@@ -816,8 +815,8 @@ public abstract class HashNodes {
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(self);
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
-                Entry[] buckets = PackedArrayStrategy.promoteToBucketsStore(getContext(), self, (Object[]) Layouts.HASH.getStore(from), size);
-                Layouts.HASH.setStore(self, new ConcurrentHash(self, buckets));
+                Object[] store = (Object[]) Layouts.HASH.getStore(from);
+                PackedArrayStrategy.promoteToBuckets(getContext(), store, size).applyConcurrent(self);
                 copyOtherFields(self, from);
             } finally {
                 finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
@@ -837,8 +836,7 @@ public abstract class HashNodes {
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(self);
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
-                final Entry[] buckets = BucketsStrategy.copyStore(getContext(), from, self);
-                Layouts.HASH.setStore(self, new ConcurrentHash(self, buckets));
+                BucketsStrategy.copy(getContext(), from).applyConcurrent(self);
                 copyOtherFields(self, from);
             } finally {
                 finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
@@ -987,7 +985,7 @@ public abstract class HashNodes {
         @Specialization(guards = {"isEmptyHash(hash)", "isRubyHash(other)", "isBucketHash(other)"})
         public DynamicObject mergeEmptyBuckets(DynamicObject hash, DynamicObject other, NotProvided block) {
             final DynamicObject merged = newHash(hash, null, 0, Layouts.HASH.getCompareByIdentity(hash));
-            BucketsStrategy.copyInto(getContext(), other, merged);
+            BucketsStrategy.copy(getContext(), other).apply(merged);
             return merged;
         }
 

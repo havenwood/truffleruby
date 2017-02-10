@@ -22,9 +22,8 @@ import org.truffleruby.RubyLanguage;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.language.objects.ObjectGraph;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
-import org.truffleruby.core.hash.BucketsStrategy;
+import org.truffleruby.core.hash.BucketsPromotionResult;
 import org.truffleruby.core.hash.ConcurrentHash;
-import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.HashGuards;
 import org.truffleruby.core.hash.HashOperations;
 import org.truffleruby.core.hash.PackedArrayStrategy;
@@ -170,16 +169,17 @@ public class SharedObjects {
     public static void shareHash(DynamicObject hash) {
         // TODO: should learn from the allocation site
         final Object store = Layouts.HASH.getStore(hash);
-        final Entry[] buckets;
+        final BucketsPromotionResult buckets;
         if (HashGuards.isNullHash(hash)) {
-            buckets = new Entry[BucketsStrategy.INITIAL_CAPACITY];
+            buckets = BucketsPromotionResult.empty();
         } else if (HashGuards.isPackedHash(hash)) {
             RubyContext context = Layouts.MODULE.getFields(Layouts.BASIC_OBJECT.getLogicalClass(hash)).getContext();
-            buckets = PackedArrayStrategy.promoteToBucketsStore(context, hash, (Object[]) store, Layouts.HASH.getSize(hash));
+            buckets = PackedArrayStrategy.promoteToBuckets(context, (Object[]) store, Layouts.HASH.getSize(hash));
         } else {
-            buckets = (Entry[]) store;
+            buckets = BucketsPromotionResult.fromBucketHash(hash);
         }
-        Layouts.HASH.setStore(hash, new ConcurrentHash(hash, buckets));
+        ConcurrentHash.initialize(hash);
+        buckets.applyConcurrent(hash);
         assert HashOperations.verifyStore(RubyContext.getInstance(), hash);
     }
 
