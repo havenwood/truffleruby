@@ -12,7 +12,6 @@ import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
