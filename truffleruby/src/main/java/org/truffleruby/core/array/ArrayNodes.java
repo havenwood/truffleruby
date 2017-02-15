@@ -37,6 +37,7 @@ import org.truffleruby.builtins.PrimitiveArrayArgumentsNode;
 import org.truffleruby.builtins.SyncMode;
 import org.truffleruby.builtins.YieldingCoreMethodNode;
 import org.truffleruby.core.Hashing;
+import org.truffleruby.core.array.ArrayNodesFactory.LocalIndexSetNodeFactory;
 import org.truffleruby.core.array.ArrayNodesFactory.ReplaceNodeFactory;
 import org.truffleruby.core.cast.ToAryNodeGen;
 import org.truffleruby.core.cast.ToIntNode;
@@ -246,12 +247,32 @@ public abstract class ArrayNodes {
     @ImportStatic(ArrayGuards.class)
     public abstract static class IndexSetNode extends PrimitiveArrayArgumentsNode {
 
+        @Specialization(guards = "!isConcurrentArray(array)")
+        public Object set(DynamicObject array, Object index, Object length, Object value,
+                @Cached("create()") LocalIndexSetNode indexSetNode) {
+            return indexSetNode.executeSet(array, index, length, value);
+        }
+
+        @Specialization(guards = "isConcurrentArray(array)")
+        public Object setConcurrent(DynamicObject array, Object index, Object length, Object value,
+                @Cached("create()") ConcurrentArrayIndexSetNode indexSetNode) {
+            return indexSetNode.executeSet(array, index, length, value);
+        }
+
+    }
+
+    public abstract static class LocalIndexSetNode extends PrimitiveArrayArgumentsNode {
+
         @Child private ArrayReadNormalizedNode readNode;
         @Child private ArrayWriteNormalizedNode writeNode;
         @Child private ArrayReadSliceNormalizedNode readSliceNode;
 
         private final BranchProfile negativeIndexProfile = BranchProfile.create();
         private final BranchProfile negativeLengthProfile = BranchProfile.create();
+
+        public static LocalIndexSetNode create() {
+            return LocalIndexSetNodeFactory.create(null);
+        }
 
         public abstract Object executeSet(DynamicObject array, Object index, Object length, Object value);
 
