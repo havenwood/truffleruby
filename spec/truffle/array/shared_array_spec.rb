@@ -9,14 +9,27 @@
 
 require_relative '../../ruby/spec_helper'
 
-describe "Array#<<" do
-  def storage(ary)
-    Truffle::Debug.array_storage(ary)
-  end
-
+describe "Sharing an Array" do
   before :all do
     # Make sure we are sharing
     Thread.new {}.join
+  end
+
+  it "shares existing elements" do
+    obj1 = Object.new
+    obj2 = Object.new
+    ary = [obj1, obj2]
+    Truffle::Debug.shared?(obj1).should == false
+    @shared = ary
+    Truffle::Debug.shared?(ary).should == true
+    Truffle::Debug.shared?(obj1).should == true
+    Truffle::Debug.shared?(obj2).should == true
+  end
+end
+
+describe "Array#<<" do
+  def storage(ary)
+    Truffle::Debug.array_storage(ary)
   end
 
   it "$LOAD_PATH" do
