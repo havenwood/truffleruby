@@ -16,6 +16,7 @@ import com.oracle.truffle.api.dsl.NodeChildren;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.object.DynamicObject;
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.objects.shared.WriteBarrierNode;
 
 import static org.truffleruby.core.array.ArrayHelpers.getSize;
 import static org.truffleruby.core.array.ArrayHelpers.setSize;
@@ -28,6 +29,8 @@ import static org.truffleruby.core.array.ArrayHelpers.setSize;
 @ImportStatic(ArrayGuards.class)
 public abstract class ConcurrentArrayWriteNormalizedNode extends RubyNode {
 
+    @Child WriteBarrierNode writeBarrierNode = WriteBarrierNode.create();
+
     public abstract Object executeWrite(DynamicObject array, int index, Object value);
 
     // Writing within an existing array with a compatible type
@@ -37,6 +40,7 @@ public abstract class ConcurrentArrayWriteNormalizedNode extends RubyNode {
     }, limit = "ARRAY_STRATEGIES")
     public Object writeWithin(DynamicObject array, int index, Object value,
             @Cached("of(array)") ArrayStrategy strategy) {
+        writeBarrierNode.executeWriteBarrier(value);
         strategy.newMirror(array).set(index, value);
         return value;
     }
@@ -55,6 +59,7 @@ public abstract class ConcurrentArrayWriteNormalizedNode extends RubyNode {
         final ArrayMirror currentMirror = currentStrategy.newMirror(array);
         final ArrayMirror storeMirror = generalizedStrategy.newArray(currentMirror.getLength());
         currentMirror.copyTo(storeMirror, 0, 0, size);
+        writeBarrierNode.executeWriteBarrier(value);
         storeMirror.set(index, value);
         generalizedStrategy.setStore(array, storeMirror.getArray());
         return value;
@@ -82,6 +87,7 @@ public abstract class ConcurrentArrayWriteNormalizedNode extends RubyNode {
         for (int n = strategy.getSize(array); n < index; n++) {
             objectStore[n] = nil();
         }
+        writeBarrierNode.executeWriteBarrier(value);
         objectStore[index] = value;
         strategy.setStoreAndSize(array, objectStore, newSize);
         return value;
@@ -98,6 +104,7 @@ public abstract class ConcurrentArrayWriteNormalizedNode extends RubyNode {
         for (int n = strategy.getSize(array); n < index; n++) {
             store.set(n, nil());
         }
+        writeBarrierNode.executeWriteBarrier(value);
         store.set(index, value);
         setSize(array, index + 1);
         return value;
