@@ -24,7 +24,10 @@ import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.language.objects.shared.NoWriteBarrierNode;
 import org.truffleruby.language.objects.shared.SharedObjects;
+import org.truffleruby.language.objects.shared.WriteBarrier;
+import org.truffleruby.language.objects.shared.WriteBarrierNode;
 
 public abstract class ArrayStrategy {
 
@@ -117,6 +120,10 @@ public abstract class ArrayStrategy {
 
     public ArrayStrategy generalizeFor(Object value) {
         return generalize(ArrayStrategy.forValue(value));
+    }
+
+    public WriteBarrier createWriteBarrier() {
+        return new NoWriteBarrierNode();
     }
 
     // Helpers
@@ -569,6 +576,11 @@ public abstract class ArrayStrategy {
         @Override
         public ArrayMirror newMirrorFromStore(Object store) {
             return typeStrategy.newMirrorFromStore(unwrap(store));
+        }
+
+        @Override
+        public WriteBarrier createWriteBarrier() {
+            return WriteBarrierNode.create();
         }
 
         protected abstract Object wrap(DynamicObject array, Object store);

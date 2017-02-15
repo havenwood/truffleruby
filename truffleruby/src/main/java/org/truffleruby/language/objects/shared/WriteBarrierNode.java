@@ -14,11 +14,10 @@ import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.object.Shape;
-import org.truffleruby.language.RubyBaseNode;
 import org.truffleruby.language.objects.ShapeCachingGuards;
 
 @ImportStatic(ShapeCachingGuards.class)
-public abstract class WriteBarrierNode extends RubyBaseNode {
+public abstract class WriteBarrierNode extends WriteBarrier {
 
     protected static final int CACHE_LIMIT = 8;
     protected static final int MAX_DEPTH = 3;
@@ -33,6 +32,7 @@ public abstract class WriteBarrierNode extends RubyBaseNode {
         this.depth = depth;
     }
 
+    @Override
     public abstract void executeWriteBarrier(Object value);
 
     @Specialization(

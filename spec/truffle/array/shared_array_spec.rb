@@ -28,6 +28,16 @@ describe "Array#<<" do
     $" << __FILE__ # Make sure $LOADED_FEATURES is changed
     storage($LOADED_FEATURES).should == "Synchronized(Object[])"
   end
+
+  it "shares new elements written to a shared Array" do
+    @ary = [1,2,3]
+    @ary << obj = Object.new
+    Truffle::Debug.shared?(obj).should == true
+
+    ary = [1,2,3]
+    ary << obj2 = Object.new
+    Truffle::Debug.shared?(obj2).should == false
+  end
 end
 
 describe "Array#[]=" do

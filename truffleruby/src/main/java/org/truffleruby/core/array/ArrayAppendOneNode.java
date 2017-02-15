@@ -18,6 +18,7 @@ import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.objects.shared.WriteBarrier;
 
 import static org.truffleruby.core.array.ArrayHelpers.setSize;
 
@@ -39,10 +40,12 @@ public abstract class ArrayAppendOneNode extends RubyNode {
     @Specialization(guards = { "strategy.matches(array)", "strategy.accepts(value)" }, limit = "ARRAY_STRATEGIES")
     public DynamicObject appendOneSameType(DynamicObject array, Object value,
             @Cached("of(array)") ArrayStrategy strategy,
+            @Cached("strategy.createWriteBarrier()") WriteBarrier writeBarrier,
             @Cached("createBinaryProfile()") ConditionProfile extendProfile) {
         final ArrayMirror storeMirror = strategy.newMirror(array);
         final int oldSize = Layouts.ARRAY.getSize(array);
         final int newSize = oldSize + 1;
+        writeBarrier.executeWriteBarrier(value);
 
         if (extendProfile.profile(newSize > storeMirror.getLength())) {
             final int capacity = ArrayUtils.capacityForOneMore(getContext(), storeMirror.getLength());
@@ -65,7 +68,8 @@ public abstract class ArrayAppendOneNode extends RubyNode {
     public DynamicObject appendOneGeneralize(DynamicObject array, Object value,
             @Cached("of(array)") ArrayStrategy strategy,
             @Cached("forValue(value)") ArrayStrategy valueStrategy,
-            @Cached("strategy.generalize(valueStrategy)") ArrayStrategy generalizedStrategy) {
+            @Cached("strategy.generalize(valueStrategy)") ArrayStrategy generalizedStrategy,
+            @Cached("generalizedStrategy.createWriteBarrier()") WriteBarrier writeBarrier) {
         final int oldSize = strategy.getSize(array);
         final int newSize = oldSize + 1;
         final ArrayMirror currentMirror = strategy.newMirror(array);
@@ -73,6 +77,7 @@ public abstract class ArrayAppendOneNode extends RubyNode {
         final int newCapacity = newSize > oldCapacity ? ArrayUtils.capacityForOneMore(getContext(), oldCapacity) : oldCapacity;
         final ArrayMirror storeMirror = generalizedStrategy.newArray(newCapacity);
         currentMirror.copyTo(storeMirror, 0, 0, oldSize);
+        writeBarrier.executeWriteBarrier(value);
         storeMirror.set(oldSize, value);
         generalizedStrategy.setStore(array, storeMirror.getArray());
         setSize(array, newSize);
