@@ -29,7 +29,7 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 public abstract class ConcurrentArrayIndexSetNode extends PrimitiveArrayArgumentsNode {
 
     @Child private ArrayReadNormalizedNode readNode;
-    @Child private ArrayWriteNormalizedNode writeNode;
+    @Child private ConcurrentArrayWriteNormalizedNode writeNode;
     @Child private ArrayReadSliceNormalizedNode readSliceNode;
 
     private final BranchProfile negativeIndexProfile = BranchProfile.create();
@@ -214,7 +214,7 @@ public abstract class ConcurrentArrayIndexSetNode extends PrimitiveArrayArgument
     private Object write(DynamicObject array, int index, Object value) {
         if (writeNode == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
-            writeNode = insert(ArrayWriteNormalizedNodeGen.create(null, null, null));
+            writeNode = insert(ConcurrentArrayWriteNormalizedNodeGen.create(null, null, null));
         }
         return writeNode.executeWrite(array, index, value);
     }
