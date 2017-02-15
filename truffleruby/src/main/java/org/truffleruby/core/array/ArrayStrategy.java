@@ -18,6 +18,7 @@ import java.util.concurrent.locks.StampedLock;
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
@@ -184,6 +185,8 @@ public abstract class ArrayStrategy {
                 return new StampedLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else if (concurrentArray instanceof LayoutLockArray) {
                 return new LayoutLockArrayStrategy(ofStore(concurrentArray.getStore()));
+            } else if (concurrentArray instanceof FastLayoutLockArray) {
+                return new FastLayoutLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else {
                 throw new UnsupportedOperationException(concurrentArray.getStore().getClass().getName());
             }
@@ -808,6 +811,42 @@ public abstract class ArrayStrategy {
         @Override
         public String toString() {
             return "LayoutLock(" + typeStrategy + ")";
+        }
+
+    }
+
+    private static class FastLayoutLockArrayStrategy extends ConcurrentArrayStrategy {
+
+        public FastLayoutLockArrayStrategy(ArrayStrategy typeStrategy) {
+            super(typeStrategy);
+        }
+
+        @Override
+        protected Object wrap(DynamicObject array, Object store) {
+            return new FastLayoutLockArray(store);
+        }
+
+        @Override
+        protected Object unwrap(Object store) {
+            final FastLayoutLockArray FastLayoutLockArray = (FastLayoutLockArray) store;
+            return FastLayoutLockArray.getStore();
+        }
+
+        @Override
+        public boolean matchesStore(Object store) {
+            return store instanceof FastLayoutLockArray && typeStrategy.matchesStore(((FastLayoutLockArray) store).getStore());
+        }
+
+        @Override
+        public ArrayStrategy generalize(ArrayStrategy other) {
+            ArrayStrategy generalizedTypeStrategy = generalizeTypeStrategy(other);
+
+            return new FastLayoutLockArrayStrategy(generalizedTypeStrategy);
+        }
+
+        @Override
+        public String toString() {
+            return "FastLayoutLock(" + typeStrategy + ")";
         }
 
     }

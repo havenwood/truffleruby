@@ -20,6 +20,7 @@ import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.language.objects.shared.SharedObjects;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
@@ -93,6 +94,9 @@ public class TruffleArrayNodes {
                             break;
                         case "LayoutLock":
                             Layouts.ARRAY.setStore(array, new LayoutLockArray(concurrentArray.getStore()));
+                            break;
+                        case "FastLayoutLock":
+                            Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore()));
                             break;
                         default:
                             throw new UnsupportedOperationException();

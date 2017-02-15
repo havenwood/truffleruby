@@ -7,6 +7,9 @@ import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.FastLayoutLock;
+import org.truffleruby.core.array.layout.FastLayoutLockStartWriteNode;
+import org.truffleruby.core.array.layout.GetFastLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
@@ -127,6 +130,20 @@ public abstract class ArraySyncWriteNode extends RubyNode {
             @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
             @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
+        // accessor.startWrite();
+        startWriteNode.executeStartWrite(accessor);
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            accessor.finishWrite();
+        }
+    }
+
+    @Specialization(guards = "isFastLayoutLockArray(array)")
+    public Object FastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetFastLayoutLockAccessorNode getAccessorNode,
+            @Cached("create()") FastLayoutLockStartWriteNode startWriteNode) {
+        final FastLayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
         // accessor.startWrite();
         startWriteNode.executeStartWrite(accessor);
         try {
