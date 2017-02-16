@@ -1458,37 +1458,28 @@ public abstract class HashNodes {
                 assert false; // TODO
             }
 
-            /*
-             * TODO CS 7-Mar-15 this isn't great - we need to remove from the lookup sequence for
-             * which we need the previous entry in the bucket. However we normally get that from the
-             * search result, and we haven't done a search here - we've just taken the first result.
-             * For the moment we'll just do a manual search.
-             */
-
             final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
+            final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), store.length());
 
-            bucketLoop: for (int n = 0; n < store.length(); n++) {
-                ConcurrentEntry previous = null;
-                ConcurrentEntry e = store.get(n);
+            ConcurrentEntry previous = null;
+            ConcurrentEntry e = store.get(index);
 
-                while (e != null) {
-                    if (e == entry) {
-                        if (previous == null) {
-                            if (!store.compareAndSet(n, entry, entry.getNextInLookup())) {
-                                assert false; // TODO
-                            }
-                        } else {
-                            if (!previous.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
-                                assert false; // TODO
-                            }
+            while (e != null) {
+                if (e == entry) {
+                    if (previous == null) {
+                        if (!store.compareAndSet(index, entry, entry.getNextInLookup())) {
+                            assert false; // TODO
                         }
-
-                        break bucketLoop;
+                    } else {
+                        if (!previous.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
+                            assert false; // TODO
+                        }
                     }
-
-                    previous = e;
-                    e = e.getNextInLookup();
+                    break;
                 }
+
+                previous = e;
+                e = e.getNextInLookup();
             }
 
             int size;
