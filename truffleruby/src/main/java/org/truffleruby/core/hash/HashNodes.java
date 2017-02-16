@@ -529,24 +529,7 @@ public abstract class HashNodes {
 
             // Remove from the sequence chain
 
-            // First mark as deleted to avoid losing concurrent insertions
-            ConcurrentEntry nextInSequence;
-            ConcurrentEntry nextDeleted;
-            do {
-                nextInSequence = entry.getNextInSequence();
-                nextDeleted = new ConcurrentEntry(true, nextInSequence);
-            } while (!entry.compareAndSetNextInSequence(nextInSequence, nextDeleted));
-            // Nobody can insert between entry, nextDeleted and nextInSequence
-
-            ConcurrentEntry previousInSequence;
-            do {
-                previousInSequence = entry.getPreviousInSequence();
-            } while (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence));
-            // prev -> next
-
-            if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
-                assert false; // TODO
-            }
+            ConcurrentBucketsStrategy.removeFromSequence(entry);
 
             // Remove from the lookup chain
 

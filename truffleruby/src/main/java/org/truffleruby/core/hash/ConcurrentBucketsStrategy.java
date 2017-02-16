@@ -23,6 +23,28 @@ import com.oracle.truffle.api.object.DynamicObject;
 
 public abstract class ConcurrentBucketsStrategy {
 
+    public static void removeFromSequence(ConcurrentEntry entry) {
+        // First mark as deleted to avoid losing concurrent insertions
+        ConcurrentEntry nextInSequence;
+        ConcurrentEntry nextDeleted;
+        do {
+            nextInSequence = entry.getNextInSequence();
+            nextDeleted = new ConcurrentEntry(true, nextInSequence);
+            assert !nextInSequence.isRemoved(); // TODO when 2 thread concurrently remove the same key
+        } while (!entry.compareAndSetNextInSequence(nextInSequence, nextDeleted));
+        // Now, nobody can insert between entry, nextDeleted and nextInSequence
+
+        // Link entry.prev -> nextInSequence, as entry.next and nextDeleted.next cannot be changed by insertion
+        ConcurrentEntry previousInSequence;
+        do {
+            previousInSequence = entry.getPreviousInSequence();
+        } while (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence));
+
+        if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
+            assert false; // TODO
+        }
+    }
+
     @TruffleBoundary
     public static void resize(RubyContext context, DynamicObject hash, int newSize) {
         assert HashGuards.isConcurrentHash(hash);
