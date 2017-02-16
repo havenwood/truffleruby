@@ -22,6 +22,8 @@ public class FastLayoutLock {
 
     HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
 
+    public AtomicInteger gather[] = new AtomicInteger[0];
+
     AtomicInteger getThreadState(long tid) {
         do {
             long stamp = startCount.get();
@@ -35,10 +37,12 @@ public class FastLayoutLock {
     }
 
     private void notifyLayoutChange() {
-        for (AtomicInteger ts : threadStates.values())
+        for (int i = 0; i < gather.length; i++) {
+            AtomicInteger ts = gather[i];
             if (ts.get() != LAYOUT_CHANGE)
                 while (!ts.compareAndSet(INACTIVE, LAYOUT_CHANGE))
                     ;
+        }
     }
 
     public void startLayoutChange() {
@@ -52,12 +56,20 @@ public class FastLayoutLock {
         finishCount.incrementAndGet();
     }
 
+    private void updateGather() {
+        gather = new AtomicInteger[threadStates.size()];
+        int next = 0;
+        for (AtomicInteger ts : threadStates.values())
+            gather[next++] = ts;
+    }
+
     // block layout changes, but allow other changes to proceed
     public AtomicInteger registerThread(long tid) {
         startLayoutChange();
         AtomicInteger ts = new AtomicInteger(LAYOUT_CHANGE); // since we're currently in a layout
                                                              // change
         threadStates.put(tid, ts);
+        updateGather();
         // finish the layout change, no need to reset the LC flags
         finishLayoutChange();
         return ts;
@@ -67,6 +79,7 @@ public class FastLayoutLock {
     public void unregisterThread(long tid) {
         startLayoutChange();
         threadStates.remove(tid);
+        updateGather();
         finishLayoutChange();
     }
 
