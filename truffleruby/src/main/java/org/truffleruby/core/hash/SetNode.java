@@ -233,7 +233,7 @@ public abstract class SetNode extends RubyNode {
             do {
                 lastInSequence = sentinelLast.getPreviousInSequence();
                 newEntry.setPreviousInSequence(lastInSequence);
-            } while (!lastInSequence.compareAndSetNextInSequence(sentinelLast, newEntry));
+            } while (lastInSequence.isRemoved() || !lastInSequence.compareAndSetNextInSequence(sentinelLast, newEntry));
 
             if (!sentinelLast.compareAndSetPreviousInSequence(lastInSequence, newEntry)) {
                 assert false; // TODO

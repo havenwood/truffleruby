@@ -26,6 +26,8 @@ public final class ConcurrentEntry {
     private ConcurrentEntry previousInSequence;
     private ConcurrentEntry nextInSequence;
 
+    private final boolean removed;
+
     private static final long NEXT_IN_LOOKUP_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "nextInLookup");
     private static final long PREVIOUS_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "previousInSequence");
     private static final long NEXT_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "nextInSequence");
@@ -34,6 +36,20 @@ public final class ConcurrentEntry {
         this.hashed = hashed;
         this.key = key;
         this.value = value;
+        this.removed = false;
+    }
+
+    public ConcurrentEntry(boolean removed, ConcurrentEntry nextInSequence) {
+        this.hashed = 0;
+        this.key = null;
+        this.value = null;
+        this.previousInSequence = null;
+        this.nextInSequence = nextInSequence;
+        this.removed = true;
+    }
+
+    public boolean isRemoved() {
+        return removed;
     }
 
     public int getHashed() {
