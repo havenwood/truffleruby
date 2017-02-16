@@ -26,36 +26,42 @@ public abstract class HashOperations {
     public static boolean verifyStore(RubyContext context, DynamicObject hash) {
         final Object store = Layouts.HASH.getStore(hash);
         assert (store instanceof ConcurrentHash) == SharedObjects.isShared(hash);
-        return verifyStore(context, store, Layouts.HASH.getSize(hash), Layouts.HASH.getFirstInSequence(hash), Layouts.HASH.getLastInSequence(hash));
+        if (store instanceof ConcurrentHash) {
+            return verifyConcurrentHashStore(hash);
+        } else {
+            return verifyStore(context, store, Layouts.HASH.getSize(hash), Layouts.HASH.getFirstInSequence(hash), Layouts.HASH.getLastInSequence(hash));
+        }
+    }
+
+    public static boolean verifyConcurrentHashStore(DynamicObject hash) {
+        final ConcurrentEntry firstInSequence = ConcurrentHash.getFirstInSequence(hash);
+        final ConcurrentEntry lastInSequence = ConcurrentHash.getLastInSequence(hash);
+
+        assert firstInSequence != null;
+        assert firstInSequence.getKey() == null;
+        assert firstInSequence.getValue() == null;
+        assert firstInSequence.getNextInLookup() == null;
+        assert firstInSequence.getNextInSequence() != null;
+        assert firstInSequence.getPreviousInSequence() == null;
+
+        assert lastInSequence != null;
+        assert lastInSequence.getKey() == null;
+        assert lastInSequence.getValue() == null;
+        assert lastInSequence.getNextInLookup() == null;
+        assert lastInSequence.getNextInSequence() == null;
+        assert lastInSequence.getPreviousInSequence() != null;
+
+        ConcurrentEntry entry = firstInSequence.getNextInSequence();
+        while (entry != lastInSequence) {
+            entry = entry.getNextInSequence();
+        }
+
+        // TODO
+        return true;
     }
 
     public static boolean verifyStore(RubyContext context, Object store, int size, Entry firstInSequence, Entry lastInSequence) {
         assert store == null || store.getClass() == Object[].class || store instanceof Entry[] || store instanceof ConcurrentHash;
-
-        if (store instanceof ConcurrentHash) {
-            assert firstInSequence != null;
-            assert firstInSequence.getKey() == null;
-            assert firstInSequence.getValue() == null;
-            assert firstInSequence.getNextInLookup() == null;
-            assert firstInSequence.getNextInSequence() != null;
-            assert firstInSequence.getPreviousInSequence() == null;
-
-            assert lastInSequence != null;
-            assert lastInSequence.getKey() == null;
-            assert lastInSequence.getValue() == null;
-            assert lastInSequence.getNextInLookup() == null;
-            assert lastInSequence.getNextInSequence() == null;
-            assert lastInSequence.getPreviousInSequence() != null;
-
-            Entry entry = firstInSequence.getNextInSequence();
-            while (entry != lastInSequence) {
-                entry = entry.getNextInSequence();
-            }
-
-            // store = ((ConcurrentHash) store).toBucketArray();
-            // TODO
-            return true;
-        }
 
         if (store == null) {
             assert size == 0;

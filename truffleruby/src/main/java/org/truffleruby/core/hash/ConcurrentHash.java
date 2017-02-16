@@ -3,7 +3,6 @@ package org.truffleruby.core.hash;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.truffleruby.Layouts;
 import org.truffleruby.core.UnsafeHolder;
 import org.truffleruby.language.objects.ObjectGraphNode;
 
@@ -12,16 +11,16 @@ import com.oracle.truffle.object.basic.DynamicObjectBasic;
 
 public final class ConcurrentHash implements ObjectGraphNode {
 
-    private final AtomicReferenceArray<Entry> buckets;
+    private final AtomicReferenceArray<ConcurrentEntry> buckets;
 
     public static void initialize(DynamicObject hash) {
-        Layouts.HASH.setFirstInSequence(hash, new Entry(0, null, null));
-        Layouts.HASH.setLastInSequence(hash, new Entry(0, null, null));
+        ConcurrentHash.setFirstInSequence(hash, new ConcurrentEntry(0, null, null));
+        ConcurrentHash.setLastInSequence(hash, new ConcurrentEntry(0, null, null));
     }
 
-    public static void linkFirstLast(DynamicObject hash, Entry first, Entry last) {
-        Entry sentinelFirst = Layouts.HASH.getFirstInSequence(hash);
-        Entry sentinelLast = Layouts.HASH.getLastInSequence(hash);
+    public static void linkFirstLast(DynamicObject hash, ConcurrentEntry first, ConcurrentEntry last) {
+        ConcurrentEntry sentinelFirst = ConcurrentHash.getFirstInSequence(hash);
+        ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
 
         if (first != null) {
             sentinelFirst.setNextInSequence(first);
@@ -43,17 +42,13 @@ public final class ConcurrentHash implements ObjectGraphNode {
         this.buckets = new AtomicReferenceArray<>(capacity);
     }
 
-    public ConcurrentHash(Entry[] buckets) {
-        this.buckets = new AtomicReferenceArray<>(buckets);
-    }
-
-    public AtomicReferenceArray<Entry> getBuckets() {
+    public AtomicReferenceArray<ConcurrentEntry> getBuckets() {
         return buckets;
     }
 
     public void getAdjacentObjects(Set<DynamicObject> reachable) {
         for (int i = 0; i < buckets.length(); i++) {
-            Entry entry = buckets.get(i);
+            ConcurrentEntry entry = buckets.get(i);
             while (entry != null) {
                 if (entry.getKey() instanceof DynamicObject) {
                     reachable.add((DynamicObject) entry.getKey());
@@ -77,6 +72,8 @@ public final class ConcurrentHash implements ObjectGraphNode {
     private static final long STORE_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object1");
     private static final long SIZE_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive1");
     private static final long COMPARE_BY_IDENTITY_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive2");
+    private static final long FIRST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object2");
+    private static final long LAST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object3");
 
     public static ConcurrentHash getStore(DynamicObject hash) {
         return (ConcurrentHash) UnsafeHolder.UNSAFE.getObject(hash, STORE_OFFSET);
@@ -92,6 +89,22 @@ public final class ConcurrentHash implements ObjectGraphNode {
 
     public static boolean compareAndSetCompareByIdentity(DynamicObject hash, boolean old, boolean newSize) {
         return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, COMPARE_BY_IDENTITY_OFFSET, old ? 1L : 0L, newSize ? 1L : 0L);
+    }
+
+    public static ConcurrentEntry getFirstInSequence(DynamicObject hash) {
+        return (ConcurrentEntry) UnsafeHolder.UNSAFE.getObject(hash, FIRST_IN_SEQ_OFFSET);
+    }
+
+    private static void setFirstInSequence(DynamicObject hash, ConcurrentEntry entry) {
+        UnsafeHolder.UNSAFE.putObject(hash, FIRST_IN_SEQ_OFFSET, entry);
+    }
+
+    public static ConcurrentEntry getLastInSequence(DynamicObject hash) {
+        return (ConcurrentEntry) UnsafeHolder.UNSAFE.getObject(hash, LAST_IN_SEQ_OFFSET);
+    }
+
+    private static void setLastInSequence(DynamicObject hash, ConcurrentEntry entry) {
+        UnsafeHolder.UNSAFE.putObject(hash, LAST_IN_SEQ_OFFSET, entry);
     }
 
 }

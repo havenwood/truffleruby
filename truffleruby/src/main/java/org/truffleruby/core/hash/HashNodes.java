@@ -218,7 +218,7 @@ public abstract class HashNodes {
         public Object getConcurrent(VirtualFrame frame, DynamicObject hash, Object key,
                 @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
                 @Cached("createBinaryProfile()") ConditionProfile foundProfile) {
-            final HashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
+            final ConcurrentHashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
 
             if (foundProfile.profile(hashLookupResult.getEntry() != null)) {
                 return hashLookupResult.getEntry().getValue();
@@ -516,8 +516,8 @@ public abstract class HashNodes {
                 @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode) {
             // TODO: all
             assert HashOperations.verifyStore(getContext(), hash);
-            final HashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
-            final Entry entry = hashLookupResult.getEntry();
+            final ConcurrentHashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
+            final ConcurrentEntry entry = hashLookupResult.getEntry();
 
             if (entry == null) {
                 if (maybeBlock == NotProvided.INSTANCE) {
@@ -529,8 +529,8 @@ public abstract class HashNodes {
 
             // Remove from the sequence chain
 
-            final Entry previousInSequence = entry.getPreviousInSequence();
-            final Entry nextInSequence = entry.getNextInSequence();
+            final ConcurrentEntry previousInSequence = entry.getPreviousInSequence();
+            final ConcurrentEntry nextInSequence = entry.getNextInSequence();
             if (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence)) {
                 assert false; // TODO
             }
@@ -541,9 +541,9 @@ public abstract class HashNodes {
 
             // Remove from the lookup chain
 
-            final Entry previousEntry = hashLookupResult.getPreviousEntry();
+            final ConcurrentEntry previousEntry = hashLookupResult.getPreviousEntry();
             if (previousEntry == null) {
-                final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
+                final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
                 if (!entries.compareAndSet(hashLookupResult.getIndex(), entry, entry.getNextInLookup())) {
                     assert false; // TODO
                 }
@@ -1435,10 +1435,10 @@ public abstract class HashNodes {
         public DynamicObject shiftConcurrent(DynamicObject hash) {
             assert HashOperations.verifyStore(getContext(), hash);
 
-            final Entry head = Layouts.HASH.getFirstInSequence(hash);
-            final Entry tail = Layouts.HASH.getLastInSequence(hash);
+            final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
+            final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
-            final Entry entry = head.getNextInSequence();
+            final ConcurrentEntry entry = head.getNextInSequence();
             assert entry != tail;
 
             if (!head.compareAndSetNextInSequence(entry, entry.getNextInSequence())) {
@@ -1456,11 +1456,11 @@ public abstract class HashNodes {
              * For the moment we'll just do a manual search.
              */
 
-            final AtomicReferenceArray<Entry> store = ConcurrentHash.getStore(hash).getBuckets();
+            final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
 
             bucketLoop: for (int n = 0; n < store.length(); n++) {
-                Entry previous = null;
-                Entry e = store.get(n);
+                ConcurrentEntry previous = null;
+                ConcurrentEntry e = store.get(n);
 
                 while (e != null) {
                     if (e == entry) {
@@ -1604,20 +1604,20 @@ public abstract class HashNodes {
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
                 final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
-                final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
+                final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
                 for (int i = 0; i < entries.length(); i++) {
                     entries.set(i, null);
                 }
 
-                final Entry last = Layouts.HASH.getLastInSequence(hash);
-                Entry entry = Layouts.HASH.getFirstInSequence(hash).getNextInSequence();
+                final ConcurrentEntry last = ConcurrentHash.getLastInSequence(hash);
+                ConcurrentEntry entry = ConcurrentHash.getFirstInSequence(hash).getNextInSequence();
 
                 while (entry != last) {
                     final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity);
                     entry.setHashed(newHash);
                     entry.setNextInLookup(null);
                     final int index = BucketsStrategy.getBucketIndex(newHash, entries.length());
-                    Entry bucketEntry = entries.get(index);
+                    ConcurrentEntry bucketEntry = entries.get(index);
 
                     if (bucketEntry == null) {
                         entries.set(index, entry);

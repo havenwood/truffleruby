@@ -30,9 +30,9 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
     private final ConditionProfile byIdentityProfile = ConditionProfile.createBinaryProfile();
     private final ConditionProfile dirtyProfile = ConditionProfile.createBinaryProfile();
 
-    public HashLookupResult lookup(VirtualFrame frame, DynamicObject hash, Object key) {
+    public ConcurrentHashLookupResult lookup(VirtualFrame frame, DynamicObject hash, Object key) {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
-        HashLookupResult result;
+        ConcurrentHashLookupResult result;
 
         while (true) {
             result = doLookup(frame, hash, key);
@@ -47,27 +47,27 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
         return result;
     }
 
-    private HashLookupResult doLookup(VirtualFrame frame, DynamicObject hash, Object key) {
+    private ConcurrentHashLookupResult doLookup(VirtualFrame frame, DynamicObject hash, Object key) {
         final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
         int hashed = hashNode.hash(frame, key, compareByIdentity);
 
-        final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
+        final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
         final int index = BucketsStrategy.getBucketIndex(hashed, entries.length());
-        final Entry firstEntry = entries.get(index);
+        final ConcurrentEntry firstEntry = entries.get(index);
 
-        Entry entry = firstEntry;
-        Entry previousEntry = null;
+        ConcurrentEntry entry = firstEntry;
+        ConcurrentEntry previousEntry = null;
 
         while (entry != null) {
             if (equalKeys(frame, compareByIdentity, key, hashed, entry.getKey(), entry.getHashed())) {
-                return new HashLookupResult(hashed, index, previousEntry, entry);
+                return new ConcurrentHashLookupResult(hashed, index, previousEntry, entry);
             }
 
             previousEntry = entry;
             entry = entry.getNextInLookup();
         }
 
-        return new HashLookupResult(hashed, index, firstEntry, null);
+        return new ConcurrentHashLookupResult(hashed, index, firstEntry, null);
     }
 
     protected boolean equalKeys(VirtualFrame frame, boolean compareByIdentity, Object key, int hashed, Object otherKey, int otherHashed) {

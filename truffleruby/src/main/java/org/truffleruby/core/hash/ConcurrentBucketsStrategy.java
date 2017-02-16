@@ -30,14 +30,14 @@ public abstract class ConcurrentBucketsStrategy {
 
         final int bucketsCount = BucketsStrategy.capacityGreaterThan(newSize) * BucketsStrategy.OVERALLOCATE_FACTOR;
         final ConcurrentHash newConcurrentHash = new ConcurrentHash(bucketsCount);
-        final AtomicReferenceArray<Entry> newEntries = newConcurrentHash.getBuckets();
+        final AtomicReferenceArray<ConcurrentEntry> newEntries = newConcurrentHash.getBuckets();
 
-        final Entry last = Layouts.HASH.getLastInSequence(hash);
-        Entry entry = Layouts.HASH.getFirstInSequence(hash).getNextInSequence();
+        final ConcurrentEntry last = ConcurrentHash.getLastInSequence(hash);
+        ConcurrentEntry entry = ConcurrentHash.getFirstInSequence(hash).getNextInSequence();
 
         while (entry != last) {
             final int bucketIndex = BucketsStrategy.getBucketIndex(entry.getHashed(), bucketsCount);
-            Entry previousInLookup = newEntries.get(bucketIndex);
+            ConcurrentEntry previousInLookup = newEntries.get(bucketIndex);
 
             if (previousInLookup == null) {
                 newEntries.set(bucketIndex, entry);
@@ -70,8 +70,8 @@ public abstract class ConcurrentBucketsStrategy {
         Entry firstInSequence = null;
         Entry lastInSequence = null;
 
-        final Entry last = Layouts.HASH.getLastInSequence(from);
-        Entry entry = Layouts.HASH.getFirstInSequence(from).getNextInSequence();
+        final ConcurrentEntry last = ConcurrentHash.getLastInSequence(from);
+        ConcurrentEntry entry = ConcurrentHash.getFirstInSequence(from).getNextInSequence();
 
         while (entry != last) {
             final Entry newEntry = new Entry(entry.getHashed(), entry.getKey(), entry.getValue());
@@ -95,7 +95,7 @@ public abstract class ConcurrentBucketsStrategy {
             entry = entry.getNextInSequence();
         }
 
-        int size = Layouts.HASH.getSize(from);
+        int size = ConcurrentHash.getSize(from);
         Layouts.HASH.setStore(to, newEntries);
         Layouts.HASH.setSize(to, size);
         Layouts.HASH.setFirstInSequence(to, firstInSequence);
@@ -103,14 +103,52 @@ public abstract class ConcurrentBucketsStrategy {
         assert HashOperations.verifyStore(context, to);
     }
 
+    public static void fromBuckets(BucketsPromotionResult buckets, DynamicObject hash) {
+        assert RubyGuards.isRubyHash(hash);
+
+        final ConcurrentHash concurrentHash = new ConcurrentHash(buckets.getBuckets().length);
+        final AtomicReferenceArray<ConcurrentEntry> newEntries = concurrentHash.getBuckets();
+
+        ConcurrentEntry firstInSequence = null;
+        ConcurrentEntry lastInSequence = null;
+
+        Entry entry = buckets.getFirstInSequence();
+
+        while (entry != null) {
+            final ConcurrentEntry newEntry = new ConcurrentEntry(entry.getHashed(), entry.getKey(), entry.getValue());
+
+            final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), newEntries.length());
+
+            newEntry.setNextInLookup(newEntries.get(index));
+            newEntries.set(index, newEntry);
+
+            if (firstInSequence == null) {
+                firstInSequence = newEntry;
+            }
+
+            if (lastInSequence != null) {
+                lastInSequence.setNextInSequence(newEntry);
+                newEntry.setPreviousInSequence(lastInSequence);
+            }
+
+            lastInSequence = newEntry;
+
+            entry = entry.getNextInSequence();
+        }
+
+        Layouts.HASH.setStore(hash, concurrentHash);
+        Layouts.HASH.setSize(hash, buckets.getSize());
+        ConcurrentHash.linkFirstLast(hash, firstInSequence, lastInSequence);
+    }
+
     public static Iterator<KeyValue> iterateKeyValues(DynamicObject hash) {
         assert HashGuards.isConcurrentHash(hash);
-        final Entry firstInSequence = Layouts.HASH.getFirstInSequence(hash);
-        final Entry lastInSequence = Layouts.HASH.getLastInSequence(hash);
+        final ConcurrentEntry firstInSequence = ConcurrentHash.getFirstInSequence(hash);
+        final ConcurrentEntry lastInSequence = ConcurrentHash.getLastInSequence(hash);
 
         return new Iterator<KeyValue>() {
 
-            private Entry entry = firstInSequence.getNextInSequence();
+            private ConcurrentEntry entry = firstInSequence.getNextInSequence();
 
             @Override
             public boolean hasNext() {

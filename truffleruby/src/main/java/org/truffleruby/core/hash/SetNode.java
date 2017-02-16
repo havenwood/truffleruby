@@ -201,15 +201,15 @@ public abstract class SetNode extends RubyNode {
         final boolean compareByIdentity = byIdentityProfile.profile(byIdentity);
         final Object key = freezeHashKeyIfNeededNode.executeFreezeIfNeeded(frame, originalKey, compareByIdentity);
 
-        final HashLookupResult result = lookupEntryNode.lookup(frame, hash, key);
-        final Entry entry = result.getEntry();
+        final ConcurrentHashLookupResult result = lookupEntryNode.lookup(frame, hash, key);
+        final ConcurrentEntry entry = result.getEntry();
 
         if (foundProfile.profile(entry == null)) {
             writeBarrierNode.executeWriteBarrier(value);
 
-            final Entry firstEntry = result.getPreviousEntry();
-            final Entry sentinelLast = Layouts.HASH.getLastInSequence(hash);
-            final Entry newEntry = new Entry(result.getHashed(), key, value);
+            final ConcurrentEntry firstEntry = result.getPreviousEntry();
+            final ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
+            final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value);
             newEntry.setNextInLookup(firstEntry);
             newEntry.setNextInSequence(sentinelLast);
 
@@ -217,7 +217,7 @@ public abstract class SetNode extends RubyNode {
             boolean success;
             startWriteNode.executeStartWrite(accessor);
             try {
-                final AtomicReferenceArray<Entry> entries = ConcurrentHash.getStore(hash).getBuckets();
+                final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
                 success = entries.compareAndSet(result.getIndex(), firstEntry, newEntry);
             } finally {
                 accessor.finishWrite();
@@ -229,7 +229,7 @@ public abstract class SetNode extends RubyNode {
             }
 
             // TODO: is ordering OK here?
-            Entry lastInSequence;
+            ConcurrentEntry lastInSequence;
             do {
                 lastInSequence = sentinelLast.getPreviousInSequence();
                 newEntry.setPreviousInSequence(lastInSequence);

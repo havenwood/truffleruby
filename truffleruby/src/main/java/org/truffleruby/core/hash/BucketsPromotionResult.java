@@ -65,9 +65,7 @@ public class BucketsPromotionResult {
 
     public void applyConcurrent(DynamicObject hash) {
         assert SharedObjects.isShared(hash);
-        Layouts.HASH.setStore(hash, new ConcurrentHash(buckets));
-        Layouts.HASH.setSize(hash, size);
-        ConcurrentHash.linkFirstLast(hash, firstInSequence, lastInSequence);
+        ConcurrentBucketsStrategy.fromBuckets(this, hash);
     }
 
 }
