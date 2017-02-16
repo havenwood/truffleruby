@@ -1424,22 +1424,20 @@ public abstract class HashNodes {
         }
 
         @Specialization(guards = { "!isEmptyHash(hash)", "isConcurrentHash(hash)" })
-        public DynamicObject shiftConcurrent(DynamicObject hash) {
+        public Object shiftConcurrent(VirtualFrame frame, DynamicObject hash) {
             assert HashOperations.verifyStore(getContext(), hash);
 
             final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
             final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
-            final ConcurrentEntry entry = head.getNextInSequence();
-            assert entry != tail;
+            // Remove from the sequence chain
 
-            if (!head.compareAndSetNextInSequence(entry, entry.getNextInSequence())) {
-                assert false; // TODO
+            final ConcurrentEntry entry = ConcurrentBucketsStrategy.removeFirstFromSequence(head, tail);
+            if (entry == null) {
+                return callDefaultNode.call(frame, hash, "default", nil());
             }
 
-            if (!entry.getNextInSequence().compareAndSetPreviousInSequence(entry, head)) {
-                assert false; // TODO
-            }
+            // Remove from the lookup chain
 
             final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
             final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), store.length());

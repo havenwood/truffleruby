@@ -45,6 +45,23 @@ public abstract class ConcurrentBucketsStrategy {
         }
     }
 
+    public static ConcurrentEntry removeFirstFromSequence(ConcurrentEntry head, ConcurrentEntry tail) {
+        final ConcurrentEntry entry = head.getNextInSequence();
+        if (entry == tail) {
+            return null;
+        }
+
+        if (!head.compareAndSetNextInSequence(entry, entry.getNextInSequence())) {
+            assert false; // TODO
+        }
+
+        if (!entry.getNextInSequence().compareAndSetPreviousInSequence(entry, head)) {
+            assert false; // TODO
+        }
+
+        return entry;
+    }
+
     @TruffleBoundary
     public static void resize(RubyContext context, DynamicObject hash, int newSize) {
         assert HashGuards.isConcurrentHash(hash);
