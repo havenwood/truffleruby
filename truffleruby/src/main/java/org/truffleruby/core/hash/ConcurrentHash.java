@@ -51,14 +51,6 @@ public final class ConcurrentHash implements ObjectGraphNode {
         return buckets;
     }
 
-    public Entry[] toBucketArray() {
-        Entry[] array = new Entry[buckets.length()];
-        for (int i = 0; i < array.length; i++) {
-            array[i] = buckets.get(i);
-        }
-        return array;
-    }
-
     public void getAdjacentObjects(Set<DynamicObject> reachable) {
         for (int i = 0; i < buckets.length(); i++) {
             Entry entry = buckets.get(i);
