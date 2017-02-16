@@ -15,230 +15,100 @@ public class FastLayoutLock {
      * an AtomicLong. Inc on layout change, and Inc again on finishing layout change.
      */
     static final int INACTIVE = 0;
-    static final int READER_ACTIVE = 1;
-    static final int WRITER_ACTIVE = -1;
-    AtomicInteger writerActive = new AtomicInteger(0);
+    static final int WRITER_ACTIVE = 1;
+    static final int LAYOUT_CHANGE = -1;
+    public AtomicInteger startCount = new AtomicInteger(0);
+    public AtomicInteger finishCount = new AtomicInteger(0);
 
-    HashMap<Long, ThreadInfo> threads = new HashMap<>();
+    HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
 
-    // to be used with startLayoutChange/finishLayoutChange
-    ThreadInfo gather[];
-
-    class ThreadInfo {
-        public AtomicBoolean dirty = new AtomicBoolean(false);
-        public AtomicInteger state = new AtomicInteger(INACTIVE);
-        public AtomicInteger writeIntended = new AtomicInteger(0);
-        int activeReaders = 0;
-    }
-
-    ThreadInfo getThreadInfo(long tid) {
-        long stamp;
+    AtomicInteger getThreadState(long tid) {
         do {
-            while ((writerActive.get() & 1) != 0)
+            long stamp = startCount.get();
+            while (finishCount.get() < stamp)
                 ; // layout change is happening
-            stamp = writerActive.get();
-            if ((stamp & 1) == 1)
+            AtomicInteger ts = threadStates.get(tid);
+            if (stamp != startCount.get()) // did another layout change start?
                 continue;
-            ThreadInfo ti = threads.get(tid);
-            if (stamp != writerActive.get())
-                continue;
-            return ti;
+            return ts;
         } while (true);
     }
 
-    public ThreadInfo registerThread(long tid) {
-        ThreadInfo ti = getThreadInfo(tid);
-        if (ti != null)
-            return ti;
-        // registering a thread must block layout changes while registering
-        int c = writerActive.get();
-        while ((c & 1) == 1 || !writerActive.compareAndSet(c, c + 1))
-            c = writerActive.get();
-        if ((writerActive.get() & 1) == 0) {
-            System.err.println("Bad lock(2) " + writerActive.get() + ", c = " + c);
-        }
+    private void notifyLayoutChange() {
+        for (AtomicInteger ts : threadStates.values())
+            if (ts.get() != LAYOUT_CHANGE)
+                while (!ts.compareAndSet(INACTIVE, LAYOUT_CHANGE))
+                    ;
+    }
 
-        ti = new ThreadInfo();
-        threads.put(tid, ti);
-        writerActive.getAndIncrement();
-        return ti;
+    public void startLayoutChange() {
+        int s = startCount.incrementAndGet();
+        while (s > finishCount.get() + 1)
+            ; // wait for previous layout changes
+        notifyLayoutChange();
+    }
+
+    public void finishLayoutChange() {
+        finishCount.incrementAndGet();
+    }
+
+    // block layout changes, but allow other changes to proceed
+    public AtomicInteger registerThread(long tid) {
+        startLayoutChange();
+        AtomicInteger ts = new AtomicInteger(LAYOUT_CHANGE); // since we're currently in a layout
+                                                             // change
+        threadStates.put(tid, ts);
+        // finish the layout change, no need to reset the LC flags
+        finishLayoutChange();
+        return ts;
+    }
+
+    // block layout changes, but allow other changes to proceed
+    public void unregisterThread(long tid) {
+        startLayoutChange();
+        threadStates.remove(tid);
+        finishLayoutChange();
     }
 
     public void reset() {
-        gather = null;
-        threads = new HashMap<>();
-        writerActive.set(0);
+        threadStates = new HashMap<>();
+        startCount.set(0);
+        finishCount.set(0);
     }
 
-    public void startRead(int tid) {
+    public void startRead(AtomicInteger ts) {
     }
 
-    public void startRead(ThreadInfo ti) {
-    }
-
-    public boolean finishRead(int tid) {
-        ThreadInfo ti = getThreadInfo(tid);
-        return finishRead(ti);
-    }
-
-    public boolean finishRead(ThreadInfo ti) {
-        if (ti.dirty.get()) {
-            AtomicInteger state = ti.state;
-            while (state.get() == WRITER_ACTIVE)
-                ;
-            ti.dirty.set(false);
-            if (state.get() == WRITER_ACTIVE)
-                ti.dirty.set(true);
+    public boolean finishRead(AtomicInteger ts) {
+        if (ts.get() == LAYOUT_CHANGE) {
+            while (startCount.get() > finishCount.get())
+                ; // wait for layout changes to finish
+            ts.set(INACTIVE);
+            if (startCount.get() > finishCount.get()) // another one started and not finished
+                ts.set(LAYOUT_CHANGE);
             return false;
         }
         return true;
     }
 
-    public void startWrite(long tid) {
-        ThreadInfo ti = getThreadInfo(tid);
-        startWrite(ti);
-    }
-
-    public void startWrite(ThreadInfo ti) {
-        if (ti.activeReaders > 0) {
-            ti.activeReaders++;
-            return;
-        }
-        AtomicInteger writeIntended = ti.writeIntended;
-        AtomicInteger state = ti.state;
-        while (writeIntended.get() > 0 || !state.compareAndSet(INACTIVE, READER_ACTIVE))
-            ;
-        ti.activeReaders = 1;
-    }
-
-    public void finishWrite(long tid) {
-        ThreadInfo ti = getThreadInfo(tid);
-        finishWrite(ti);
-    }
-
-    public void finishWrite(ThreadInfo ti) {
-        if (ti.activeReaders-- == 1)
-            ti.state.set(INACTIVE);
-    }
-
-    public void startLayoutChange() {
-        int c = writerActive.get();
-        while ((c & 1) == 1 || !writerActive.compareAndSet(c, c + 1))
-            c = writerActive.get();
-        // if (false) {
-        // if ((writerActive.get() & 1) == 0) {
-        // System.err.println("Bad lock " + writerActive.get() + ", c = " + c);
-        // }
-        // }
-        // use gather scatter
-        // layout-change preferring: announce intent to layout change, to block writers
-        // as a side-effect, gather registered threads for next stages
-        if (gather == null || gather.length != threads.size()) {
-            int next = 0;
-            gather = new ThreadInfo[threads.size()];
-            for (ThreadInfo ti : threads.values()) {
-                gather[next++] = ti;
-            }
-        }       // switch all registered thread-infos to WRITER_ACTIVE
-        for (int i = 0; i < gather.length; i++) {
-            ThreadInfo ti = gather[i];
-            ti.writeIntended.getAndIncrement();
-            AtomicInteger state = ti.state;
-            if (state.get() != WRITER_ACTIVE)
-                while (!state.compareAndSet(INACTIVE, WRITER_ACTIVE))
-                    ;
-        }
-        // after all states successfully switched to WRITER_ACTIVE, reduce intent to write, and mark
-        // dirty bits
-        for (int i = 0; i < gather.length; i++) {
-            ThreadInfo ti = gather[i];
-            ti.writeIntended.decrementAndGet();
-            ti.dirty.set(true);
-        }
-        // TODO layout changer will not turn off LC flag
-        // TODO writer that sees LC flag will need to somehow turn it off if
-        // TODO writerActive & 1 == 0 (race?)
-
-    }
-
-    public void finishLayoutChange() {
-        // if (false) {
-        // if (gather == null) {
-        // System.err.println("gather is null " + writerActive.get() + " for lock " + locknum);
-        // return;
-        // }
-        // for (int i = 0; i < gather.length; i++) {
-        // gather[i].state.set(INACTIVE);
-        // }
-        // }
-
-        writerActive.getAndIncrement();
-
-    }
-
-    public boolean isWriterActive() {
-        return (writerActive.get() & 1) != 0;
-    }
-
-    public Accessor access(long tid) {
-        return new Accessor(this, tid);
-    }
-
-    public Accessor access() {
-        return new Accessor(this, Thread.currentThread().getId());
-    }
-
-    // simplify access through use of accessors. But lock could be used either way, compared to
-    // LayoutLock
-    public class Accessor {
-        FastLayoutLock lock;
-        ThreadInfo ti;
-        long tid = -1;
-
-        public Accessor(FastLayoutLock lock, long tid) {
-            this.tid = tid;
-            this.lock = lock;
-            this.ti = lock.registerThread(tid);
-        }
-
-        public Accessor(FastLayoutLock lock) {
-            // this(lock, Thread.currentThread().getId());
-            tid = Thread.currentThread().getId();
-            this.lock = lock;
-            this.ti = lock.registerThread(tid);
-        }
-
-        public boolean isWriterActive() {
-            return lock.isWriterActive();
-        }
-
-        public void startRead() {
-        }
-
-        public boolean finishRead() {
-            return lock.finishRead(ti);
-        }
-
-        public void startLayoutChange() {
-            lock.startLayoutChange();
-        }
-
-        public void finishLayoutChange() {
-            lock.finishLayoutChange();
-        }
-
-        public void startWrite() {
-            lock.startWrite(ti);
-        }
-
-        public void finishWrite() {
-            lock.finishWrite(ti);
-        }
-
-        public boolean isDirty() {
-            return ti.dirty.get();
+    public void startWrite(AtomicInteger ts) {
+        if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) {
+            do {
+                while (startCount.get() > finishCount.get())
+                    ; // wait for layout changes to finish
+                ts.set(WRITER_ACTIVE);
+                if (startCount.get() == finishCount.get())
+                    return;
+                ts.set(LAYOUT_CHANGE);
+            } while (true);
         }
     }
+
+
+    public void finishWrite(AtomicInteger ts) {
+        ts.set(INACTIVE);
+    }
+
 
     public String getDescription() {
         return "FastLayoutLock";

@@ -1,5 +1,7 @@
 package org.truffleruby.core.array.layout;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.Cached;
@@ -8,23 +10,23 @@ import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.object.DynamicObject;
 
 @NodeChild("array")
-public abstract class GetFastLayoutLockAccessorNode extends RubyNode {
+public abstract class GetThreadStateNode extends RubyNode {
 
-    public static GetFastLayoutLockAccessorNode create() {
-        return GetFastLayoutLockAccessorNodeGen.create(null);
+    public static GetThreadStateNode create() {
+        return GetThreadStateNodeGen.create(null);
     }
 
-    public abstract FastLayoutLock.Accessor executeGetAccessor(DynamicObject array);
+    public abstract AtomicInteger executeGetThreadState(DynamicObject array);
 
     @Specialization(guards = "getCurrentThread(array) == cachedThread", limit = "1")
-    protected FastLayoutLock.Accessor cachedThread(DynamicObject array,
+    protected AtomicInteger cachedThread(DynamicObject array,
             @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread) {
-        return cachedThread.getFastLayoutLockAccessor();
+        return cachedThread.getThreadState();
     }
 
     @Specialization
-    protected FastLayoutLock.Accessor getAccessor(DynamicObject array) {
-        return getCurrentThread(array).getFastLayoutLockAccessor();
+    protected AtomicInteger getThreadInfo(DynamicObject array) {
+        return getCurrentThread(array).getThreadState();
     }
 
     protected ThreadWithDirtyFlag getCurrentThread(DynamicObject array) {

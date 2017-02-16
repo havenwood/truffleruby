@@ -1,11 +1,11 @@
 package org.truffleruby.core.array.layout;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @NodeChild("self")
 public abstract class FastLayoutLockStartWriteNode extends RubyNode {
@@ -14,13 +14,11 @@ public abstract class FastLayoutLockStartWriteNode extends RubyNode {
         return FastLayoutLockStartWriteNodeGen.create(null);
     }
 
-    public abstract Object executeStartWrite(FastLayoutLock.Accessor accessor);
+    public abstract Object executeStartWrite(AtomicInteger threadState);
 
     @Specialization
-    protected Object FastLayoutLockStartWrite(FastLayoutLock.Accessor accessor,
-            @Cached("createBinaryProfile()") ConditionProfile layoutChangeProfile,
-            @Cached("createBinaryProfile()") ConditionProfile stateProfile) {
-        accessor.startWrite();
+    protected Object fastLayoutLockStartWrite(AtomicInteger threadState) {// ,
+        FastLayoutLock.GLOBAL_LOCK.startWrite(threadState);
         return nil();
     }
 

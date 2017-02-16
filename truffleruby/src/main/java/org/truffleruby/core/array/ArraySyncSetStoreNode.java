@@ -12,7 +12,7 @@ import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.FastLayoutLockFinishLayoutChangeNode;
 import org.truffleruby.core.array.layout.FastLayoutLockStartLayoutChangeNode;
-import org.truffleruby.core.array.layout.GetFastLayoutLockAccessorNode;
+import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
@@ -175,17 +175,16 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
 
     @Specialization(guards = "isFastLayoutLockArray(array)")
     public Object FastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
-            @Cached("create()") GetFastLayoutLockAccessorNode getAccessorNode,
+            // @Cached("create()") GetThreadInfoNode getThreadInfoNode,
             @Cached("create()") FastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
             @Cached("create()") FastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
-        final FastLayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
         // final int threads = accessor.startLayoutChange();
-        final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+        final int threads = startLayoutChangeNode.executeStartLayoutChange();
         try {
             return builtinNode.execute(frame);
         } finally {
             // accessor.finishLayoutChange(threads);
-            finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+            finishLayoutChangeNode.executeFinishLayoutChange();
         }
     }
 
