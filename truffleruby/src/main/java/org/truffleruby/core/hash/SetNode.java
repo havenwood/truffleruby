@@ -192,7 +192,6 @@ public abstract class SetNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile resizeProfile,
             @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
             @Cached("create()") WriteBarrierNode writeBarrierNode,
-            @Cached("create(onlyIfAbsent)") SetNode retrySetNode,
             @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
             @Cached("create()") LayoutLockStartWriteNode startWriteNode,
             @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
@@ -202,95 +201,96 @@ public abstract class SetNode extends RubyNode {
         final boolean compareByIdentity = byIdentityProfile.profile(byIdentity);
         final Object key = freezeHashKeyIfNeededNode.executeFreezeIfNeeded(frame, originalKey, compareByIdentity);
 
-        final ConcurrentHashLookupResult result = lookupEntryNode.lookup(frame, hash, key);
-        final ConcurrentEntry entry = result.getEntry();
+        while (true) {
+            final ConcurrentHashLookupResult result = lookupEntryNode.lookup(frame, hash, key);
+            final ConcurrentEntry entry = result.getEntry();
 
-        if (foundProfile.profile(entry == null)) {
-            writeBarrierNode.executeWriteBarrier(value);
+            if (foundProfile.profile(entry == null)) {
+                writeBarrierNode.executeWriteBarrier(value);
 
-            final ConcurrentEntry firstEntry = result.getPreviousEntry();
-            final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value);
-            newEntry.setNextInLookup(firstEntry);
-            final ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
-            newEntry.setNextInSequence(sentinelLast);
+                final ConcurrentEntry firstEntry = result.getPreviousEntry();
+                final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value);
+                newEntry.setNextInLookup(firstEntry);
+                final ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
+                newEntry.setNextInSequence(sentinelLast);
 
-            // Insert in the lookup chain
+                // Insert in the lookup chain
 
-            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
-            boolean success;
-            startWriteNode.executeStartWrite(accessor);
-            try {
-                final AtomicReferenceArray<ConcurrentEntry> buckets = ConcurrentHash.getStore(hash).getBuckets();
-                if (sameBucketsProfile.profile(buckets == result.getBuckets())) {
-                    success = buckets.compareAndSet(result.getIndex(), result.getPreviousEntry(), newEntry);
-                } else {
-                    // the buckets changed between the lookup and now, retry
-                    success = false;
-                }
-            } finally {
-                accessor.finishWrite();
-            }
-            if (!insertionProfile.profile(success)) {
-                // An entry got inserted in this bucket concurrently
-                // TODO: should avoid recursing too much
-                return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
-            }
-
-            // Insert in the sequence chain
-
-            // TODO: is ordering OK here?
-            ConcurrentEntry lastInSequence;
-            do {
-                lastInSequence = sentinelLast.getPreviousInSequence();
-                newEntry.setPreviousInSequence(lastInSequence);
-            } while (lastInSequence.isRemoved() || !lastInSequence.compareAndSetNextInSequence(sentinelLast, newEntry));
-
-            if (!sentinelLast.compareAndSetPreviousInSequence(lastInSequence, newEntry)) {
-                assert false; // TODO
-            }
-
-            int size;
-            while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size + 1)) {
-            }
-            final int newSize = size + 1;
-
-            boolean resize;
-            while (true) {
-                int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
-                resize = newSize * 4 > bucketsCount * 3;
-                if (dirtyProfile.profile(accessor.isDirty())) {
-                    accessor.resetDirty();
-                } else {
-                    break;
-                }
-            }
-
-            if (resizeProfile.profile(resize)) {
-                final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+                final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+                boolean success;
+                startWriteNode.executeStartWrite(accessor);
                 try {
-                    // Check again to make sure another thread did not already resized
-                    int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
-                    if (newSize * 4 > bucketsCount * 3) {
-                        ConcurrentBucketsStrategy.resize(getContext(), hash, newSize);
+                    final AtomicReferenceArray<ConcurrentEntry> buckets = ConcurrentHash.getStore(hash).getBuckets();
+                    if (sameBucketsProfile.profile(buckets == result.getBuckets())) {
+                        success = buckets.compareAndSet(result.getIndex(), result.getPreviousEntry(), newEntry);
+                    } else {
+                        // the buckets changed between the lookup and now, retry
+                        success = false;
                     }
                 } finally {
-                    finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+                    accessor.finishWrite();
+                }
+                if (!insertionProfile.profile(success)) {
+                    // An entry got inserted in this bucket concurrently, retry
+                    continue;
+                }
+
+                // Insert in the sequence chain
+
+                // TODO: is ordering OK here?
+                ConcurrentEntry lastInSequence;
+                do {
+                    lastInSequence = sentinelLast.getPreviousInSequence();
+                    newEntry.setPreviousInSequence(lastInSequence);
+                } while (lastInSequence.isRemoved() || !lastInSequence.compareAndSetNextInSequence(sentinelLast, newEntry));
+
+                if (!sentinelLast.compareAndSetPreviousInSequence(lastInSequence, newEntry)) {
+                    assert false; // TODO
+                }
+
+                int size;
+                while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size + 1)) {
+                }
+                final int newSize = size + 1;
+
+                boolean resize;
+                while (true) {
+                    int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
+                    resize = newSize * 4 > bucketsCount * 3;
+                    if (dirtyProfile.profile(accessor.isDirty())) {
+                        accessor.resetDirty();
+                    } else {
+                        break;
+                    }
+                }
+
+                if (resizeProfile.profile(resize)) {
+                    final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+                    try {
+                        // Check again to make sure another thread did not already resized
+                        int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
+                        if (newSize * 4 > bucketsCount * 3) {
+                            ConcurrentBucketsStrategy.resize(getContext(), hash, newSize);
+                        }
+                    } finally {
+                        finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+                    }
+                }
+            } else {
+                if (onlyIfAbsent) {
+                    assert HashOperations.verifyStore(getContext(), hash);
+                    return entry.getValue();
+                } else {
+                    writeBarrierNode.executeWriteBarrier(value);
+                    // No need for write lock as long as we keep existing Entry instances during layout changes
+                    entry.setValue(value);
                 }
             }
-        } else {
-            if (onlyIfAbsent) {
-                assert HashOperations.verifyStore(getContext(), hash);
-                return entry.getValue();
-            } else {
-                writeBarrierNode.executeWriteBarrier(value);
-                // No need for write lock as long as we keep existing Entry instances during layout changes
-                entry.setValue(value);
-            }
+
+            assert HashOperations.verifyStore(getContext(), hash);
+
+            return value;
         }
-
-        assert HashOperations.verifyStore(getContext(), hash);
-
-        return value;
     }
 
     private HashLookupResult lookup(VirtualFrame frame, DynamicObject hash, Object key) {
