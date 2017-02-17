@@ -91,10 +91,6 @@ public final class ConcurrentHash implements ObjectGraphNode {
         UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, -1);
     }
 
-    public static boolean compareAndSetSize(DynamicObject hash, int old, int newSize) {
-        return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, SIZE_OFFSET, old, newSize);
-    }
-
     public static boolean compareAndSetCompareByIdentity(DynamicObject hash, boolean old, boolean newSize) {
         return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, COMPARE_BY_IDENTITY_OFFSET, old ? 1L : 0L, newSize ? 1L : 0L);
     }
