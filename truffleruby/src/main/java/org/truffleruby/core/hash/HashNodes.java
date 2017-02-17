@@ -457,11 +457,7 @@ public abstract class HashNodes {
 
             assert HashOperations.verifyStore(getContext(), hash);
 
-            if (maybeBlock == NotProvided.INSTANCE) {
-                return nil();
-            } else {
-                return yieldNode.dispatch(frame, (DynamicObject) maybeBlock, key);
-            }
+            return missingEntry(frame, key, maybeBlock);
         }
 
         @Specialization(guards = "isBucketHash(hash)")
@@ -471,11 +467,7 @@ public abstract class HashNodes {
             final HashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
 
             if (hashLookupResult.getEntry() == null) {
-                if (maybeBlock == NotProvided.INSTANCE) {
-                    return nil();
-                } else {
-                    return yieldNode.dispatch(frame, (DynamicObject) maybeBlock, key);
-                }
+                return missingEntry(frame, key, maybeBlock);
             }
 
             final Entry entry = hashLookupResult.getEntry();
@@ -520,11 +512,7 @@ public abstract class HashNodes {
             final ConcurrentEntry entry = hashLookupResult.getEntry();
 
             if (entry == null) {
-                if (maybeBlock == NotProvided.INSTANCE) {
-                    return nil();
-                } else {
-                    return yieldNode.dispatch(frame, (DynamicObject) maybeBlock, key);
-                }
+                return missingEntry(frame, key, maybeBlock);
             }
 
             // Remove from the sequence chain
@@ -551,6 +539,14 @@ public abstract class HashNodes {
 
             assert HashOperations.verifyStore(getContext(), hash);
             return entry.getValue();
+        }
+
+        private Object missingEntry(VirtualFrame frame, Object key, Object maybeBlock) {
+            if (maybeBlock == NotProvided.INSTANCE) {
+                return nil();
+            } else {
+                return yieldNode.dispatch(frame, (DynamicObject) maybeBlock, key);
+            }
         }
 
         protected boolean equalKeys(VirtualFrame frame, boolean compareByIdentity, Object key, int hashed, Object otherKey, int otherHashed) {
