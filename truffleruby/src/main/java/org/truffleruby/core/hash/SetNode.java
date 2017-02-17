@@ -196,7 +196,8 @@ public abstract class SetNode extends RubyNode {
             @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
             @Cached("create()") LayoutLockStartWriteNode startWriteNode,
             @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
-            @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+            @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode,
+            @Cached("createBinaryProfile()") ConditionProfile sameBucketsProfile) {
         assert HashOperations.verifyStore(getContext(), hash);
         final boolean compareByIdentity = byIdentityProfile.profile(byIdentity);
         final Object key = freezeHashKeyIfNeededNode.executeFreezeIfNeeded(frame, originalKey, compareByIdentity);
@@ -219,8 +220,13 @@ public abstract class SetNode extends RubyNode {
             boolean success;
             startWriteNode.executeStartWrite(accessor);
             try {
-                final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
-                success = entries.compareAndSet(result.getIndex(), firstEntry, newEntry);
+                final AtomicReferenceArray<ConcurrentEntry> buckets = ConcurrentHash.getStore(hash).getBuckets();
+                if (sameBucketsProfile.profile(buckets == result.getBuckets())) {
+                    success = buckets.compareAndSet(result.getIndex(), result.getPreviousEntry(), newEntry);
+                } else {
+                    // the buckets changed between the lookup and now, retry
+                    success = false;
+                }
             } finally {
                 accessor.finishWrite();
             }
