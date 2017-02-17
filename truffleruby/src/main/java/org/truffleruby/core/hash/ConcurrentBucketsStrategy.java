@@ -51,16 +51,36 @@ public abstract class ConcurrentBucketsStrategy {
     }
 
     public static ConcurrentEntry removeFirstFromSequence(ConcurrentEntry head, ConcurrentEntry tail) {
-        final ConcurrentEntry entry = head.getNextInSequence();
+        ConcurrentEntry entry = head.getNextInSequence();
         if (entry == tail) {
+            // Empty Hash, nothing to remove
             return null;
         }
 
-        if (!head.compareAndSetNextInSequence(entry, entry.getNextInSequence())) {
-            assert false; // TODO
-        }
+        // First mark as deleted to avoid losing concurrent insertions
+        ConcurrentEntry nextInSequence;
+        ConcurrentEntry nextDeleted;
+        do {
+            nextInSequence = entry.getNextInSequence();
+            while (nextInSequence.isRemoved()) {
+                // when another thread is removing the same entry, wait and shift the next entry
+                entry = head.getNextInSequence();
+                if (entry == tail) {
+                    return null;
+                }
+                nextInSequence = entry.getNextInSequence();
+            }
+            nextDeleted = new ConcurrentEntry(true, nextInSequence);
+        } while (!entry.compareAndSetNextInSequence(nextInSequence, nextDeleted));
+        // Now, nobody can insert between entry, nextDeleted and nextInSequence
 
-        if (!entry.getNextInSequence().compareAndSetPreviousInSequence(entry, head)) {
+        // Link entry.prev -> nextInSequence, as entry.next and nextDeleted.next cannot be changed by insertion
+        ConcurrentEntry previousInSequence;
+        do {
+            previousInSequence = entry.getPreviousInSequence();
+        } while (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence));
+
+        if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
             assert false; // TODO
         }
 
