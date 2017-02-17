@@ -9,6 +9,8 @@
  */
 package org.truffleruby.core.hash;
 
+import java.util.concurrent.atomic.AtomicReferenceArray;
+
 /**
  * The result of looking for an entry (an {@link Entry}) in a Ruby hash. We get the previous entry in the lookup chain
  * for this index until the entry was found, the entry that was found, and the index that was used. There are three
@@ -25,16 +27,22 @@ package org.truffleruby.core.hash;
  */
 public class ConcurrentHashLookupResult {
 
+    private final AtomicReferenceArray<ConcurrentEntry> buckets;
     private final int hashed;
     private final int index;
     private final ConcurrentEntry previousEntry;
     private final ConcurrentEntry entry;
 
-    public ConcurrentHashLookupResult(int hashed, int index, ConcurrentEntry previousEntry, ConcurrentEntry entry) {
+    public ConcurrentHashLookupResult(AtomicReferenceArray<ConcurrentEntry> buckets, int hashed, int index, ConcurrentEntry previousEntry, ConcurrentEntry entry) {
+        this.buckets = buckets;
         this.hashed = hashed;
         this.index = index;
         this.previousEntry = previousEntry;
         this.entry = entry;
+    }
+
+    public AtomicReferenceArray<ConcurrentEntry> getBuckets() {
+        return buckets;
     }
 
     public int getHashed() {

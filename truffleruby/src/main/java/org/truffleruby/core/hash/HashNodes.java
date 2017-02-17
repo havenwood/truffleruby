@@ -508,7 +508,8 @@ public abstract class HashNodes {
         public Object deleteConcurrent(VirtualFrame frame, DynamicObject hash, Object key, Object maybeBlock,
                 @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
                 @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
-                @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
+                @Cached("create()") LayoutLockStartWriteNode startWriteNode,
+                @Cached("createBinaryProfile()") ConditionProfile sameBucketsProfile) {
             // TODO: all
             assert HashOperations.verifyStore(getContext(), hash);
             final ConcurrentHashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
@@ -529,17 +530,14 @@ public abstract class HashNodes {
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             startWriteNode.executeStartWrite(accessor);
             try {
-                final ConcurrentEntry previousEntry = hashLookupResult.getPreviousEntry();
-                if (previousEntry == null) {
-                    final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
-                    if (!entries.compareAndSet(hashLookupResult.getIndex(), entry, entry.getNextInLookup())) {
-                        assert false; // TODO
-                    }
+                final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
+                final ConcurrentHashLookupResult result;
+                if (sameBucketsProfile.profile(store == hashLookupResult.getBuckets())) {
+                    result = hashLookupResult;
                 } else {
-                    if (!previousEntry.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
-                        assert false; // TODO
-                    }
+                    result = ConcurrentBucketsStrategy.searchPreviousLookupEntry(store, entry);
                 }
+                ConcurrentBucketsStrategy.removeFromLookup(entry, store, result.getIndex(), result.getPreviousEntry());
             } finally {
                 accessor.finishWrite();
             }
@@ -1452,28 +1450,8 @@ public abstract class HashNodes {
             startWriteNode.executeStartWrite(accessor);
             try {
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
-                final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), store.length());
-
-                ConcurrentEntry previous = null;
-                ConcurrentEntry e = store.get(index);
-
-                while (e != null) {
-                    if (e == entry) {
-                        if (previous == null) {
-                            if (!store.compareAndSet(index, entry, entry.getNextInLookup())) {
-                                assert false; // TODO
-                            }
-                        } else {
-                            if (!previous.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
-                                assert false; // TODO
-                            }
-                        }
-                        break;
-                    }
-
-                    previous = e;
-                    e = e.getNextInLookup();
-                }
+                ConcurrentHashLookupResult result = ConcurrentBucketsStrategy.searchPreviousLookupEntry(store, entry);
+                ConcurrentBucketsStrategy.removeFromLookup(entry, store, result.getIndex(), result.getPreviousEntry());
             } finally {
                 accessor.finishWrite();
             }

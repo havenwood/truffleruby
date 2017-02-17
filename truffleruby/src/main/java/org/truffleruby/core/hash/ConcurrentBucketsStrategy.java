@@ -18,6 +18,7 @@ import org.truffleruby.RubyContext;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.language.objects.shared.SharedObjects;
 
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
 
@@ -85,6 +86,38 @@ public abstract class ConcurrentBucketsStrategy {
         }
 
         return entry;
+    }
+
+    public static void removeFromLookup(ConcurrentEntry entry, AtomicReferenceArray<ConcurrentEntry> store, int index, ConcurrentEntry previousEntry) {
+        if (previousEntry == null) {
+            if (!store.compareAndSet(index, entry, entry.getNextInLookup())) {
+                assert false; // TODO
+            }
+        } else {
+            if (!previousEntry.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
+                assert false; // TODO
+            }
+        }
+    }
+
+    public static ConcurrentHashLookupResult searchPreviousLookupEntry(AtomicReferenceArray<ConcurrentEntry> store, ConcurrentEntry entry) {
+        // ConcurrentEntry keep identity on rehash/resize, so we just need to find it in the bucket
+        final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), store.length());
+
+        ConcurrentEntry previousEntry = null;
+        ConcurrentEntry e = store.get(index);
+
+        while (e != null) {
+            if (e == entry) {
+                return new ConcurrentHashLookupResult(store, entry.getHashed(), index, previousEntry, entry);
+            }
+
+            previousEntry = e;
+            e = e.getNextInLookup();
+        }
+
+        CompilerDirectives.transferToInterpreter();
+        throw new AssertionError("Could not find the previous entry in the bucket");
     }
 
     @TruffleBoundary
