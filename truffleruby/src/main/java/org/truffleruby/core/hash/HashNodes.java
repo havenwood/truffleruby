@@ -667,7 +667,9 @@ public abstract class HashNodes {
 
         @Specialization(guards = "isConcurrentHash(hash)")
         public boolean emptyConcurrent(DynamicObject hash) {
-            return ConcurrentHash.getSize(hash) == 0;
+            final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
+            final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+            return head.getNextInSequence() == tail;
         }
 
     }
