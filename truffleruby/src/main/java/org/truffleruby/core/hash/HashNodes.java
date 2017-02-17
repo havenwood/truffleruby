@@ -517,7 +517,9 @@ public abstract class HashNodes {
 
             // Remove from the sequence chain
 
-            ConcurrentBucketsStrategy.removeFromSequence(entry);
+            if (!ConcurrentBucketsStrategy.removeFromSequence(entry)) {
+                return missingEntry(frame, key, maybeBlock);
+            }
 
             // Remove from the lookup chain
 

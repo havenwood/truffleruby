@@ -23,14 +23,17 @@ import com.oracle.truffle.api.object.DynamicObject;
 
 public abstract class ConcurrentBucketsStrategy {
 
-    public static void removeFromSequence(ConcurrentEntry entry) {
+    public static boolean removeFromSequence(ConcurrentEntry entry) {
         // First mark as deleted to avoid losing concurrent insertions
         ConcurrentEntry nextInSequence;
         ConcurrentEntry nextDeleted;
         do {
             nextInSequence = entry.getNextInSequence();
             nextDeleted = new ConcurrentEntry(true, nextInSequence);
-            assert !nextInSequence.isRemoved(); // TODO when 2 thread concurrently remove the same key
+            if (nextInSequence.isRemoved()) {
+                // when 2 thread concurrently try to remove the same entry
+                return false;
+            }
         } while (!entry.compareAndSetNextInSequence(nextInSequence, nextDeleted));
         // Now, nobody can insert between entry, nextDeleted and nextInSequence
 
@@ -43,6 +46,8 @@ public abstract class ConcurrentBucketsStrategy {
         if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
             assert false; // TODO
         }
+
+        return true;
     }
 
     public static ConcurrentEntry removeFirstFromSequence(ConcurrentEntry head, ConcurrentEntry tail) {
