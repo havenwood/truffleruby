@@ -24,6 +24,18 @@ import com.oracle.truffle.api.object.DynamicObject;
 
 public abstract class ConcurrentBucketsStrategy {
 
+    public static void appendInSequence(ConcurrentEntry entry, ConcurrentEntry tail) {
+        ConcurrentEntry last;
+        do {
+            last = tail.getPreviousInSequence();
+            entry.setPreviousInSequence(last);
+        } while (last.isRemoved() || !last.compareAndSetNextInSequence(tail, entry));
+
+        if (!tail.compareAndSetPreviousInSequence(last, entry)) {
+            assert false; // TODO
+        }
+    }
+
     public static boolean removeFromSequence(ConcurrentEntry entry) {
         // First mark as deleted to avoid losing concurrent insertions
         ConcurrentEntry nextInSequence;

@@ -211,8 +211,8 @@ public abstract class SetNode extends RubyNode {
                 final ConcurrentEntry firstEntry = result.getPreviousEntry();
                 final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value);
                 newEntry.setNextInLookup(firstEntry);
-                final ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
-                newEntry.setNextInSequence(sentinelLast);
+                final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+                newEntry.setNextInSequence(tail);
 
                 // Insert in the lookup chain
 
@@ -237,16 +237,7 @@ public abstract class SetNode extends RubyNode {
 
                 // Insert in the sequence chain
 
-                // TODO: is ordering OK here?
-                ConcurrentEntry lastInSequence;
-                do {
-                    lastInSequence = sentinelLast.getPreviousInSequence();
-                    newEntry.setPreviousInSequence(lastInSequence);
-                } while (lastInSequence.isRemoved() || !lastInSequence.compareAndSetNextInSequence(sentinelLast, newEntry));
-
-                if (!sentinelLast.compareAndSetPreviousInSequence(lastInSequence, newEntry)) {
-                    assert false; // TODO
-                }
+                ConcurrentBucketsStrategy.appendInSequence(newEntry, tail);
 
                 int size;
                 while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size + 1)) {
