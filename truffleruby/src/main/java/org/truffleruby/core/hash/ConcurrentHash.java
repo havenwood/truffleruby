@@ -83,6 +83,14 @@ public final class ConcurrentHash implements ObjectGraphNode {
         return (int) UnsafeHolder.UNSAFE.getLongVolatile(hash, SIZE_OFFSET);
     }
 
+    public static int incrementAndGetSize(DynamicObject hash) {
+        return (int) UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, 1) + 1;
+    }
+
+    public static void decrementSize(DynamicObject hash) {
+        UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, -1);
+    }
+
     public static boolean compareAndSetSize(DynamicObject hash, int old, int newSize) {
         return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, SIZE_OFFSET, old, newSize);
     }

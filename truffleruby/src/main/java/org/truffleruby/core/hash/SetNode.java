@@ -239,10 +239,7 @@ public abstract class SetNode extends RubyNode {
 
                 ConcurrentBucketsStrategy.appendInSequence(newEntry, tail);
 
-                int size;
-                while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size + 1)) {
-                }
-                final int newSize = size + 1;
+                final int newSize = ConcurrentHash.incrementAndGetSize(hash);
 
                 boolean resize;
                 while (true) {

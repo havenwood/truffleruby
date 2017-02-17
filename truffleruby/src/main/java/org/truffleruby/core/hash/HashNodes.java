@@ -542,9 +542,7 @@ public abstract class HashNodes {
                 accessor.finishWrite();
             }
 
-            int size;
-            while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size - 1)) {
-            }
+            ConcurrentHash.decrementSize(hash);
 
             assert HashOperations.verifyStore(getContext(), hash);
             return entry.getValue();
@@ -1458,9 +1456,7 @@ public abstract class HashNodes {
                 accessor.finishWrite();
             }
 
-            int size;
-            while (!ConcurrentHash.compareAndSetSize(hash, size = ConcurrentHash.getSize(hash), size - 1)) {
-            }
+            ConcurrentHash.decrementSize(hash);
 
             assert HashOperations.verifyStore(getContext(), hash);
 
