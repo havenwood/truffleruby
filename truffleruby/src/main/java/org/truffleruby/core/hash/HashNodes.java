@@ -1347,12 +1347,12 @@ public abstract class HashNodes {
 
         @Child private CallDispatchHeadNode callDefaultNode = DispatchHeadNodeFactory.createMethodCall();
 
-        @Specialization(guards = "isEmptyHash(hash)")
+        @Specialization(guards = { "!isConcurrentHash(hash)", "isEmptyHash(hash)" })
         public Object shiftEmpty(VirtualFrame frame, DynamicObject hash) {
             return callDefaultNode.call(frame, hash, "default", nil());
         }
 
-        @Specialization(guards = {"!isEmptyHash(hash)", "isPackedHash(hash)"})
+        @Specialization(guards = { "isPackedHash(hash)", "!isEmptyHash(hash)" })
         public DynamicObject shiftPackedArray(DynamicObject hash) {
             assert HashOperations.verifyStore(getContext(), hash);
 
@@ -1371,7 +1371,7 @@ public abstract class HashNodes {
             return createArray(objects, objects.length);
         }
 
-        @Specialization(guards = {"!isEmptyHash(hash)", "isBucketHash(hash)"})
+        @Specialization(guards = { "isBucketHash(hash)", "!isEmptyHash(hash)" })
         public DynamicObject shiftBuckets(DynamicObject hash) {
             assert HashOperations.verifyStore(getContext(), hash);
 
@@ -1419,7 +1419,7 @@ public abstract class HashNodes {
             return createArray(objects, objects.length);
         }
 
-        @Specialization(guards = { "!isEmptyHash(hash)", "isConcurrentHash(hash)" })
+        @Specialization(guards = "isConcurrentHash(hash)")
         public Object shiftConcurrent(VirtualFrame frame, DynamicObject hash) {
             assert HashOperations.verifyStore(getContext(), hash);
 
