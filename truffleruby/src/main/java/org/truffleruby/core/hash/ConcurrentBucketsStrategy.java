@@ -10,7 +10,6 @@
 package org.truffleruby.core.hash;
 
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.truffleruby.Layouts;
@@ -141,10 +140,7 @@ public abstract class ConcurrentBucketsStrategy {
         final ConcurrentHash newConcurrentHash = new ConcurrentHash(bucketsCount);
         final AtomicReferenceArray<ConcurrentEntry> newEntries = newConcurrentHash.getBuckets();
 
-        final ConcurrentEntry last = ConcurrentHash.getLastInSequence(hash);
-        ConcurrentEntry entry = ConcurrentHash.getFirstInSequence(hash).getNextInSequence();
-
-        while (entry != last) {
+        for (ConcurrentEntry entry : iterableEntries(hash)) {
             final int bucketIndex = BucketsStrategy.getBucketIndex(entry.getHashed(), bucketsCount);
             ConcurrentEntry previousInLookup = newEntries.get(bucketIndex);
 
@@ -159,7 +155,6 @@ public abstract class ConcurrentBucketsStrategy {
             }
 
             entry.setNextInLookup(null);
-            entry = entry.getNextInSequence();
         }
 
         Layouts.HASH.setStore(hash, newConcurrentHash);
@@ -179,10 +174,7 @@ public abstract class ConcurrentBucketsStrategy {
         Entry firstInSequence = null;
         Entry lastInSequence = null;
 
-        final ConcurrentEntry last = ConcurrentHash.getLastInSequence(from);
-        ConcurrentEntry entry = ConcurrentHash.getFirstInSequence(from).getNextInSequence();
-
-        while (entry != last) {
+        for (ConcurrentEntry entry : iterableEntries(from)) {
             final Entry newEntry = new Entry(entry.getHashed(), entry.getKey(), entry.getValue());
 
             final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), newEntries.length);
@@ -200,8 +192,6 @@ public abstract class ConcurrentBucketsStrategy {
             }
 
             lastInSequence = newEntry;
-
-            entry = entry.getNextInSequence();
         }
 
         int size = ConcurrentHash.getSize(from);
@@ -252,27 +242,29 @@ public abstract class ConcurrentBucketsStrategy {
 
     public static Iterator<KeyValue> iterateKeyValues(DynamicObject hash) {
         assert HashGuards.isConcurrentHash(hash);
-        final ConcurrentEntry firstInSequence = ConcurrentHash.getFirstInSequence(hash);
-        final ConcurrentEntry lastInSequence = ConcurrentHash.getLastInSequence(hash);
+        final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
+        final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
         return new Iterator<KeyValue>() {
 
-            private ConcurrentEntry entry = firstInSequence.getNextInSequence();
+            private ConcurrentEntry entry = head.getNextInSequence();
 
             @Override
             public boolean hasNext() {
-                return entry != lastInSequence;
+                return entry != tail;
             }
 
             @Override
             public KeyValue next() {
-                if (!hasNext()) {
-                    throw new NoSuchElementException();
-                }
+                assert hasNext();
 
                 final KeyValue entryResult = new KeyValue(entry.getKey(), entry.getValue());
 
+                // Goes through "being deleted" entries, much simpler to check
                 entry = entry.getNextInSequence();
+                if (entry.isRemoved()) {
+                    entry = entry.getNextInSequence();
+                }
 
                 return entryResult;
             }
@@ -287,6 +279,47 @@ public abstract class ConcurrentBucketsStrategy {
 
     public static Iterable<KeyValue> iterableKeyValues(DynamicObject hash) {
         return () -> iterateKeyValues(hash);
+    }
+
+    public static Iterator<ConcurrentEntry> iterateEntries(DynamicObject hash) {
+        assert HashGuards.isConcurrentHash(hash);
+        final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
+        final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+
+        return new Iterator<ConcurrentEntry>() {
+
+            private ConcurrentEntry entry = head.getNextInSequence();
+
+            @Override
+            public boolean hasNext() {
+                return entry != tail;
+            }
+
+            @Override
+            public ConcurrentEntry next() {
+                assert hasNext();
+
+                final ConcurrentEntry current = entry;
+
+                // Goes through "being deleted" entries, much simpler to check
+                entry = entry.getNextInSequence();
+                if (entry.isRemoved()) {
+                    entry = entry.getNextInSequence();
+                }
+
+                return current;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+        };
+    }
+
+    public static Iterable<ConcurrentEntry> iterableEntries(DynamicObject hash) {
+        return () -> iterateEntries(hash);
     }
 
 }

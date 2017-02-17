@@ -1583,10 +1583,7 @@ public abstract class HashNodes {
                     entries.set(i, null);
                 }
 
-                final ConcurrentEntry last = ConcurrentHash.getLastInSequence(hash);
-                ConcurrentEntry entry = ConcurrentHash.getFirstInSequence(hash).getNextInSequence();
-
-                while (entry != last) {
+                for (ConcurrentEntry entry : ConcurrentBucketsStrategy.iterableEntries(hash)) {
                     final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity);
                     entry.setHashed(newHash);
                     entry.setNextInLookup(null);
@@ -1602,8 +1599,6 @@ public abstract class HashNodes {
 
                         bucketEntry.setNextInLookup(entry);
                     }
-
-                    entry = entry.getNextInSequence();
                 }
 
                 assert HashOperations.verifyStore(getContext(), hash);
