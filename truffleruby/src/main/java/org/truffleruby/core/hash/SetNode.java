@@ -208,10 +208,12 @@ public abstract class SetNode extends RubyNode {
             writeBarrierNode.executeWriteBarrier(value);
 
             final ConcurrentEntry firstEntry = result.getPreviousEntry();
-            final ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
             final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value);
             newEntry.setNextInLookup(firstEntry);
+            final ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
             newEntry.setNextInSequence(sentinelLast);
+
+            // Insert in the lookup chain
 
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             boolean success;
@@ -227,6 +229,8 @@ public abstract class SetNode extends RubyNode {
                 // TODO: should avoid recursing too much
                 return retrySetNode.executeSet(frame, hash, key, value, compareByIdentity);
             }
+
+            // Insert in the sequence chain
 
             // TODO: is ordering OK here?
             ConcurrentEntry lastInSequence;
