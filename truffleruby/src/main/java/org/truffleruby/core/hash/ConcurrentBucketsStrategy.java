@@ -99,28 +99,31 @@ public abstract class ConcurrentBucketsStrategy {
         return entry;
     }
 
-    public static void removeFromLookup(ConcurrentEntry entry, AtomicReferenceArray<ConcurrentEntry> store, int index, ConcurrentEntry previousEntry) {
-        if (previousEntry == null) {
-            if (!store.compareAndSet(index, entry, entry.getNextInLookup())) {
-                assert false; // TODO
-            }
-        } else {
-            if (!previousEntry.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
-                assert false; // TODO
+    public static void removeFromLookup(ConcurrentEntry entry, AtomicReferenceArray<ConcurrentEntry> store) {
+        final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), store.length());
+
+        while (true) {
+            final ConcurrentEntry previousEntry = searchPreviousLookupEntry(store, entry, index);
+            if (previousEntry == null) {
+                if (store.compareAndSet(index, entry, entry.getNextInLookup())) {
+                    break;
+                }
+            } else {
+                if (previousEntry.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
+                    break;
+                }
             }
         }
     }
 
-    public static ConcurrentHashLookupResult searchPreviousLookupEntry(AtomicReferenceArray<ConcurrentEntry> store, ConcurrentEntry entry) {
+    private static ConcurrentEntry searchPreviousLookupEntry(AtomicReferenceArray<ConcurrentEntry> store, ConcurrentEntry entry, int index) {
         // ConcurrentEntry keep identity on rehash/resize, so we just need to find it in the bucket
-        final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), store.length());
-
         ConcurrentEntry previousEntry = null;
         ConcurrentEntry e = store.get(index);
 
         while (e != null) {
             if (e == entry) {
-                return new ConcurrentHashLookupResult(store, entry.getHashed(), index, previousEntry, entry);
+                return previousEntry;
             }
 
             previousEntry = e;

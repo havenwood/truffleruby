@@ -534,8 +534,7 @@ public abstract class HashNodes {
             startWriteNode.executeStartWrite(accessor);
             try {
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
-                final ConcurrentHashLookupResult result = ConcurrentBucketsStrategy.searchPreviousLookupEntry(store, entry);
-                ConcurrentBucketsStrategy.removeFromLookup(entry, store, result.getIndex(), result.getPreviousEntry());
+                ConcurrentBucketsStrategy.removeFromLookup(entry, store);
             } finally {
                 accessor.finishWrite();
             }
@@ -1450,8 +1449,7 @@ public abstract class HashNodes {
             startWriteNode.executeStartWrite(accessor);
             try {
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
-                ConcurrentHashLookupResult result = ConcurrentBucketsStrategy.searchPreviousLookupEntry(store, entry);
-                ConcurrentBucketsStrategy.removeFromLookup(entry, store, result.getIndex(), result.getPreviousEntry());
+                ConcurrentBucketsStrategy.removeFromLookup(entry, store);
             } finally {
                 accessor.finishWrite();
             }
