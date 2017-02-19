@@ -235,11 +235,13 @@ public abstract class SetNode extends RubyNode {
                     continue;
                 }
 
+                // Increment size
+
+                final int newSize = ConcurrentHash.incrementAndGetSize(hash);
+
                 // Insert in the sequence chain
 
                 ConcurrentBucketsStrategy.appendInSequence(newEntry, tail);
-
-                final int newSize = ConcurrentHash.incrementAndGetSize(hash);
 
                 boolean resize;
                 while (true) {

@@ -525,6 +525,10 @@ public abstract class HashNodes {
                 return missingEntry(frame, key, maybeBlock);
             }
 
+            // Decrement size
+
+            ConcurrentHash.decrementSize(hash);
+
             // Remove from the lookup chain
 
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
@@ -541,8 +545,6 @@ public abstract class HashNodes {
             } finally {
                 accessor.finishWrite();
             }
-
-            ConcurrentHash.decrementSize(hash);
 
             assert HashOperations.verifyStore(getContext(), hash);
             return entry.getValue();
@@ -1444,6 +1446,10 @@ public abstract class HashNodes {
                 return callDefaultNode.call(frame, hash, "default", nil());
             }
 
+            // Decrement size
+
+            ConcurrentHash.decrementSize(hash);
+
             // Remove from the lookup chain
 
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
@@ -1455,8 +1461,6 @@ public abstract class HashNodes {
             } finally {
                 accessor.finishWrite();
             }
-
-            ConcurrentHash.decrementSize(hash);
 
             assert HashOperations.verifyStore(getContext(), hash);
 
