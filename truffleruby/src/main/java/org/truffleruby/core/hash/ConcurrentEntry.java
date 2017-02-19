@@ -21,10 +21,10 @@ public final class ConcurrentEntry {
     private final Object key;
     private volatile Object value;
 
-    private ConcurrentEntry nextInLookup;
+    private volatile ConcurrentEntry nextInLookup;
 
-    private ConcurrentEntry previousInSequence;
-    private ConcurrentEntry nextInSequence;
+    private volatile ConcurrentEntry previousInSequence;
+    private volatile ConcurrentEntry nextInSequence;
 
     private final boolean removed;
 
