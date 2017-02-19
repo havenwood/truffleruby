@@ -508,8 +508,7 @@ public abstract class HashNodes {
         public Object deleteConcurrent(VirtualFrame frame, DynamicObject hash, Object key, Object maybeBlock,
                 @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
                 @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
-                @Cached("create()") LayoutLockStartWriteNode startWriteNode,
-                @Cached("createBinaryProfile()") ConditionProfile sameBucketsProfile) {
+                @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
             // TODO: all
             assert HashOperations.verifyStore(getContext(), hash);
             final ConcurrentHashLookupResult hashLookupResult = lookupEntryNode.lookup(frame, hash, key);
@@ -535,12 +534,7 @@ public abstract class HashNodes {
             startWriteNode.executeStartWrite(accessor);
             try {
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
-                final ConcurrentHashLookupResult result;
-                if (sameBucketsProfile.profile(store == hashLookupResult.getBuckets())) {
-                    result = hashLookupResult;
-                } else {
-                    result = ConcurrentBucketsStrategy.searchPreviousLookupEntry(store, entry);
-                }
+                final ConcurrentHashLookupResult result = ConcurrentBucketsStrategy.searchPreviousLookupEntry(store, entry);
                 ConcurrentBucketsStrategy.removeFromLookup(entry, store, result.getIndex(), result.getPreviousEntry());
             } finally {
                 accessor.finishWrite();
