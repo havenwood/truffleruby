@@ -1,5 +1,6 @@
 package org.truffleruby.core.array.layout;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.truffleruby.core.array.layout.FastLayoutLock.ThreadState;
@@ -36,16 +37,15 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
             }
         }
 
-        // if (!unlocked) {
-        // final FastLayoutLock.ThreadState gather[] = lock.gather;
-        // for (int i = 0; i < gather.length; i++) {
-        // AtomicInteger state = gather[i].state;
-        // if (state.get() != FastLayoutLock.LAYOUT_CHANGE)
-        // while (!state.compareAndSet(FastLayoutLock.INACTIVE, FastLayoutLock.LAYOUT_CHANGE))
-        // ;
-        // }
-        //
-        // }
+        final FastLayoutLock.ThreadState gather[] = lock.gather;
+        for (int i = 0; i < gather.length; i++) {
+            AtomicInteger state = gather[i].state;
+            if (state.get() != FastLayoutLock.LAYOUT_CHANGE) {
+                while (!state.compareAndSet(FastLayoutLock.INACTIVE, FastLayoutLock.LAYOUT_CHANGE)) {
+                    LayoutLock.yield();
+                }
+            }
+        }
 
         return 0;
     }
