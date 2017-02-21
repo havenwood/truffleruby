@@ -40,7 +40,7 @@ p bench_first(ary)
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :local)
 
-Thread.new {}
+Thread.new {}.join
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :fixed)
 
