@@ -175,16 +175,22 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
 
     @Specialization(guards = "isFastLayoutLockArray(array)")
     public Object FastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
-            // @Cached("create()") GetThreadInfoNode getThreadInfoNode,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("create()") FastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
             @Cached("create()") FastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
         // final int threads = accessor.startLayoutChange();
-        final int threads = startLayoutChangeNode.executeStartLayoutChange();
-        try {
+        FastLayoutLock.ThreadState threadState = null;
+        if (FastLayoutLock.GLOBAL_LOCK.gather.length > 2) {
+            threadState = getThreadStateNode.executeGetThreadState(array);
+            final int threads = startLayoutChangeNode.executeStartLayoutChange(threadState);
+            try {
+                return builtinNode.execute(frame);
+            } finally {
+                // accessor.finishLayoutChange(threads);
+                finishLayoutChangeNode.executeFinishLayoutChange(threadState);
+            }
+        } else {
             return builtinNode.execute(frame);
-        } finally {
-            // accessor.finishLayoutChange(threads);
-            finishLayoutChangeNode.executeFinishLayoutChange();
         }
     }
 

@@ -3,6 +3,8 @@ package org.truffleruby.core.array.layout;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class FastLayoutLock {
     public static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
@@ -15,113 +17,161 @@ public class FastLayoutLock {
      * an AtomicLong. Inc on layout change, and Inc again on finishing layout change.
      */
     static final int INACTIVE = 0;
-    static final int WRITER_ACTIVE = 1;
-    static final int LAYOUT_CHANGE = -1;
-    public AtomicInteger startCount = new AtomicInteger(0);
-    public AtomicInteger finishCount = new AtomicInteger(0);
+    static final int WRITER_ACTIVE = -11;
+    static final int LAYOUT_CHANGE = 1;
 
-    HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
 
-    public AtomicInteger gather[] = new AtomicInteger[0];
-
-    AtomicInteger getThreadState(long tid) {
-        do {
-            long stamp = startCount.get();
-            while (finishCount.get() < stamp)
-                ; // layout change is happening
-            AtomicInteger ts = threadStates.get(tid);
-            if (stamp != startCount.get()) // did another layout change start?
-                continue;
-            return ts;
-        } while (true);
+    class mcs_node {
+        volatile mcs_node next = null;
+        volatile boolean is_locked = false;
     }
 
-    private void notifyLayoutChange() {
-        for (int i = 0; i < gather.length; i++) {
-            AtomicInteger ts = gather[i];
-            if (ts.get() != LAYOUT_CHANGE)
-                while (!ts.compareAndSet(INACTIVE, LAYOUT_CHANGE))
+    class mcs_queue {
+        AtomicReference<mcs_node> queue = new AtomicReference<>();
+
+        // return true iff node was unlocked by previous node
+        boolean lock(mcs_node node) {
+            node.next = null;
+            mcs_node predecessor = queue.getAndSet(node);
+
+            if (predecessor != null) {
+                node.is_locked = true;
+                predecessor.next = node;
+                while (node.is_locked)
                     ;
+                return true;
+            }
+            return false;
+        }
+
+        void unlock(mcs_node node) {
+            if (node.next == null) {
+                if (queue.compareAndSet(node, null))
+                    return;
+                while (node.next == null)
+                    ;
+            }
+            node.next.is_locked = false;
         }
     }
 
-    public void startLayoutChange() {
-        int s = startCount.incrementAndGet();
-        while (s > finishCount.get() + 1)
-            ; // wait for previous layout changes
-        notifyLayoutChange();
+    public mcs_queue queue = new mcs_queue();
+
+    public class ThreadState extends mcs_node {
+        AtomicInteger state = new AtomicInteger(INACTIVE);
     }
 
-    public void finishLayoutChange() {
-        finishCount.incrementAndGet();
+    HashMap<Long, ThreadState> threadStates = new HashMap<>();
+    ThreadState lockState = new ThreadState();
+
+    public volatile ThreadState gather[] = new ThreadState[1];
+
+    public FastLayoutLock() {
+        gather[0] = lockState;
     }
+
+    ThreadState getThreadState(long tid) {
+        ThreadState ts;
+        do {
+            ts = threadStates.get(tid);
+        } while (!finishRead(lockState));
+        return ts;
+    }
+
+
+
+    public void startLayoutChange(ThreadState ts) {
+        boolean unlocked = queue.lock(ts);
+        if (!unlocked) {
+            for (int i = 0; i < gather.length; i++) {
+                AtomicInteger state = gather[i].state;
+                if (state.get() != LAYOUT_CHANGE)
+                    while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE))
+                        ;
+            }
+
+        }
+    }
+
+    public void finishLayoutChange(ThreadState ts) {
+        queue.unlock(ts);
+    }
+
+
+    public void startWrite(ThreadState ts) {
+        if (!ts.state.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
+            // LC must be on, so switch to slow path
+            do { // wait for queue to empty
+                while (queue.queue.get() != null) // <=== contention on queue head
+                    ;
+                ts.state.set(INACTIVE);
+                // restore to layout change state if one just started, after we set the flag to
+                // inactive
+                if (queue.queue.get() != null)
+                    ts.state.set(LAYOUT_CHANGE);
+                // if LC comes in now, it will have to be a first, so it may try to turn on
+                // LC flags
+            } while (!ts.state.compareAndSet(INACTIVE, WRITER_ACTIVE));
+        }
+
+    }
+
+    public void finishWrite(ThreadState ts) {
+        ts.state.set(INACTIVE);
+    }
+
+    public boolean finishRead(ThreadState ts) {
+        if (ts.state.get() == INACTIVE) // check for fast path
+            return true;
+        // slow path
+        while (queue.queue.get() != null)
+            ;
+        ts.state.set(INACTIVE);
+        if (queue.queue.get() != null)
+            ts.state.set(LAYOUT_CHANGE);
+        return false;
+    }
+
 
     private void updateGather() {
-        gather = new AtomicInteger[threadStates.size()];
-        int next = 0;
-        for (AtomicInteger ts : threadStates.values())
+        gather = new ThreadState[threadStates.size() + 1];
+        gather[0] = lockState;
+        int next = 1;
+        for (ThreadState ts : threadStates.values())
             gather[next++] = ts;
     }
 
     // block layout changes, but allow other changes to proceed
-    public AtomicInteger registerThread(long tid) {
-        startLayoutChange();
-        AtomicInteger ts = new AtomicInteger(LAYOUT_CHANGE); // since we're currently in a layout
-                                                             // change
+    public ThreadState registerThread(long tid) {
+        ThreadState ts = new ThreadState();
+        // System.err.println("call startLayoutChange");
+        startLayoutChange(lockState);
+        // System.err.println("after call startLayoutChange " + counts.get());
         threadStates.put(tid, ts);
         updateGather();
         // finish the layout change, no need to reset the LC flags
-        finishLayoutChange();
+        // System.err.println("call finishLayoutChange");
+        finishLayoutChange(lockState);
+        // System.err.println("after call finishLayoutChange " + counts.get());
         return ts;
     }
 
     // block layout changes, but allow other changes to proceed
     public void unregisterThread(long tid) {
-        startLayoutChange();
+        startLayoutChange(lockState);
         threadStates.remove(tid);
         updateGather();
-        finishLayoutChange();
+        finishLayoutChange(lockState);
     }
 
     public void reset() {
         threadStates = new HashMap<>();
-        startCount.set(0);
-        finishCount.set(0);
+        gather = new ThreadState[1];
+        gather[0] = lockState;
     }
 
     public void startRead(AtomicInteger ts) {
     }
-
-    public boolean finishRead(AtomicInteger ts) {
-        if (ts.get() == LAYOUT_CHANGE) {
-            while (startCount.get() > finishCount.get())
-                ; // wait for layout changes to finish
-            ts.set(INACTIVE);
-            if (startCount.get() > finishCount.get()) // another one started and not finished
-                ts.set(LAYOUT_CHANGE);
-            return false;
-        }
-        return true;
-    }
-
-    public void startWrite(AtomicInteger ts) {
-        if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) {
-            do {
-                while (startCount.get() > finishCount.get())
-                    ; // wait for layout changes to finish
-                ts.set(WRITER_ACTIVE);
-                if (startCount.get() == finishCount.get())
-                    return;
-                ts.set(LAYOUT_CHANGE);
-            } while (true);
-        }
-    }
-
-
-    public void finishWrite(AtomicInteger ts) {
-        ts.set(INACTIVE);
-    }
-
 
     public String getDescription() {
         return "FastLayoutLock";

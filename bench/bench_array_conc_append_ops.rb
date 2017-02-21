@@ -85,3 +85,7 @@ p measure(ary, :stamped)
 Truffle::Array.set_strategy(ary, :LayoutLock)
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :layout)
+
+Truffle::Array.set_strategy(ary, :FastLayoutLock)
+puts Truffle::Debug.array_storage(ary)
+p measure(ary, :fast_layout)
