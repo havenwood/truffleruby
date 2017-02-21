@@ -26,7 +26,7 @@ public abstract class FastLayoutLockFinishLayoutChangeNode extends RubyNode {
         FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
         AtomicReference<ThreadState> queue = lock.queue.queue;
         if (nextProfile.profile(node.next == null)) {
-            if (casProfile.profile(queue.compareAndSet(node, null))) {
+            if (casProfile.profile(queue.get() == node && queue.compareAndSet(node, null))) {
                 return 0;
             }
             while (node.next == null) {
