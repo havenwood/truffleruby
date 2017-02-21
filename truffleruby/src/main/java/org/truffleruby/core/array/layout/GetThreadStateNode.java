@@ -1,7 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.Cached;
@@ -24,7 +22,7 @@ public abstract class GetThreadStateNode extends RubyNode {
         return cachedThread.getThreadState();
     }
 
-    @Specialization
+    @Specialization(contains = "cachedThread")
     protected FastLayoutLock.ThreadState getThreadState(DynamicObject array) {
         return getCurrentThread(array).getThreadState();
     }

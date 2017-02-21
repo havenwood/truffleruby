@@ -1,34 +1,26 @@
 package org.truffleruby.core.array.layout;
 
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class FastLayoutLock {
+
     public static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
 
-    /*
-     * Trying to convert the threads array into a map. HashMap (RB-Tree) would probably work best,
-     * but it is not concurrent. The problem is that threads may keep registering while other
-     * threads are trying to use the tree. So an incoming thread seeking its ThreadInfo object needs
-     * to busy-wait until writeActive is *false*. As a reviewer suggested, convert writerActive to
-     * an AtomicLong. Inc on layout change, and Inc again on finishing layout change.
-     */
     static final int INACTIVE = 0;
     static final int WRITER_ACTIVE = -11;
     static final int LAYOUT_CHANGE = 1;
 
 
     public class ThreadState {
-        AtomicInteger state = new AtomicInteger(INACTIVE);
+        final AtomicInteger state = new AtomicInteger(INACTIVE);
         volatile ThreadState next = null;
         volatile boolean is_locked = false;
     }
 
     class ts_queue {
-        AtomicReference<ThreadState> queue = new AtomicReference<>();
+        final AtomicReference<ThreadState> queue = new AtomicReference<>();
 
         // return true iff node was unlocked by previous node
         boolean lock(ThreadState node) {
@@ -38,8 +30,9 @@ public class FastLayoutLock {
             if (predecessor != null) {
                 node.is_locked = true;
                 predecessor.next = node;
-                while (node.is_locked)
-                    ;
+                while (node.is_locked) {
+                    LayoutLock.yield();
+                }
                 return true;
             }
             return false;
@@ -49,17 +42,18 @@ public class FastLayoutLock {
             if (node.next == null) {
                 if (queue.compareAndSet(node, null))
                     return;
-                while (node.next == null)
-                    ;
+                while (node.next == null) {
+                    LayoutLock.yield();
+                }
             }
             node.next.is_locked = false;
         }
     }
 
-    public ts_queue queue = new ts_queue();
+    public final ts_queue queue = new ts_queue();
 
-    HashMap<Long, ThreadState> threadStates = new HashMap<>();
-    ThreadState lockState = new ThreadState();
+    final HashMap<Long, ThreadState> threadStates = new HashMap<>();
+    final ThreadState lockState = new ThreadState();
 
     public volatile ThreadState gather[] = new ThreadState[1];
 
@@ -83,8 +77,9 @@ public class FastLayoutLock {
             for (int i = 0; i < gather.length; i++) {
                 AtomicInteger state = gather[i].state;
                 if (state.get() != LAYOUT_CHANGE)
-                    while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE))
-                        ;
+                    while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                        LayoutLock.yield();
+                    }
             }
 
         }
@@ -99,8 +94,9 @@ public class FastLayoutLock {
         if (!ts.state.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
             // LC must be on, so switch to slow path
             do { // wait for queue to empty
-                while (queue.queue.get() != null) // <=== contention on queue head
-                    ;
+                while (queue.queue.get() != null) { // <=== contention on queue head
+                    LayoutLock.yield();
+                }
                 ts.state.set(INACTIVE);
                 // restore to layout change state if one just started, after we set the flag to
                 // inactive
@@ -121,8 +117,9 @@ public class FastLayoutLock {
         if (ts.state.get() == INACTIVE) // check for fast path
             return true;
         // slow path
-        while (queue.queue.get() != null)
-            ;
+        while (queue.queue.get() != null) {
+            LayoutLock.yield();
+        }
         ts.state.set(INACTIVE);
         if (queue.queue.get() != null)
             ts.state.set(LAYOUT_CHANGE);
@@ -163,7 +160,7 @@ public class FastLayoutLock {
     }
 
     public void reset() {
-        threadStates = new HashMap<>();
+        threadStates.clear();
         gather = new ThreadState[1];
         gather[0] = lockState;
     }

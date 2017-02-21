@@ -22,7 +22,7 @@ public abstract class GetLayoutLockAccessorNode extends RubyNode {
         return cachedThread.getLayoutLockAccessor();
     }
 
-    @Specialization
+    @Specialization(contains = "cachedThread")
     protected LayoutLock.Accessor getAccessor(DynamicObject array) {
         return getCurrentThread(array).getLayoutLockAccessor();
     }

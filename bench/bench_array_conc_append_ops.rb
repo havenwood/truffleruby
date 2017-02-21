@@ -74,9 +74,9 @@ Truffle::Array.set_strategy(ary, :ReentrantLock)
 puts Truffle::Debug.array_storage(ary)
 p measure(ary, :reentrant)
 
-Truffle::Array.set_strategy(ary, :CustomLock)
-puts Truffle::Debug.array_storage(ary)
-p measure(ary, :custom)
+# Truffle::Array.set_strategy(ary, :CustomLock)
+# puts Truffle::Debug.array_storage(ary)
+# p measure(ary, :custom)
 
 Truffle::Array.set_strategy(ary, :StampedLock)
 puts Truffle::Debug.array_storage(ary)
