@@ -21,18 +21,19 @@ public class FastLayoutLock {
     static final int LAYOUT_CHANGE = 1;
 
 
-    class mcs_node {
-        volatile mcs_node next = null;
+    public class ThreadState {
+        AtomicInteger state = new AtomicInteger(INACTIVE);
+        volatile ThreadState next = null;
         volatile boolean is_locked = false;
     }
 
-    class mcs_queue {
-        AtomicReference<mcs_node> queue = new AtomicReference<>();
+    class ts_queue {
+        AtomicReference<ThreadState> queue = new AtomicReference<>();
 
         // return true iff node was unlocked by previous node
-        boolean lock(mcs_node node) {
+        boolean lock(ThreadState node) {
             node.next = null;
-            mcs_node predecessor = queue.getAndSet(node);
+            ThreadState predecessor = queue.getAndSet(node);
 
             if (predecessor != null) {
                 node.is_locked = true;
@@ -44,7 +45,7 @@ public class FastLayoutLock {
             return false;
         }
 
-        void unlock(mcs_node node) {
+        void unlock(ThreadState node) {
             if (node.next == null) {
                 if (queue.compareAndSet(node, null))
                     return;
@@ -55,11 +56,7 @@ public class FastLayoutLock {
         }
     }
 
-    public mcs_queue queue = new mcs_queue();
-
-    public class ThreadState extends mcs_node {
-        AtomicInteger state = new AtomicInteger(INACTIVE);
-    }
+    public ts_queue queue = new ts_queue();
 
     HashMap<Long, ThreadState> threadStates = new HashMap<>();
     ThreadState lockState = new ThreadState();

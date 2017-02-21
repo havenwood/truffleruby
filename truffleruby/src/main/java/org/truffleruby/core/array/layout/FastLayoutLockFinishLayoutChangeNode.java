@@ -1,7 +1,8 @@
 package org.truffleruby.core.array.layout;
 
-import org.truffleruby.core.array.layout.FastLayoutLock.mcs_node;
-import org.truffleruby.core.array.layout.FastLayoutLock.mcs_queue;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.truffleruby.core.array.layout.FastLayoutLock.ThreadState;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.NodeChild;
@@ -16,21 +17,21 @@ public abstract class FastLayoutLockFinishLayoutChangeNode extends RubyNode {
         return FastLayoutLockFinishLayoutChangeNodeGen.create(null); // null, null);
     }
 
-    public abstract int executeFinishLayoutChange(FastLayoutLock.ThreadState threadState);
+    public abstract int executeFinishLayoutChange(ThreadState threadState);
 
     @ExplodeLoop
     @Specialization
-    protected int finishLayoutChange(FastLayoutLock.ThreadState threadState) {
+    protected int finishLayoutChange(ThreadState threadState) {
         FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
         if (lock.gather.length <= 2)
             return 0;
-        queue_unlock(lock.queue, threadState);
+        queue_unlock(lock.queue.queue, threadState);
         return 0;
     }
 
-    void queue_unlock(mcs_queue queue, mcs_node node) {
+    void queue_unlock(AtomicReference<ThreadState> queue, ThreadState node) {
         if (node.next == null) {
-            if (queue.queue.compareAndSet(node, null))
+            if (queue.compareAndSet(node, null))
                 return;
             while (node.next == null)
                 ;

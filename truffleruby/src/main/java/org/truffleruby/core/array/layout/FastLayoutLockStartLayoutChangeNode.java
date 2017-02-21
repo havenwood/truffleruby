@@ -1,9 +1,9 @@
 package org.truffleruby.core.array.layout;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-import org.truffleruby.core.array.layout.FastLayoutLock.mcs_node;
-import org.truffleruby.core.array.layout.FastLayoutLock.mcs_queue;
+import org.truffleruby.core.array.layout.FastLayoutLock.ThreadState;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
@@ -32,7 +32,7 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
         // lock.startLayoutChange(threadState);
         if (lock.gather.length <= 2)
             return 0;
-        final boolean unlocked = queue_lock(lock.queue, threadState);
+        final boolean unlocked = queue_lock(lock.queue.queue, threadState);
         // if (!unlocked) {
         // final FastLayoutLock.ThreadState gather[] = lock.gather;
         // for (int i = 0; i < gather.length; i++) {
@@ -47,9 +47,9 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
         return 0;
     }
 
-    boolean queue_lock(mcs_queue queue, mcs_node node) {
+    boolean queue_lock(AtomicReference<FastLayoutLock.ThreadState> queue, ThreadState node) {
         node.next = null;
-        mcs_node predecessor = queue.queue.getAndSet(node);
+        ThreadState predecessor = queue.getAndSet(node);
 
         if (predecessor != null) {
             node.is_locked = true;
