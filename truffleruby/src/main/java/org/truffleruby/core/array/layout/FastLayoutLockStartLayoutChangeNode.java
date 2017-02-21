@@ -30,8 +30,6 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
                                                                             // threadInfo) {
         FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
         // lock.startLayoutChange(threadState);
-        if (lock.gather.length <= 2)
-            return 0;
         final boolean unlocked = queue_lock(lock.queue.queue, threadState);
         // if (!unlocked) {
         // final FastLayoutLock.ThreadState gather[] = lock.gather;

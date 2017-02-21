@@ -23,8 +23,6 @@ public abstract class FastLayoutLockFinishLayoutChangeNode extends RubyNode {
     @Specialization
     protected int finishLayoutChange(ThreadState threadState) {
         FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
-        if (lock.gather.length <= 2)
-            return 0;
         queue_unlock(lock.queue.queue, threadState);
         return 0;
     }
