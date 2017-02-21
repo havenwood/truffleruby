@@ -2,7 +2,6 @@ package org.truffleruby.core.array.layout;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.truffleruby.core.array.layout.FastLayoutLock.ThreadState;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.Cached;
@@ -10,31 +9,19 @@ import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
-@NodeChild("self")
+//@NodeChild("self")
 public abstract class FastLayoutLockFinishLayoutChangeNode extends RubyNode {
 
     public static FastLayoutLockFinishLayoutChangeNode create() {
-        return FastLayoutLockFinishLayoutChangeNodeGen.create(null);
+        return FastLayoutLockFinishLayoutChangeNodeGen.create();
     }
 
-    public abstract int executeFinishLayoutChange(ThreadState threadState);
+    public abstract int executeFinishLayoutChange();
 
     @Specialization
-    protected int finishLayoutChange(ThreadState node,
-            @Cached("createCountingProfile()") ConditionProfile nextProfile,
-            @Cached("createCountingProfile()") ConditionProfile casProfile) {
+    protected int finishLayoutChange() {
         FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
-        AtomicReference<ThreadState> queue = lock.queue.queue;
-        if (nextProfile.profile(node.next == null)) {
-            if (casProfile.profile(queue.get() == node && queue.compareAndSet(node, null))) {
-                return 0;
-            }
-            while (node.next == null) {
-                LayoutLock.yield();
-            }
-        }
-        node.next.is_locked = false;
-
+        lock.baseLock.unlock();
         return 0;
     }
 

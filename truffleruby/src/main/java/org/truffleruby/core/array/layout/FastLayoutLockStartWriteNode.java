@@ -14,10 +14,10 @@ public abstract class FastLayoutLockStartWriteNode extends RubyNode {
         return FastLayoutLockStartWriteNodeGen.create(null);
     }
 
-    public abstract Object executeStartWrite(FastLayoutLock.ThreadState threadState);
+    public abstract Object executeStartWrite(AtomicInteger threadState);
 
     @Specialization
-    protected Object fastLayoutLockStartWrite(FastLayoutLock.ThreadState threadState) {// ,
+    protected Object fastLayoutLockStartWrite(AtomicInteger threadState) {// ,
         FastLayoutLock.GLOBAL_LOCK.startWrite(threadState);
         return nil();
     }

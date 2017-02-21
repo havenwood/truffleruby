@@ -1,5 +1,6 @@
 package org.truffleruby.core.array;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
@@ -7,7 +8,9 @@ import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
+import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
+import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.language.RubyNode;
@@ -127,6 +130,28 @@ public abstract class ArraySyncReadNode extends RubyNode {
             result = builtinNode.execute(frame);
         } while (!accessor.finishRead(dirtyProfile));
         return result;
+    }
+
+    @Specialization(guards = "isFastLayoutLockArray(array)")
+    public Object fastLayoutLockRead(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
+            @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
+        final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
+        Object result;
+        while (true) {
+            // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
+            // Out-of-thin-air values are prevented by the dirty flag check
+            result = builtinNode.execute(frame);
+            if (dirtyProfile.profile(threadState.get() == FastLayoutLock.INACTIVE)) // check for
+                                                                                    // fast path
+                return result;
+
+            ReentrantLock baseLock = FastLayoutLock.GLOBAL_LOCK.baseLock;
+            // slow path
+            baseLock.lock();
+            threadState.set(FastLayoutLock.INACTIVE);
+            baseLock.unlock();
+        }
     }
 
 }

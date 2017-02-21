@@ -178,12 +178,13 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("create()") FastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
             @Cached("create()") FastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
-        final FastLayoutLock.ThreadState threadState = getThreadStateNode.executeGetThreadState(array);
-        startLayoutChangeNode.executeStartLayoutChange(threadState);
+        // final FastLayoutLock.ThreadState threadState =
+        // getThreadStateNode.executeGetThreadState(array);
+        startLayoutChangeNode.executeStartLayoutChange();
         try {
             return builtinNode.execute(frame);
         } finally {
-            finishLayoutChangeNode.executeFinishLayoutChange(threadState);
+            finishLayoutChangeNode.executeFinishLayoutChange();
         }
     }
 

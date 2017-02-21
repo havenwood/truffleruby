@@ -3,66 +3,33 @@ package org.truffleruby.core.array.layout;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
+
+import com.sun.corba.se.impl.orbutil.concurrent.Mutex;
 
 public class FastLayoutLock {
 
     public static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
 
-    static final int INACTIVE = 0;
-    static final int WRITER_ACTIVE = -11;
-    static final int LAYOUT_CHANGE = 1;
+    public static final int INACTIVE = 0;
+    public static final int WRITER_ACTIVE = -11;
+    public static final int LAYOUT_CHANGE = 1;
+
+    public ReentrantLock baseLock = new ReentrantLock();
 
 
-    public class ThreadState {
-        final AtomicInteger state = new AtomicInteger(INACTIVE);
-        volatile ThreadState next = null;
-        volatile boolean is_locked = false;
-    }
+    final HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
 
-    class ts_queue {
-        final AtomicReference<ThreadState> queue = new AtomicReference<>();
+    AtomicInteger lockState = new AtomicInteger(INACTIVE);
+    public volatile AtomicInteger gather[] = new AtomicInteger[1];
 
-        // return true iff node was unlocked by previous node
-        boolean lock(ThreadState node) {
-            node.next = null;
-            ThreadState predecessor = queue.getAndSet(node);
-
-            if (predecessor != null) {
-                node.is_locked = true;
-                predecessor.next = node;
-                while (node.is_locked) {
-                    LayoutLock.yield();
-                }
-                return true;
-            }
-            return false;
-        }
-
-        void unlock(ThreadState node) {
-            if (node.next == null) {
-                if (queue.compareAndSet(node, null))
-                    return;
-                while (node.next == null) {
-                    LayoutLock.yield();
-                }
-            }
-            node.next.is_locked = false;
-        }
-    }
-
-    public final ts_queue queue = new ts_queue();
-
-    final HashMap<Long, ThreadState> threadStates = new HashMap<>();
-    final ThreadState lockState = new ThreadState();
-
-    public volatile ThreadState gather[] = new ThreadState[1];
 
     public FastLayoutLock() {
         gather[0] = lockState;
     }
 
-    ThreadState getThreadState(long tid) {
-        ThreadState ts;
+    AtomicInteger getThreadState(long tid) {
+        AtomicInteger ts;
         do {
             ts = threadStates.get(tid);
         } while (!finishRead(lockState));
@@ -71,81 +38,69 @@ public class FastLayoutLock {
 
 
 
-    public void startLayoutChange(ThreadState ts) {
-        boolean unlocked = queue.lock(ts);
-        if (!unlocked) {
+    public void startLayoutChange() {
+        boolean acquired = false;
+        acquired = baseLock.tryLock();
+        if (acquired) {
             for (int i = 0; i < gather.length; i++) {
-                AtomicInteger state = gather[i].state;
+                AtomicInteger state = gather[i];
                 if (state.get() != LAYOUT_CHANGE)
                     while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                         LayoutLock.yield();
                     }
             }
-
+        } else {
+            baseLock.lock();
         }
     }
 
-    public void finishLayoutChange(ThreadState ts) {
-        queue.unlock(ts);
+    public void finishLayoutChange() {
+        baseLock.unlock();
     }
 
 
-    public void startWrite(ThreadState ts) {
-        if (!ts.state.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
-            // LC must be on, so switch to slow path
-            do { // wait for queue to empty
-                while (queue.queue.get() != null) { // <=== contention on queue head
-                    LayoutLock.yield();
-                }
-                ts.state.set(INACTIVE);
-                // restore to layout change state if one just started, after we set the flag to
-                // inactive
-                if (queue.queue.get() != null)
-                    ts.state.set(LAYOUT_CHANGE);
-                // if LC comes in now, it will have to be a first, so it may try to turn on
-                // LC flags
-            } while (!ts.state.compareAndSet(INACTIVE, WRITER_ACTIVE));
+    public void startWrite(AtomicInteger ts) {
+        if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
+            baseLock.lock();
+            ts.set(WRITER_ACTIVE);
+            baseLock.unlock();
         }
-
     }
 
-    public void finishWrite(ThreadState ts) {
-        ts.state.set(INACTIVE);
+    public void finishWrite(AtomicInteger ts) {
+        ts.set(INACTIVE);
     }
 
-    public boolean finishRead(ThreadState ts) {
-        if (ts.state.get() == INACTIVE) // check for fast path
+    public boolean finishRead(AtomicInteger ts) {
+        if (ts.get() == INACTIVE) // check for fast path
             return true;
         // slow path
-        while (queue.queue.get() != null) {
-            LayoutLock.yield();
-        }
-        ts.state.set(INACTIVE);
-        if (queue.queue.get() != null)
-            ts.state.set(LAYOUT_CHANGE);
+        baseLock.lock();
+        ts.set(INACTIVE);
+        baseLock.unlock();
         return false;
     }
 
 
     private void updateGather() {
-        gather = new ThreadState[threadStates.size() + 1];
+        gather = new AtomicInteger[threadStates.size() + 1];
         gather[0] = lockState;
         int next = 1;
-        for (ThreadState ts : threadStates.values())
+        for (AtomicInteger ts : threadStates.values())
             gather[next++] = ts;
     }
 
     // block layout changes, but allow other changes to proceed
-    public ThreadState registerThread(long tid) {
-        ThreadState ts = new ThreadState();
+    public AtomicInteger registerThread(long tid) {
+        AtomicInteger ts = new AtomicInteger();
         // System.err.println("call startLayoutChange");
-        startLayoutChange(lockState);
+        startLayoutChange();
         // System.err.println("after call startLayoutChange " + counts.get());
         threadStates.put(tid, ts);
         updateGather();
         // finish the layout change, no need to reset the LC flags
         // System.err.println("call finishLayoutChange");
-        finishLayoutChange(lockState);
+        finishLayoutChange();
         // System.err.println("after call finishLayoutChange " + counts.get());
         return ts;
     }
@@ -153,15 +108,15 @@ public class FastLayoutLock {
     // block layout changes, but allow other changes to proceed
     public void unregisterThread() {
         long tid = ((ThreadWithDirtyFlag) Thread.currentThread()).getThreadId();
-        startLayoutChange(lockState);
+        startLayoutChange();
         threadStates.remove(tid);
         updateGather();
-        finishLayoutChange(lockState);
+        finishLayoutChange();
     }
 
     public void reset() {
         threadStates.clear();
-        gather = new ThreadState[1];
+        gather = new AtomicInteger[1];
         gather[0] = lockState;
     }
 

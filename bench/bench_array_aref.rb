@@ -69,3 +69,11 @@ p measure(ary, :layout)
 p measure(ary, :layout)
 p measure(ary, :layout)
 p measure(ary, :layout)
+
+Truffle::Array.set_strategy(ary, :FastLayoutLock)
+# ary << ary.pop
+puts Truffle::Debug.array_storage(ary)
+p measure(ary, :fast_layout)
+p measure(ary, :fast_layout)
+p measure(ary, :fast_layout)
+p measure(ary, :fast_layout)

@@ -1,5 +1,6 @@
 package org.truffleruby.core.array.layout;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ThreadWithDirtyFlag extends Thread {
@@ -7,7 +8,7 @@ public class ThreadWithDirtyFlag extends Thread {
     private static final AtomicLong threadIds = new AtomicLong();
 
     public volatile boolean dirty = false;
-    public final FastLayoutLock.ThreadState threadState;
+    public final AtomicInteger threadState;
     public final long threadId = threadIds.incrementAndGet();
 
     private final LayoutLock.Accessor layoutLockAccessor;
@@ -28,7 +29,7 @@ public class ThreadWithDirtyFlag extends Thread {
         return fastLayoutLock;
     }
 
-    public FastLayoutLock.ThreadState getThreadState() {
+    public AtomicInteger getThreadState() {
         return threadState;
     }
 
