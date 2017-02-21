@@ -4,13 +4,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ThreadWithDirtyFlag extends Thread {
 
+    private static final AtomicLong threadIds = new AtomicLong();
+
     public volatile boolean dirty = false;
     public final FastLayoutLock.ThreadState threadState;
     public final long threadId = threadIds.incrementAndGet();
 
     private final LayoutLock.Accessor layoutLockAccessor;
     private final FastLayoutLock fastLayoutLock;
-    private static AtomicLong threadIds = new AtomicLong();
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);

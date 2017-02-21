@@ -154,7 +154,8 @@ public class FastLayoutLock {
     }
 
     // block layout changes, but allow other changes to proceed
-    public void unregisterThread(long tid) {
+    public void unregisterThread() {
+        long tid = ((ThreadWithDirtyFlag) Thread.currentThread()).getThreadId();
         startLayoutChange(lockState);
         threadStates.remove(tid);
         updateGather();
