@@ -14,16 +14,12 @@ public final class FastLayoutLock {
     public static final int WRITER_ACTIVE = -11;
     public static final int LAYOUT_CHANGE = 1;
 
+    final HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
+    public volatile AtomicInteger[] gather = new AtomicInteger[0];
+
     public final StampedLock baseLock = new StampedLock();
 
-    final HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
-
-    final AtomicInteger lockState = new AtomicInteger(INACTIVE);
-    public volatile AtomicInteger[] gather = new AtomicInteger[1];
-
-
     public FastLayoutLock() {
-        gather[0] = lockState;
     }
 
     public long startLayoutChange() {
@@ -93,9 +89,8 @@ public final class FastLayoutLock {
     }
 
     private void updateGather() {
-        gather = new AtomicInteger[threadStates.size() + 1];
-        gather[0] = lockState;
-        int next = 1;
+        gather = new AtomicInteger[threadStates.size()];
+        int next = 0;
         for (AtomicInteger ts : threadStates.values())
             gather[next++] = ts;
     }
