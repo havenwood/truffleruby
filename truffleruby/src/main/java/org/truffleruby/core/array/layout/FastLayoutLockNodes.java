@@ -8,7 +8,9 @@ import org.truffleruby.core.array.layout.FastLayoutLockNodesFactory.FastLayoutLo
 import org.truffleruby.language.RubyBaseNode;
 import org.truffleruby.language.RubyNode;
 
+import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.Specialization;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public abstract class FastLayoutLockNodes {
 
@@ -20,8 +22,9 @@ public abstract class FastLayoutLockNodes {
         public abstract void executeStartWrite(AtomicInteger threadState);
 
         @Specialization
-        protected void fastLayoutLockStartWrite(AtomicInteger threadState) {
-            FastLayoutLock.GLOBAL_LOCK.startWrite(threadState);
+        protected void fastLayoutLockStartWrite(AtomicInteger threadState,
+                @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
+            FastLayoutLock.GLOBAL_LOCK.startWrite(threadState, fastPathProfile);
         }
     }
 

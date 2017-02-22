@@ -45,8 +45,8 @@ public final class FastLayoutLock {
         unlockWrite(stamp);
     }
 
-    public void startWrite(AtomicInteger ts) {
-        if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
+    public void startWrite(AtomicInteger ts, ConditionProfile fastPath) {
+        if (!fastPath.profile(ts.compareAndSet(INACTIVE, WRITER_ACTIVE))) {
             changeThreadState(ts, WRITER_ACTIVE);
         }
     }
