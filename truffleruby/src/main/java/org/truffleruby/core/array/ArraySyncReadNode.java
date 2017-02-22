@@ -135,22 +135,16 @@ public abstract class ArraySyncReadNode extends RubyNode {
     @Specialization(guards = "isFastLayoutLockArray(array)")
     public Object fastLayoutLockRead(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
-            @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
+            @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
         final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
         Object result;
         while (true) {
             // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
             // Out-of-thin-air values are prevented by the dirty flag check
             result = builtinNode.execute(frame);
-            if (dirtyProfile.profile(threadState.get() == FastLayoutLock.INACTIVE)) // check for
-                                                                                    // fast path
+            if (FastLayoutLock.GLOBAL_LOCK.finishRead(threadState, fastPathProfile)) {
                 return result;
-
-            StampedLock baseLock = FastLayoutLock.GLOBAL_LOCK.baseLock;
-            // slow path
-            long stamp = baseLock.readLock();
-            threadState.set(FastLayoutLock.INACTIVE);
-            baseLock.unlockRead(stamp);
+            }
         }
     }
 

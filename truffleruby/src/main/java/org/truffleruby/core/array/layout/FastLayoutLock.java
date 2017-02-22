@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public final class FastLayoutLock {
 
@@ -57,10 +58,10 @@ public final class FastLayoutLock {
         ts.set(INACTIVE);
     }
 
-    public boolean finishRead(AtomicInteger ts) {
-        if (ts.get() == INACTIVE) // check for fast path
+    public boolean finishRead(AtomicInteger ts, ConditionProfile fastPath) {
+        if (fastPath.profile(ts.get() == INACTIVE)) {
             return true;
-        // slow path
+        }
         long stamp = getReadLock();
         ts.set(INACTIVE);
         unlockRead(stamp);
