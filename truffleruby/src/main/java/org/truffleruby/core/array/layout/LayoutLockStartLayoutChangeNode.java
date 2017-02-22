@@ -49,7 +49,7 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
                     CompilerDirectives.transferToInterpreterAndInvalidate();
                     accessor = accessors[i];
                 }
-                if (!casFirstProfile.profile(accessor.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
+                if (!casProfile.profile(accessor.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
                     waitAndCAS(accessor);
                 }
             }
