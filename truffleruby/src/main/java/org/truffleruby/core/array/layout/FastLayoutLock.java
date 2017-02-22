@@ -24,15 +24,7 @@ public final class FastLayoutLock {
         gather[0] = lockState;
     }
 
-    final AtomicInteger getThreadState(long tid) {
-        AtomicInteger ts;
-        do {
-            ts = threadStates.get(tid);
-        } while (!finishRead(lockState));
-        return ts;
-    }
-
-    public final long startLayoutChange() {
+    public long startLayoutChange() {
         long stamp = baseLock.tryWriteLock();
         if (stamp != 0) {
             final AtomicInteger[] gather = this.gather;
@@ -49,11 +41,11 @@ public final class FastLayoutLock {
         }
     }
 
-    public final void finishLayoutChange(long stamp) {
+    public void finishLayoutChange(long stamp) {
         baseLock.unlockWrite(stamp);
     }
 
-    public final void startWrite(AtomicInteger ts) {
+    public void startWrite(AtomicInteger ts) {
         if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
             long stamp = baseLock.readLock();
             ts.set(WRITER_ACTIVE);
@@ -61,11 +53,11 @@ public final class FastLayoutLock {
         }
     }
 
-    public final void finishWrite(AtomicInteger ts) {
+    public void finishWrite(AtomicInteger ts) {
         ts.set(INACTIVE);
     }
 
-    public final boolean finishRead(AtomicInteger ts) {
+    public boolean finishRead(AtomicInteger ts) {
         if (ts.get() == INACTIVE) // check for fast path
             return true;
         // slow path
@@ -76,7 +68,7 @@ public final class FastLayoutLock {
     }
 
 
-    private final void updateGather() {
+    private void updateGather() {
         gather = new AtomicInteger[threadStates.size() + 1];
         gather[0] = lockState;
         int next = 1;
@@ -84,7 +76,7 @@ public final class FastLayoutLock {
             gather[next++] = ts;
     }
 
-    public final AtomicInteger registerThread(long tid) {
+    public AtomicInteger registerThread(long tid) {
         AtomicInteger ts = new AtomicInteger();
         long stamp = startLayoutChange();
         try {
@@ -96,7 +88,7 @@ public final class FastLayoutLock {
         return ts;
     }
 
-    public final void unregisterThread() {
+    public void unregisterThread() {
         long tid = ((ThreadWithDirtyFlag) Thread.currentThread()).getThreadId();
         long stamp = startLayoutChange();
         try {
@@ -107,9 +99,4 @@ public final class FastLayoutLock {
         }
     }
 
-    public final void reset() {
-        threadStates.clear();
-        gather = new AtomicInteger[1];
-        gather[0] = lockState;
-    }
 }
