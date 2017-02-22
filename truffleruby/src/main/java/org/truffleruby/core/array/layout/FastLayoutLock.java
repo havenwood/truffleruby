@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
+
 public final class FastLayoutLock {
 
     public static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
@@ -30,28 +32,30 @@ public final class FastLayoutLock {
             final AtomicInteger[] gather = this.gather;
             for (int i = 0; i < gather.length; i++) {
                 AtomicInteger state = gather[i];
-                if (state.get() != LAYOUT_CHANGE)
+                if (state.get() != LAYOUT_CHANGE) {
                     while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                         LayoutLock.yield();
                     }
+                }
             }
             return stamp;
         } else {
-            return baseLock.writeLock();
+            return getWriteLock();
         }
     }
 
     public void finishLayoutChange(long stamp) {
-        baseLock.unlockWrite(stamp);
+        unlockWrite(stamp);
     }
 
     public void startWrite(AtomicInteger ts) {
         if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
-            long stamp = baseLock.readLock();
+            long stamp = getReadLock();
             ts.set(WRITER_ACTIVE);
-            baseLock.unlockRead(stamp);
+            unlockRead(stamp);
         }
     }
+
 
     public void finishWrite(AtomicInteger ts) {
         ts.set(INACTIVE);
@@ -61,12 +65,32 @@ public final class FastLayoutLock {
         if (ts.get() == INACTIVE) // check for fast path
             return true;
         // slow path
-        long stamp = baseLock.readLock();
+        long stamp = getReadLock();
         ts.set(INACTIVE);
-        baseLock.unlockRead(stamp);
+        unlockRead(stamp);
         return false;
     }
 
+
+    @TruffleBoundary
+    private long getWriteLock() {
+        return baseLock.writeLock();
+    }
+
+    @TruffleBoundary
+    private void unlockWrite(long stamp) {
+        baseLock.unlockWrite(stamp);
+    }
+
+    @TruffleBoundary
+    private long getReadLock() {
+        return baseLock.readLock();
+    }
+
+    @TruffleBoundary
+    private void unlockRead(long stamp) {
+        baseLock.unlockRead(stamp);
+    }
 
     private void updateGather() {
         gather = new AtomicInteger[threadStates.size() + 1];
