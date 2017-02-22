@@ -2,13 +2,9 @@ package org.truffleruby.core.array.layout;
 
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
-import com.sun.corba.se.impl.orbutil.concurrent.Mutex;
-
-public class FastLayoutLock {
+public final class FastLayoutLock {
 
     public static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
 
@@ -30,7 +26,7 @@ public class FastLayoutLock {
         gather[0] = lockState;
     }
 
-    AtomicInteger getThreadState(long tid) {
+    final AtomicInteger getThreadState(long tid) {
         AtomicInteger ts;
         do {
             ts = threadStates.get(tid);
@@ -38,11 +34,9 @@ public class FastLayoutLock {
         return ts;
     }
 
-
-
-    public void startLayoutChange() {
-        baseLockStamp = baseLock.tryWriteLock();
-        if (baseLockStamp != 0) {
+    public final void startLayoutChange() {
+        long stamp = baseLock.tryWriteLock();
+        if (stamp != 0) {
             for (int i = 0; i < gather.length; i++) {
                 AtomicInteger state = gather[i];
                 if (state.get() != LAYOUT_CHANGE)
@@ -51,16 +45,16 @@ public class FastLayoutLock {
                     }
             }
         } else {
-            baseLockStamp = baseLock.writeLock();
+            stamp = baseLock.writeLock();
         }
+        baseLockStamp = stamp;
     }
 
-    public void finishLayoutChange() {
+    public final void finishLayoutChange() {
         baseLock.unlockWrite(baseLockStamp);
     }
 
-
-    public void startWrite(AtomicInteger ts) {
+    public final void startWrite(AtomicInteger ts) {
         if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
             long stamp = baseLock.readLock();
             ts.set(WRITER_ACTIVE);
@@ -68,11 +62,11 @@ public class FastLayoutLock {
         }
     }
 
-    public void finishWrite(AtomicInteger ts) {
+    public final void finishWrite(AtomicInteger ts) {
         ts.set(INACTIVE);
     }
 
-    public boolean finishRead(AtomicInteger ts) {
+    public final boolean finishRead(AtomicInteger ts) {
         if (ts.get() == INACTIVE) // check for fast path
             return true;
         // slow path
@@ -83,7 +77,7 @@ public class FastLayoutLock {
     }
 
 
-    private void updateGather() {
+    private final void updateGather() {
         gather = new AtomicInteger[threadStates.size() + 1];
         gather[0] = lockState;
         int next = 1;
@@ -92,7 +86,7 @@ public class FastLayoutLock {
     }
 
     // block layout changes, but allow other changes to proceed
-    public AtomicInteger registerThread(long tid) {
+    public final AtomicInteger registerThread(long tid) {
         AtomicInteger ts = new AtomicInteger();
         // System.err.println("call startLayoutChange");
         startLayoutChange();
@@ -107,7 +101,7 @@ public class FastLayoutLock {
     }
 
     // block layout changes, but allow other changes to proceed
-    public void unregisterThread() {
+    public final void unregisterThread() {
         long tid = ((ThreadWithDirtyFlag) Thread.currentThread()).getThreadId();
         startLayoutChange();
         threadStates.remove(tid);
@@ -115,16 +109,16 @@ public class FastLayoutLock {
         finishLayoutChange();
     }
 
-    public void reset() {
+    public final void reset() {
         threadStates.clear();
         gather = new AtomicInteger[1];
         gather[0] = lockState;
     }
 
-    public void startRead(AtomicInteger ts) {
+    public final void startRead(AtomicInteger ts) {
     }
 
-    public String getDescription() {
+    public final String getDescription() {
         return "FastLayoutLock";
     }
 }

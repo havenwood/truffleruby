@@ -22,33 +22,25 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
     @Specialization
     protected int startLayoutChange() {
         FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
-        /*
-         * AtomicReference<FastLayoutLock.ThreadState> queue = lock.queue.queue;
-         * 
-         * node.next = null; ThreadState predecessor = queue.getAndSet(node);
-         * 
-         * if (predecessorProfile.profile(predecessor != null)) { node.is_locked = true;
-         * predecessor.next = node; while (node.is_locked) { LayoutLock.yield(); } } else {
-         */
+        lock.startLayoutChange();
 
-        long stamp = lock.baseLock.tryWriteLock();
-
-        if (stamp != 0) {
-            final AtomicInteger gather[] = lock.gather;
-            int l = gather.length;
-            for (int i = 1; i < l; i++) {
-                AtomicInteger state = gather[i];
-                if (state.get() != FastLayoutLock.LAYOUT_CHANGE)
-                    while (!state.compareAndSet(FastLayoutLock.INACTIVE, FastLayoutLock.LAYOUT_CHANGE))
-                    {
-                        LayoutLock.yield();
-                    }
-            }
-        } else {
-            stamp = lock.baseLock.writeLock();
-        }
-
-        lock.baseLockStamp = stamp;
+        // long stamp = lock.baseLock.tryWriteLock();
+        //
+        // if (stamp != 0) {
+        // final AtomicInteger gather[] = lock.gather;
+        // int l = gather.length;
+        // for (int i = 1; i < l; i++) {
+        // AtomicInteger state = gather[i];
+        // if (state.get() != FastLayoutLock.LAYOUT_CHANGE)
+        // while (!state.compareAndSet(FastLayoutLock.INACTIVE, FastLayoutLock.LAYOUT_CHANGE))
+        // {
+        // LayoutLock.yield();
+        // }
+        // }
+        // } else {
+        // stamp = lock.baseLock.writeLock();
+        // }
+        // lock.baseLockStamp = stamp;
         return 0;
     }
 

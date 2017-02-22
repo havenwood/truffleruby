@@ -20,8 +20,9 @@ public abstract class FastLayoutLockFinishLayoutChangeNode extends RubyNode {
 
     @Specialization
     protected int finishLayoutChange() {
-        FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
-        lock.baseLock.unlockWrite(lock.baseLockStamp);
+        FastLayoutLock.GLOBAL_LOCK.finishLayoutChange();
+        // FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
+        // lock.baseLock.unlockWrite(lock.baseLockStamp);
         return 0;
     }
 
