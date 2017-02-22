@@ -36,8 +36,10 @@ public abstract class FastLayoutLockNodes {
         public abstract long executeStartLayoutChange();
 
         @Specialization
-        protected long startLayoutChange() {
-            return FastLayoutLock.GLOBAL_LOCK.startLayoutChange();
+        protected long startLayoutChange(
+                @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
+                @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
+            return FastLayoutLock.GLOBAL_LOCK.startLayoutChange(tryLockProfile, waitProfile);
         }
     }
 

@@ -23,13 +23,13 @@ public final class FastLayoutLock {
     public FastLayoutLock() {
     }
 
-    public long startLayoutChange() {
+    public long startLayoutChange(ConditionProfile tryLock, ConditionProfile waitProfile) {
         long stamp = baseLock.tryWriteLock();
-        if (stamp != 0) {
+        if (tryLock.profile(stamp != 0)) {
             final AtomicInteger[] gather = this.gather;
             for (int i = 0; i < gather.length; i++) {
                 AtomicInteger state = gather[i];
-                if (state.get() != LAYOUT_CHANGE) {
+                if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
                     while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                         LayoutLock.yield();
                     }
@@ -99,7 +99,7 @@ public final class FastLayoutLock {
 
     public AtomicInteger registerThread(long tid) {
         AtomicInteger ts = new AtomicInteger();
-        long stamp = startLayoutChange();
+        long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
         try {
             threadStates.put(tid, ts);
             updateGather();
@@ -111,7 +111,7 @@ public final class FastLayoutLock {
 
     public void unregisterThread() {
         long tid = ((ThreadWithDirtyFlag) Thread.currentThread()).getThreadId();
-        long stamp = startLayoutChange();
+        long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
         try {
             threadStates.remove(tid);
             updateGather();
@@ -119,5 +119,7 @@ public final class FastLayoutLock {
             finishLayoutChange(stamp);
         }
     }
+
+    private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
 
 }
