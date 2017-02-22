@@ -9,7 +9,6 @@ import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
-import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.FastLayoutLockFinishLayoutChangeNode;
 import org.truffleruby.core.array.layout.FastLayoutLockStartLayoutChangeNode;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
@@ -180,11 +179,11 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             @Cached("create()") FastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
         // final FastLayoutLock.ThreadState threadState =
         // getThreadStateNode.executeGetThreadState(array);
-        startLayoutChangeNode.executeStartLayoutChange();
+        final long stamp = startLayoutChangeNode.executeStartLayoutChange();
         try {
             return builtinNode.execute(frame);
         } finally {
-            finishLayoutChangeNode.executeFinishLayoutChange();
+            finishLayoutChangeNode.executeFinishLayoutChange(stamp);
         }
     }
 

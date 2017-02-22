@@ -1,28 +1,21 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.dsl.Cached;
-import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.profiles.ConditionProfile;
 
-//@NodeChild("self")
 public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
 
     public static FastLayoutLockStartLayoutChangeNode create() {
         return FastLayoutLockStartLayoutChangeNodeGen.create();
     }
 
-    public abstract int executeStartLayoutChange();
+    public abstract long executeStartLayoutChange();
 
     @Specialization
-    protected int startLayoutChange() {
+    protected long startLayoutChange() {
         FastLayoutLock lock = FastLayoutLock.GLOBAL_LOCK;
-        lock.startLayoutChange();
+        return lock.startLayoutChange();
 
         // long stamp = lock.baseLock.tryWriteLock();
         //
@@ -41,7 +34,6 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
         // stamp = lock.baseLock.writeLock();
         // }
         // lock.baseLockStamp = stamp;
-        return 0;
     }
 
 }

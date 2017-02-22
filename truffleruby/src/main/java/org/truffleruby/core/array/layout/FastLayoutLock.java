@@ -13,8 +13,6 @@ public final class FastLayoutLock {
     public static final int LAYOUT_CHANGE = 1;
 
     public final StampedLock baseLock = new StampedLock();
-    public long baseLockStamp = 0;
-
 
     final HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
 
@@ -34,7 +32,7 @@ public final class FastLayoutLock {
         return ts;
     }
 
-    public final void startLayoutChange() {
+    public final long startLayoutChange() {
         long stamp = baseLock.tryWriteLock();
         if (stamp != 0) {
             for (int i = 0; i < gather.length; i++) {
@@ -44,14 +42,14 @@ public final class FastLayoutLock {
                         LayoutLock.yield();
                     }
             }
+            return stamp;
         } else {
-            stamp = baseLock.writeLock();
+            return baseLock.writeLock();
         }
-        baseLockStamp = stamp;
     }
 
-    public final void finishLayoutChange() {
-        baseLock.unlockWrite(baseLockStamp);
+    public final void finishLayoutChange(long stamp) {
+        baseLock.unlockWrite(stamp);
     }
 
     public final void startWrite(AtomicInteger ts) {
@@ -85,40 +83,32 @@ public final class FastLayoutLock {
             gather[next++] = ts;
     }
 
-    // block layout changes, but allow other changes to proceed
     public final AtomicInteger registerThread(long tid) {
         AtomicInteger ts = new AtomicInteger();
-        // System.err.println("call startLayoutChange");
-        startLayoutChange();
-        // System.err.println("after call startLayoutChange " + counts.get());
-        threadStates.put(tid, ts);
-        updateGather();
-        // finish the layout change, no need to reset the LC flags
-        // System.err.println("call finishLayoutChange");
-        finishLayoutChange();
-        // System.err.println("after call finishLayoutChange " + counts.get());
+        long stamp = startLayoutChange();
+        try {
+            threadStates.put(tid, ts);
+            updateGather();
+        } finally {
+            finishLayoutChange(stamp);
+        }
         return ts;
     }
 
-    // block layout changes, but allow other changes to proceed
     public final void unregisterThread() {
         long tid = ((ThreadWithDirtyFlag) Thread.currentThread()).getThreadId();
-        startLayoutChange();
-        threadStates.remove(tid);
-        updateGather();
-        finishLayoutChange();
+        long stamp = startLayoutChange();
+        try {
+            threadStates.remove(tid);
+            updateGather();
+        } finally {
+            finishLayoutChange(stamp);
+        }
     }
 
     public final void reset() {
         threadStates.clear();
         gather = new AtomicInteger[1];
         gather[0] = lockState;
-    }
-
-    public final void startRead(AtomicInteger ts) {
-    }
-
-    public final String getDescription() {
-        return "FastLayoutLock";
     }
 }
