@@ -146,11 +146,11 @@ public abstract class ArraySyncReadNode extends RubyNode {
                                                                                     // fast path
                 return result;
 
-            ReentrantLock baseLock = FastLayoutLock.GLOBAL_LOCK.baseLock;
+            StampedLock baseLock = FastLayoutLock.GLOBAL_LOCK.baseLock;
             // slow path
-            baseLock.lock();
+            long stamp = baseLock.readLock();
             threadState.set(FastLayoutLock.INACTIVE);
-            baseLock.unlock();
+            baseLock.unlockRead(stamp);
         }
     }
 

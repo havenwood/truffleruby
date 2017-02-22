@@ -30,10 +30,10 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
          * if (predecessorProfile.profile(predecessor != null)) { node.is_locked = true;
          * predecessor.next = node; while (node.is_locked) { LayoutLock.yield(); } } else {
          */
-        boolean acquired = false;
-        acquired = lock.baseLock.tryLock();
 
-        if (acquired) {
+        long stamp = lock.baseLock.tryWriteLock();
+
+        if (stamp != 0) {
             final AtomicInteger gather[] = lock.gather;
             int l = gather.length;
             for (int i = 1; i < l; i++) {
@@ -45,9 +45,10 @@ public abstract class FastLayoutLockStartLayoutChangeNode extends RubyNode {
                     }
             }
         } else {
-            lock.baseLock.lock();
+            stamp = lock.baseLock.writeLock();
         }
 
+        lock.baseLockStamp = stamp;
         return 0;
     }
 

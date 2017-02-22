@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.StampedLock;
 
 import com.sun.corba.se.impl.orbutil.concurrent.Mutex;
 
@@ -15,12 +16,13 @@ public class FastLayoutLock {
     public static final int WRITER_ACTIVE = -11;
     public static final int LAYOUT_CHANGE = 1;
 
-    public ReentrantLock baseLock = new ReentrantLock();
+    public final StampedLock baseLock = new StampedLock();
+    public long baseLockStamp = 0;
 
 
     final HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
 
-    AtomicInteger lockState = new AtomicInteger(INACTIVE);
+    final AtomicInteger lockState = new AtomicInteger(INACTIVE);
     public volatile AtomicInteger gather[] = new AtomicInteger[1];
 
 
@@ -39,9 +41,8 @@ public class FastLayoutLock {
 
 
     public void startLayoutChange() {
-        boolean acquired = false;
-        acquired = baseLock.tryLock();
-        if (acquired) {
+        baseLockStamp = baseLock.tryWriteLock();
+        if (baseLockStamp != 0) {
             for (int i = 0; i < gather.length; i++) {
                 AtomicInteger state = gather[i];
                 if (state.get() != LAYOUT_CHANGE)
@@ -50,20 +51,20 @@ public class FastLayoutLock {
                     }
             }
         } else {
-            baseLock.lock();
+            baseLockStamp = baseLock.writeLock();
         }
     }
 
     public void finishLayoutChange() {
-        baseLock.unlock();
+        baseLock.unlockWrite(baseLockStamp);
     }
 
 
     public void startWrite(AtomicInteger ts) {
         if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
-            baseLock.lock();
+            long stamp = baseLock.readLock();
             ts.set(WRITER_ACTIVE);
-            baseLock.unlock();
+            baseLock.unlockRead(stamp);
         }
     }
 
@@ -75,9 +76,9 @@ public class FastLayoutLock {
         if (ts.get() == INACTIVE) // check for fast path
             return true;
         // slow path
-        baseLock.lock();
+        long stamp = baseLock.readLock();
         ts.set(INACTIVE);
-        baseLock.unlock();
+        baseLock.unlockRead(stamp);
         return false;
     }
 
