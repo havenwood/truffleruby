@@ -47,12 +47,9 @@ public final class FastLayoutLock {
 
     public void startWrite(AtomicInteger ts) {
         if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) { // check for fast path
-            long stamp = getReadLock();
-            ts.set(WRITER_ACTIVE);
-            unlockRead(stamp);
+            changeThreadState(ts, WRITER_ACTIVE);
         }
     }
-
 
     public void finishWrite(AtomicInteger ts) {
         ts.set(INACTIVE);
@@ -62,12 +59,16 @@ public final class FastLayoutLock {
         if (fastPath.profile(ts.get() == INACTIVE)) {
             return true;
         }
-        long stamp = getReadLock();
-        ts.set(INACTIVE);
-        unlockRead(stamp);
+        changeThreadState(ts, INACTIVE);
         return false;
     }
 
+    @TruffleBoundary
+    private void changeThreadState(AtomicInteger ts, int state) {
+        long stamp = getReadLock();
+        ts.set(state);
+        unlockRead(stamp);
+    }
 
     @TruffleBoundary
     private long getWriteLock() {
