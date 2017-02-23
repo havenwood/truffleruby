@@ -454,3 +454,6 @@ custom-bench: {
 builds: [
   {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${deploy-binaries} ${truffleruby} ${custom-bench}
 ]
+
+// Disable overlays
+overlay: "6f4eafb4da3b14be3593b07ed562d12caad9b64b"
