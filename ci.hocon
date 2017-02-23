@@ -446,6 +446,7 @@ deploy-binaries: {
 
 custom-bench: {
   run: [
+    [lscpu],
     ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb],
     ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb],
   ]
