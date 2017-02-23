@@ -1,7 +1,7 @@
 require_relative 'common'
 
 N = 10_000_000 / 100
-N_THREADS = 4
+N_THREADS = Integer(ARGV[0] || 4)
 ary = []
 
 def setup(name)
