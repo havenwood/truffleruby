@@ -1,21 +1,27 @@
 require_relative 'common'
 
+# 1 write / READS reads
+# writes to the first N elements for per bench()
+
 N = 100
-READS = 1000
 N_THREADS = Integer(ARGV[0] || 4)
-ary = READS.times.to_a
-SUM = ary.reduce(:+)
+READS = 1024
+raise if N > READS
+ary = READS.times.to_a * N_THREADS
+SUM = READS.times.reduce(:+)
 
 def setup(name)
   eval <<EOR, nil, __FILE__, __LINE__
-def bench_#{name}(ary)
+def bench_#{name}(ary, t)
+  base = t * READS
   i = 0
   while i < N
-    ary[i] = i
+    ary[base+i] = i
 
-    j = 0
+    j = base
+    last = base + READS
     sum = 0
-    while j < READS
+    while j < last
       sum += ary[j]
       j += 1
     end
@@ -31,14 +37,14 @@ end
 
 $run = false
 
-THREADS = N_THREADS.times.map {
+THREADS = N_THREADS.times.map { |t|
   q = Queue.new
   ret = Queue.new
   Thread.new {
     while job = q.pop
       ops = 0
       while $run
-        job.call
+        job.call(t)
         ops += 1
       end
       ret.push ops
@@ -55,7 +61,7 @@ def measure(input, name)
     ops = 0
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
     $run = true
-    THREADS.each { |q,ret| q.push -> { #{meth}(input) } }
+    THREADS.each { |q,ret| q.push -> t { #{meth}(input, t) } }
     sleep 2
     $run = false
     THREADS.each { |q,ret| ops += ret.pop }
@@ -71,7 +77,7 @@ EOR
 end
 
 setup(:first)
-p bench_first(ary)
+p bench_first(ary, 0)
 
 Truffle::Array.set_strategy(ary, :FixedSize)
 puts Truffle::Debug.array_storage(ary)
