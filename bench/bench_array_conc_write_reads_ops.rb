@@ -1,7 +1,7 @@
 require_relative 'common'
 
 N = 100
-READS = 100 # 1000
+READS = 1000
 N_THREADS = Integer(ARGV[0] || 4)
 ary = READS.times.to_a
 SUM = ary.reduce(:+)
