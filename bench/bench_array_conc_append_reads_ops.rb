@@ -4,6 +4,7 @@ N = 1_000 # 10_000_000 / 100 / 100
 READS = 100 # 1000
 N_THREADS = 4
 ary = READS.times.to_a
+SUM = ary.reduce(:+)
 
 def setup(name)
   eval <<EOR, nil, __FILE__, __LINE__
@@ -20,7 +21,7 @@ def bench_#{name}(ary)
     end
     i += 1
   end
-  raise sum.to_s unless sum == 4950 # 499500
+  raise sum.to_s unless sum == SUM
   sum
 end
 # alias bench bench_#{name}
