@@ -447,12 +447,12 @@ deploy-binaries: {
 custom-bench: {
   run: [
     [lscpu],
-    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, 1],
-    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, 2],
-    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, 4],
-    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, 8],
-    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, 16],
-    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, 32],
+    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, "1"],
+    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, "2"],
+    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, "4"],
+    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, "8"],
+    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, "16"],
+    ${jt} [ruby, --graal, bench/bench_array_conc_append_ops.rb, "32"],
   ]
 }
 
