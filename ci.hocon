@@ -450,7 +450,7 @@ run-bench: [./monte_carlo_pi]
 custom-bench: {
   run: [
     [lscpu],
-    [cc, -std=gnu99, -O3, bench/monte_carlo_pi.c, -pthread, -lrt, -o, monte_carlo_pi],
+    [cc, "-std=gnu99", "-O3", bench/monte_carlo_pi.c, "-pthread", "-lrt", "-o", monte_carlo_pi],
     ${run-bench} ["1"],
     ${run-bench} ["2"],
     ${run-bench} ["4"],
