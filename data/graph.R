@@ -17,14 +17,21 @@ load_data <- function(filename) {
 full = load_data("conc_appends_1_32.csv")
 full = load_data("conc_appends_1_64.csv")
 full = load_data("conc_write_reads_ops_1_64.csv")
+full = load_data("conc_write_reads_ops_v2_1_64.csv")
+
+base = subset(full, VM=="FixedSize" & Threads=="1")$Value
+full$Value = full$Value / base
 
 full = subset(full, VM != "FixedSize")
 full = subset(full, Threads != "1")
 
+
+
 #png(file = "times.png", width=740, height=400)
 ggplot(data = full, aes(y=Value, x=Threads)) + geom_point(aes(color=VM)) +
   xlab("Threads") + ylab("Throughput") +
-  scale_x_continuous(breaks = 2^(0:6), minor_breaks = NULL) +
+  scale_x_continuous(breaks = c(0, 2^(0:6)), minor_breaks = NULL) +
+  scale_y_continuous(limits = c(0, max(full$Value))) +
   #scale_y_continuous(breaks = seq(0, max(full$Value), 10000)) +
   theme(text = element_text(size=20), legend.position="bottom",
         legend.title = element_blank(), legend.background = element_blank(), legend.key = element_blank(),
