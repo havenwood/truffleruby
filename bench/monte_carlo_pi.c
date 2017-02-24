@@ -17,10 +17,10 @@ double randf(unsigned int *rng) {
 
 double estimate_pi(int samples) {
   int inside = 0;
-  unsigned int rng = 0;
+  //unsigned int rng;
   for (int i = 0; i < samples; ++i) {
-    double x = randf(&rng);
-    double y = randf(&rng);
+    double x = (double)i / (double)samples;//randf(&rng);
+    double y = x;//randf(&rng);
     if (x*x + y*y <= 1.0) {
       inside += 1;
     }
@@ -29,7 +29,7 @@ double estimate_pi(int samples) {
 }
 
 int T = 1;
-int N = 40000000;
+int N = 400000000;
 int iterations = 10;
 
 pthread_barrier_t barrier;
@@ -76,7 +76,7 @@ int main(int argc, char const *argv[])
     pthread_barrier_wait(&barrier);
     clock_gettime(MYCLOCK, &t1);
 
-    long diffns = (t1.tv_sec - t0.tv_sec) * 1000000000 + (t1.tv_nsec - t0.tv_nsec);
+    long diffns = (t1.tv_sec - t0.tv_sec) * 1000000000L + (t1.tv_nsec - t0.tv_nsec);
     long diffms = diffns / 1000000;
     double pi = 0.0;
     for (int t = 0; t < T; ++t) {
