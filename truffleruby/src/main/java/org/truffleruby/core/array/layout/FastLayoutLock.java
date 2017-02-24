@@ -51,12 +51,26 @@ public final class FastLayoutLock {
         }
     }
 
+    public void startWrite(AtomicInteger ts) {
+        if (!ts.compareAndSet(INACTIVE, WRITER_ACTIVE)) {
+            changeThreadState(ts, WRITER_ACTIVE);
+        }
+    }
+
     public void finishWrite(AtomicInteger ts) {
         ts.set(INACTIVE);
     }
 
     public boolean finishRead(AtomicInteger ts, ConditionProfile fastPath) {
         if (fastPath.profile(ts.get() == INACTIVE)) {
+            return true;
+        }
+        changeThreadState(ts, INACTIVE);
+        return false;
+    }
+
+    public boolean finishRead(AtomicInteger ts) {
+        if (ts.get() == INACTIVE) {
             return true;
         }
         changeThreadState(ts, INACTIVE);
