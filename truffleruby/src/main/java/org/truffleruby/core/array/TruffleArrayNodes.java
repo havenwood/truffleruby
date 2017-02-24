@@ -99,7 +99,7 @@ public class TruffleArrayNodes {
                             Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore()));
                             break;
                         default:
-                            throw new UnsupportedOperationException();
+                            throw new UnsupportedOperationException("Invalid strategy " + name);
                     }
                 }
             });
