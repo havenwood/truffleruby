@@ -13,7 +13,6 @@ import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
-import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -31,7 +30,6 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 @NodeChild("self")
 @ImportStatic(ArrayGuards.class)
 public abstract class ArraySyncReadNode extends RubyNode {
-    int a = 0;
 
     @Child RubyNode builtinNode;
 
@@ -46,18 +44,7 @@ public abstract class ArraySyncReadNode extends RubyNode {
 
     @Specialization(guards = "isFixedSizeArray(array)")
     public Object fixedSizeRead(VirtualFrame frame, DynamicObject array) {
-        AtomicInteger threadState = getCurrentThread(array).getThreadState();
-        // contend on lockState
-        Object r = null;
-        long as = 0;
-        do {
-            r = builtinNode.execute(frame);
-        } while (!FastLayoutLock.GLOBAL_LOCK.finishRead(threadState));
-        return r;
-    }
-
-    protected ThreadWithDirtyFlag getCurrentThread(DynamicObject array) {
-        return (ThreadWithDirtyFlag) Thread.currentThread();
+        return builtinNode.execute(frame);
     }
 
     @Specialization(guards = "isSynchronizedArray(array)")

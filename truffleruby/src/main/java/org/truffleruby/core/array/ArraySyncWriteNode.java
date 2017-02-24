@@ -15,7 +15,6 @@ import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
 import org.truffleruby.core.array.layout.MyBiasedLock;
-import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -46,15 +45,7 @@ public abstract class ArraySyncWriteNode extends RubyNode {
 
     @Specialization(guards = "isFixedSizeArray(array)")
     public Object fixedSize(VirtualFrame frame, DynamicObject array) {
-        AtomicInteger threadState = getCurrentThread(array).getThreadState();
-        FastLayoutLock.GLOBAL_LOCK.startWrite(threadState);
-        Object r = builtinNode.execute(frame);
-        FastLayoutLock.GLOBAL_LOCK.finishWrite(threadState);
-        return r;
-    }
-
-    protected ThreadWithDirtyFlag getCurrentThread(DynamicObject array) {
-        return (ThreadWithDirtyFlag) Thread.currentThread();
+        return builtinNode.execute(frame);
     }
 
     @Specialization(guards = "isSynchronizedArray(array)")
