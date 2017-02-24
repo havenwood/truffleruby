@@ -444,17 +444,19 @@ deploy-binaries: {
   timelimit: "30:00"
 }
 
+run-bench: ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb]
+
 custom-bench: {
   run: [
     [lscpu],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "1"],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "2"],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "4"],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "8"],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "16"],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "32"],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "48"],
-    ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "64"],
+    ${run-bench} ["1"],
+    ${run-bench} ["2"],
+    ${run-bench} ["4"],
+    ${run-bench} ["8"],
+    ${run-bench} ["16"],
+    ${run-bench} ["32"],
+    ${run-bench} ["48"],
+    ${run-bench} ["64"],
   ]
 }
 
