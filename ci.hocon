@@ -456,7 +456,7 @@ custom-bench: {
     ${run-bench} ["8"],
     ${run-bench} ["16"],
     ${run-bench} ["32"],
-    [export. "STRATEGY=Synchronized"],
+    [export, "STRATEGY=Synchronized"],
     ${run-bench} ["1"],
     ${run-bench} ["2"],
     ${run-bench} ["4"],
