@@ -7,9 +7,10 @@ c.each { |run|
   bench = File.basename(bench)
   run.shift if /^(\d+) threads/ =~ run.first
 
+  run = run.select { |line| line.include?('Took') }
   times = run.map { |line| Integer(line[/Took (\d+) ms/, 1]) }
   times.sort!
   median = times[times.size/2]
 
-  puts [bench, threads, "C", median].join(';')
+  puts [bench, threads, "RB", median].join(';')
 }

@@ -26,6 +26,7 @@ full = subset(full, VM != "FixedSize")
 full = subset(full, Threads != "1")
 
 full = load_data("monte_carlo_pi.csv")
+full = load_data("monte_carlo_pi_rb.csv")
 full$Value = 1 / full$Value
 full$Value = full$Value / subset(full, Threads=="1")$Value
 
