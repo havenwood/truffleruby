@@ -37,6 +37,7 @@ THREADS = N_THREADS.times.map { |t|
   ret = Queue.new
   Thread.new {
     while job = q.pop
+      Thread.pass until $go
       ops = 0
       while $run
         job.call(t)
@@ -51,14 +52,18 @@ THREADS = N_THREADS.times.map { |t|
 def measure(input)
   n = 9
   results = n.times.map do
-    ops = 0
-    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+    $go = false
     $run = true
     THREADS.each { |q,ret| q.push -> t { bench(input, t) } }
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+    $go = true
+
     sleep 2
+
     $run = false
-    THREADS.each { |q,ret| ops += ret.pop }
+    results = THREADS.map { |q,ret| ret.pop }
     t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+    ops = results.reduce(:+)
     dt = (t1-t0) / 1_000_000_000.0
     ops /= dt
     p ops
