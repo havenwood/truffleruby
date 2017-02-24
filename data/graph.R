@@ -25,28 +25,31 @@ full$Value = full$Value / base
 full = subset(full, VM != "FixedSize")
 full = subset(full, Threads != "1")
 
-
+full = load_data("monte_carlo_pi.csv")
+full$Value = 1 / full$Value
+full$Value = full$Value / subset(full, Threads=="1")$Value
 
 #png(file = "times.png", width=740, height=400)
 ggplot(data = full, aes(y=Value, x=Threads)) + geom_point(aes(color=VM)) +
   xlab("Threads") + ylab("Throughput") +
-  scale_x_continuous(breaks = c(0, 2^(0:6)), minor_breaks = NULL) +
+  scale_x_continuous(breaks = c(0, 2^(0:6), 48), minor_breaks = NULL) +
   scale_y_continuous(limits = c(0, max(full$Value))) +
   #scale_y_continuous(breaks = seq(0, max(full$Value), 10000)) +
   theme(text = element_text(size=20), legend.position="bottom",
         legend.title = element_blank(), legend.background = element_blank(), legend.key = element_blank(),
-        legend.text = element_text(size = 16))
+        legend.text = element_text(size = 16)) +
+  geom_abline(slope = 1)
 
 #   scale_y_continuous(breaks = c(seq(0, 200, 30), 20, 40), minor_breaks = NULL) +
 #   scale_x_continuous(breaks = seq(0, 3000, 600)) +
 #dev.off()
 
-#png(file = "compare.png", width=740, height=200)
-ggplot(data = full, aes(x=Threads, y=Value, color=VM)) + geom_boxplot() + ylab("FPS") + xlab("") +
-  theme(text = element_text(size=20)) +
-  scale_y_continuous(breaks = seq(0, 180, 30), minor_breaks = NULL) +
-  theme(legend.position="none", axis.title.y = element_blank()) +
-  coord_flip()
+#png(file = "compare.png", width=740, height=200)geom_abline
+# ggplot(data = full, aes(x=Threads, y=Value, color=VM)) + geom_boxplot() + ylab("FPS") + xlab("") +
+#   theme(text = element_text(size=20)) +
+#   scale_y_continuous(breaks = seq(0, 180, 30), minor_breaks = NULL) +
+#   theme(legend.position="none", axis.title.y = element_blank()) +
+#   coord_flip()
 #dev.off()
 
 # ggplot(data = full, aes(x=VM, y=Value, color=VM)) + geom_boxplot() + ylab("FPS") + theme(text = element_text(size=20))

@@ -1,0 +1,8 @@
+monte_carlo_pi;1;C;5606
+monte_carlo_pi;2;C;2808
+monte_carlo_pi;4;C;1405
+monte_carlo_pi;8;C;702
+monte_carlo_pi;16;C;351
+monte_carlo_pi;32;C;175
+monte_carlo_pi;48;C;168
+monte_carlo_pi;64;C;114
