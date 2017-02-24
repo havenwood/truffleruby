@@ -53,8 +53,9 @@ def measure(input, name)
     $run = false
     THREADS.each { |q,ret| ops += ret.pop }
     t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+    dt = (t1-t0) / 1_000_000_000.0
+    ops /= dt
     p ops
-    dt = (t1-t0) # / 1_000_000_000.0
     ops
   end
 EOR
