@@ -445,12 +445,11 @@ deploy-binaries: {
 }
 
 // run-bench: ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb]
-run-bench: [./monte_carlo_pi]
+run-bench: ${jt} [ruby, --graal, bench/monte_carlo_pi.rb]
 
 custom-bench: {
   run: [
     [lscpu],
-    [cc, "-std=gnu99", "-O3", bench/monte_carlo_pi.c, "-pthread", "-lrt", "-o", monte_carlo_pi],
     ${run-bench} ["1"],
     ${run-bench} ["2"],
     ${run-bench} ["4"],
