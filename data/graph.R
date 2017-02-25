@@ -19,16 +19,20 @@ full = load_data("conc_appends_1_64.csv")
 full = load_data("conc_write_reads_ops_1_64.csv")
 full = load_data("conc_write_reads_ops_v2_1_64.csv")
 
-base = subset(full, VM=="FixedSize" & Threads=="1")$Value
-full$Value = full$Value / base
+full = load_data("conc_write_reads_sep.csv")
+full = load_data("conc_write_reads_sep_fair.csv")
 
-full = subset(full, VM != "FixedSize")
-full = subset(full, Threads != "1")
+base_fixed = subset(full, VM=="FixedSize" & Threads=="1")$Value
+base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
+full$Value = full$Value / base_fixed
 
-full = load_data("monte_carlo_pi.csv")
-full = load_data("monte_carlo_pi_rb.csv")
-full$Value = 1 / full$Value
-full$Value = full$Value / subset(full, Threads=="1")$Value
+# full = subset(full, VM != "FixedSize")
+# full = subset(full, Threads != "1")
+
+# full = load_data("monte_carlo_pi.csv")
+# full = load_data("monte_carlo_pi_rb.csv")
+# full$Value = 1 / full$Value
+# full$Value = full$Value / subset(full, Threads=="1")$Value
 
 #png(file = "times.png", width=740, height=400)
 ggplot(data = full, aes(y=Value, x=Threads)) + geom_point(aes(color=VM)) +
@@ -39,8 +43,9 @@ ggplot(data = full, aes(y=Value, x=Threads)) + geom_point(aes(color=VM)) +
   theme(text = element_text(size=20), legend.position="bottom",
         legend.title = element_blank(), legend.background = element_blank(), legend.key = element_blank(),
         legend.text = element_text(size = 16)) +
-  geom_abline(slope = 1)
-
+  geom_abline(slope = 1) +
+  geom_abline(slope = base_fll/base_fixed)
+  
 #   scale_y_continuous(breaks = c(seq(0, 200, 30), 20, 40), minor_breaks = NULL) +
 #   scale_x_continuous(breaks = seq(0, 3000, 600)) +
 #dev.off()
