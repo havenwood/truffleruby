@@ -35,7 +35,7 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
             waitAndCAS(first);
         }
 
-        final boolean cleaned = layoutLock.getCleanedAfterLayoutChange();
+        final boolean cleaned = true; // layoutLock.getCleanedAfterLayoutChange();
         final int n = layoutLock.getNextThread();
         if (n != threads) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
