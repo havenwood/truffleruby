@@ -23,7 +23,7 @@ public class BucketsPromotionResult {
     final Entry lastInSequence;
 
     public static BucketsPromotionResult empty() {
-        return new BucketsPromotionResult(new Entry[268], 0, null, null);
+        return new BucketsPromotionResult(new Entry[BucketsStrategy.INITIAL_CAPACITY], 0, null, null);
     }
 
     public static BucketsPromotionResult fromBucketHash(DynamicObject hash) {
