@@ -448,7 +448,7 @@ deploy-binaries: {
 # command prefix for binding a command to a certain node
 hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
 
-run-bench: ${hwloc.node0} ${jt} [ruby, --graal, -J-Xmx16g, bench/bench_array_conc_write_reads_ops.rb, "$STRATEGY"]
+run-bench: ${jt} [ruby, --graal, -J-Xmx16g, bench/bench_array_conc_write_reads_ops.rb, "$STRATEGY"]
 
 custom-bench: {
   run: [
@@ -460,6 +460,10 @@ custom-bench: {
     ${run-bench} ["8"],
     ${run-bench} ["12"],
     ${run-bench} ["16"],
+    ${run-bench} ["24"],
+    ${run-bench} ["32"],
+    ${run-bench} ["48"],
+    ${run-bench} ["64"],
     [export, "STRATEGY=StampedLock"],
     ${run-bench} ["1"],
     ${run-bench} ["2"],
@@ -467,6 +471,10 @@ custom-bench: {
     ${run-bench} ["8"],
     ${run-bench} ["12"],
     ${run-bench} ["16"],
+    ${run-bench} ["24"],
+    ${run-bench} ["32"],
+    ${run-bench} ["48"],
+    ${run-bench} ["64"],
     [export, "STRATEGY=LayoutLock"],
     ${run-bench} ["1"],
     ${run-bench} ["2"],
@@ -474,6 +482,10 @@ custom-bench: {
     ${run-bench} ["8"],
     ${run-bench} ["12"],
     ${run-bench} ["16"],
+    ${run-bench} ["24"],
+    ${run-bench} ["32"],
+    ${run-bench} ["48"],
+    ${run-bench} ["64"],
     [export, "STRATEGY=FastLayoutLock"],
     ${run-bench} ["1"],
     ${run-bench} ["2"],
@@ -481,6 +493,10 @@ custom-bench: {
     ${run-bench} ["8"],
     ${run-bench} ["12"],
     ${run-bench} ["16"],
+    ${run-bench} ["24"],
+    ${run-bench} ["32"],
+    ${run-bench} ["48"],
+    ${run-bench} ["64"],
   ]
 }
 
