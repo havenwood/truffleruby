@@ -353,6 +353,7 @@ public abstract class HashNodes {
         DynamicObject compareByIdentityConcurrent(VirtualFrame frame, DynamicObject hash,
                 @Cached("create()") InternalRehashNode internalRehashNode,
                 @Cached("create()") GetLayoutLockAccessorNode getAccessorNode) {
+            // TODO this whole check needs to happen in LC or CAS=>true, finishRead()=>true, actual LC for rehash
             if (ConcurrentHash.compareAndSetCompareByIdentity(hash, false, true)) {
                 return internalRehashNode.executeRehash(frame, hash);
             } else {
