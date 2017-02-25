@@ -3,9 +3,9 @@ package org.javaexperiments;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-public class ConcurrentLinkedList {
+public final class ConcurrentLinkedList {
 
-    static class Entry {
+    static final class Entry {
 
         private static final AtomicReferenceFieldUpdater<Entry, Entry> NEXT_UPDATER =
                 AtomicReferenceFieldUpdater.newUpdater(Entry.class, Entry.class, "next");
