@@ -448,7 +448,7 @@ deploy-binaries: {
 # command prefix for binding a command to a certain node
 hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
 
-run-bench: ${hwloc.node0} ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "$STRATEGY"]
+run-bench: ${hwloc.node0} ${jt} [ruby, --graal, -J-Xmx16g, bench/bench_array_conc_write_reads_ops.rb, "$STRATEGY"]
 
 custom-bench: {
   run: [
