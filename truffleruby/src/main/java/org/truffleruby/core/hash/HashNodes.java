@@ -321,8 +321,8 @@ public abstract class HashNodes {
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
                 ConcurrentHash.linkFirstLast(hash, null, null);
-                Layouts.HASH.setStore(hash, new ConcurrentHash());
-                Layouts.HASH.setSize(hash, 0);
+                ConcurrentHash.getStore(hash).setBuckets(new AtomicReferenceArray<>(BucketsStrategy.INITIAL_CAPACITY));
+                ConcurrentHash.setSize(hash, 0);
             } finally {
                 finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
             }
@@ -534,7 +534,7 @@ public abstract class HashNodes {
             startWriteNode.executeStartWrite(accessor);
             try {
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
-                ConcurrentBucketsStrategy.removeFromLookup(entry, store);
+                ConcurrentBucketsStrategy.removeFromLookup(hash, entry, store);
             } finally {
                 accessor.finishWrite();
             }
@@ -1449,7 +1449,7 @@ public abstract class HashNodes {
             startWriteNode.executeStartWrite(accessor);
             try {
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
-                ConcurrentBucketsStrategy.removeFromLookup(entry, store);
+                ConcurrentBucketsStrategy.removeFromLookup(hash, entry, store);
             } finally {
                 accessor.finishWrite();
             }
@@ -1578,7 +1578,7 @@ public abstract class HashNodes {
                 }
 
                 for (ConcurrentEntry entry : ConcurrentBucketsStrategy.iterableEntries(hash)) {
-                    final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity);
+                    final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity); // TODO: calling #hash under layout lock!
                     entry.setHashed(newHash);
                     entry.setNextInLookup(null);
                     final int index = BucketsStrategy.getBucketIndex(newHash, entries.length());

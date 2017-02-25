@@ -178,7 +178,7 @@ public class SharedObjects {
         } else {
             buckets = BucketsPromotionResult.fromBucketHash(hash);
         }
-        ConcurrentHash.initialize(hash);
+        Layouts.HASH.setStore(hash, new ConcurrentHash(hash));
         buckets.applyConcurrent(hash);
         assert HashOperations.verifyStore(RubyContext.getInstance(), hash);
     }

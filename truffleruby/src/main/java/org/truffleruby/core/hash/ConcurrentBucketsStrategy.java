@@ -23,6 +23,12 @@ import com.oracle.truffle.api.object.DynamicObject;
 
 public abstract class ConcurrentBucketsStrategy {
 
+    // The general technique to handle removal in a linked list is to first CAS node.next to a
+    // removed node with removed.next = next and then CAS node.next to next. Otherwise,
+    // concurrent insertions would be lost.
+    // From Harris T. - A Pragmatic Implementation of Non-Blocking Linked-List,
+    // using an extra Node as a way to mark the next reference as "deleted".
+
     public static void appendInSequence(ConcurrentEntry entry, ConcurrentEntry tail) {
         ConcurrentEntry last;
         do {
@@ -30,44 +36,115 @@ public abstract class ConcurrentBucketsStrategy {
             entry.setPreviousInSequence(last);
         } while (last.isRemoved() || !last.compareAndSetNextInSequence(tail, entry));
 
+        // previousInSequence is only changed for deletion and set for append. tail.prev is changed
+        // for append.
         if (!tail.compareAndSetPreviousInSequence(last, entry)) {
             assert false; // TODO
         }
+
+        entry.setPublished(true);
+        assert entry.isPublished();
     }
 
     public static boolean removeFromSequence(ConcurrentEntry entry) {
+        assert !entry.isRemoved() && entry.getKey() != null;
+        while (!entry.isPublished()) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                System.err.println(Thread.currentThread());
+                System.exit(2);
+            }
+            Thread.yield();
+        }
+
         // First mark as deleted to avoid losing concurrent insertions
-        ConcurrentEntry nextInSequence;
+
+        // Block entry -> nextDeleted -> next
+        ConcurrentEntry next;
         ConcurrentEntry nextDeleted;
-        do {
-            nextInSequence = entry.getNextInSequence();
-            nextDeleted = new ConcurrentEntry(true, nextInSequence);
-            if (nextInSequence.isRemoved()) {
+        while (true) {
+            next = entry.getNextInSequence();
+            if (next.isLock()) {
+                // Concurrent delete on next
+                while (entry.getNextInSequence().isLock()) {
+                    Thread.yield();
+                }
+                // CAS will fail as entry.next is no longer the lock
+            } else if (next.isRemoved()) {
                 // when 2 thread concurrently try to remove the same entry
                 return false;
+            } else {
+                nextDeleted = new ConcurrentEntry(true, false, null, next, null);
+                if (entry.compareAndSetNextInSequence(next, nextDeleted)) {
+                    break;
+                }
             }
-        } while (!entry.compareAndSetNextInSequence(nextInSequence, nextDeleted));
-        // Now, nobody can insert between entry, nextDeleted and nextInSequence
+        }
 
-        // Link entry.prev -> nextInSequence, as entry.next and nextDeleted.next cannot be changed by insertion
-        ConcurrentEntry previousInSequence;
-        do {
-            previousInSequence = entry.getPreviousInSequence();
-        } while (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence));
+        // Block prev -> lockPrevDelete -> entry
+        ConcurrentEntry prev;
+        ConcurrentEntry prevNext;
+        final ConcurrentEntry lockPrevDelete = new ConcurrentEntry(true, true, null, entry, null);
+        while (true) {
+            prev = entry.getPreviousInSequence();
+            assert !prev.isRemoved();
+            prevNext = prev.getNextInSequence();
+            if (prevNext.isRemoved()) {
+                // Concurrent delete on prev
+                while (entry.getPreviousInSequence() == prev) {
+                    Thread.yield();
+                }
+                // CAS will fail as prev.next is not entry
+            } else {
+                assert prevNext == entry;
+                if (prev.compareAndSetNextInSequence(entry, lockPrevDelete)) {
+                    break;
+                }
+            }
+        }
 
-        if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
+        // Block prev <- prevDeleted <- entry
+        ConcurrentEntry prevDeleted;
+        prevDeleted = new ConcurrentEntry(true, false, prev, null, null);
+        if (!entry.compareAndSetPreviousInSequence(prev, prevDeleted)) {
             assert false; // TODO
+        }
+
+//        do {
+//            prev = entry.getPreviousInSequence();
+//            assert !prev.isRemoved();
+//            prevDeleted = new ConcurrentEntry(true, false, prev, null, null);
+//        } while (!entry.compareAndSetPreviousInSequence(prev, prevDeleted));
+
+        // Now, nobody can insert or remove between
+        // prev <-> prevDeleted <-> entry -> nextDeleted -> next
+
+        // prev -> next
+        if (!prev.compareAndSetNextInSequence(lockPrevDelete, next)) {
+            assert false; // TODO
+            // prev = prevDeleted.getPreviousInSequence();
+        }
+
+        // prev <- next
+        if (!next.compareAndSetPreviousInSequence(entry, prev)) {
+            assert false; // TODO failed!
+            // prev = prevDeleted.getPreviousInSequence();
         }
 
         return true;
     }
 
     public static ConcurrentEntry removeFirstFromSequence(ConcurrentEntry head, ConcurrentEntry tail) {
+        assert false : "need to be reimplemented like removeFromSequence";
+
         ConcurrentEntry entry = head.getNextInSequence();
         if (entry == tail) {
             // Empty Hash, nothing to remove
             return null;
         }
+
+        // Remove from the forward list
 
         // First mark as deleted to avoid losing concurrent insertions
         ConcurrentEntry nextInSequence;
@@ -82,7 +159,7 @@ public abstract class ConcurrentBucketsStrategy {
                 }
                 nextInSequence = entry.getNextInSequence();
             }
-            nextDeleted = new ConcurrentEntry(true, nextInSequence);
+            nextDeleted = new ConcurrentEntry(true, false, null, nextInSequence, null);
         } while (!entry.compareAndSetNextInSequence(nextInSequence, nextDeleted));
         // Now, nobody can insert between entry, nextDeleted and nextInSequence
 
@@ -92,6 +169,8 @@ public abstract class ConcurrentBucketsStrategy {
             previousInSequence = entry.getPreviousInSequence();
         } while (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence));
 
+        // Remove from the backward list
+
         if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
             assert false; // TODO
         }
@@ -99,24 +178,45 @@ public abstract class ConcurrentBucketsStrategy {
         return entry;
     }
 
-    public static void removeFromLookup(ConcurrentEntry entry, AtomicReferenceArray<ConcurrentEntry> store) {
+    public static boolean insertInLookup(AtomicReferenceArray<ConcurrentEntry> buckets, int index, ConcurrentEntry firstEntry, ConcurrentEntry newEntry) {
+        assert firstEntry == null || !firstEntry.isRemoved();
+        assert BucketsStrategy.getBucketIndex(newEntry.getHashed(), buckets.length()) == index;
+        assert firstEntry == null || BucketsStrategy.getBucketIndex(firstEntry.getHashed(), buckets.length()) == index;
+        newEntry.setNextInLookup(firstEntry);
+        return buckets.compareAndSet(index, firstEntry, newEntry);
+    }
+
+    public static void removeFromLookup(DynamicObject hash, ConcurrentEntry entry, AtomicReferenceArray<ConcurrentEntry> store) {
         final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), store.length());
 
+        // Prevent insertions after entry so adjacent concurrent deletes serialize
+        ConcurrentEntry next, nextDeleted;
+        do {
+            next = entry.getNextInLookup();
+            assert next == null || !next.isRemoved();
+            nextDeleted = new ConcurrentEntry(true, false, null, null, next);
+        } while (!entry.compareAndSetNextInLookup(next, nextDeleted));
+
         while (true) {
-            final ConcurrentEntry previousEntry = searchPreviousLookupEntry(store, entry, index);
+            final ConcurrentEntry previousEntry = searchPreviousLookupEntry(hash, store, entry, index);
             if (previousEntry == null) {
-                if (store.compareAndSet(index, entry, entry.getNextInLookup())) {
+                if (store.compareAndSet(index, entry, next)) {
+                    break;
+                }
+            } else if (!previousEntry.isRemoved()) {
+                if (previousEntry.compareAndSetNextInLookup(entry, next)) {
                     break;
                 }
             } else {
-                if (previousEntry.compareAndSetNextInLookup(entry, entry.getNextInLookup())) {
-                    break;
-                }
+                Thread.yield();
             }
         }
     }
 
-    private static ConcurrentEntry searchPreviousLookupEntry(AtomicReferenceArray<ConcurrentEntry> store, ConcurrentEntry entry, int index) {
+    private static ConcurrentEntry searchPreviousLookupEntry(DynamicObject hash, AtomicReferenceArray<ConcurrentEntry> store, ConcurrentEntry entry, int index) {
+        assert store == ConcurrentHash.getStore(hash).getBuckets();
+        assert BucketsStrategy.getBucketIndex(entry.getHashed(), store.length()) == index;
+
         // ConcurrentEntry keep identity on rehash/resize, so we just need to find it in the bucket
         ConcurrentEntry previousEntry = null;
         ConcurrentEntry e = store.get(index);
@@ -130,37 +230,56 @@ public abstract class ConcurrentBucketsStrategy {
             e = e.getNextInLookup();
         }
 
+        assert store == ConcurrentHash.getStore(hash).getBuckets();
+        assert BucketsStrategy.getBucketIndex(entry.getHashed(), store.length()) == index;
+
         CompilerDirectives.transferToInterpreter();
+        StringBuilder builder = new StringBuilder();
+        builder.append('\n');
+        e = store.get(index);
+        builder.append("Searched for " + entry.getKey() + "(bucket " + index + ") among " + e + ":\n");
+        while (e != null) {
+            if (!e.isRemoved()) {
+                builder.append(e.getKey() + "\n");
+            }
+            e = e.getNextInLookup();
+        }
+        builder.append('\n');
+        builder.append("size = " + ConcurrentHash.getSize(hash) + "\n");
+        for (int i = 0; i < store.length(); i++) {
+            builder.append(i + ":");
+            e = store.get(i);
+            while (e != null) {
+                if (!e.isRemoved()) {
+                    builder.append(" " + e.getKey());
+                }
+                e = e.getNextInLookup();
+            }
+            builder.append('\n');
+        }
+        builder.append('\n');
+        System.err.println(builder.toString());
+
         throw new AssertionError("Could not find the previous entry in the bucket");
     }
 
     @TruffleBoundary
     public static void resize(RubyContext context, DynamicObject hash, int newSize) {
+        System.err.println("RESIZE " + newSize);
         assert HashGuards.isConcurrentHash(hash);
         assert HashOperations.verifyStore(context, hash);
 
         final int bucketsCount = BucketsStrategy.capacityGreaterThan(newSize) * BucketsStrategy.OVERALLOCATE_FACTOR;
-        final ConcurrentHash newConcurrentHash = new ConcurrentHash(bucketsCount);
-        final AtomicReferenceArray<ConcurrentEntry> newEntries = newConcurrentHash.getBuckets();
+        final AtomicReferenceArray<ConcurrentEntry> newEntries = new AtomicReferenceArray<>(bucketsCount);
 
         for (ConcurrentEntry entry : iterableEntries(hash)) {
             final int bucketIndex = BucketsStrategy.getBucketIndex(entry.getHashed(), bucketsCount);
-            ConcurrentEntry previousInLookup = newEntries.get(bucketIndex);
 
-            if (previousInLookup == null) {
-                newEntries.set(bucketIndex, entry);
-            } else {
-                while (previousInLookup.getNextInLookup() != null) {
-                    previousInLookup = previousInLookup.getNextInLookup();
-                }
-
-                previousInLookup.setNextInLookup(entry);
-            }
-
-            entry.setNextInLookup(null);
+            entry.setNextInLookup(newEntries.get(bucketIndex));
+            newEntries.set(bucketIndex, entry);
         }
 
-        Layouts.HASH.setStore(hash, newConcurrentHash);
+        ConcurrentHash.getStore(hash).setBuckets(newEntries);
         assert HashOperations.verifyStore(context, hash);
     }
 
@@ -208,8 +327,7 @@ public abstract class ConcurrentBucketsStrategy {
     public static void fromBuckets(BucketsPromotionResult buckets, DynamicObject hash) {
         assert RubyGuards.isRubyHash(hash);
 
-        final ConcurrentHash concurrentHash = new ConcurrentHash(buckets.getBuckets().length);
-        final AtomicReferenceArray<ConcurrentEntry> newEntries = concurrentHash.getBuckets();
+        final AtomicReferenceArray<ConcurrentEntry> newEntries = new AtomicReferenceArray<>(buckets.getBuckets().length);
 
         ConcurrentEntry firstInSequence = null;
         ConcurrentEntry lastInSequence = null;
@@ -238,8 +356,8 @@ public abstract class ConcurrentBucketsStrategy {
             entry = entry.getNextInSequence();
         }
 
-        Layouts.HASH.setStore(hash, concurrentHash);
-        Layouts.HASH.setSize(hash, buckets.getSize());
+        ConcurrentHash.getStore(hash).setBuckets(newEntries);
+        ConcurrentHash.setSize(hash, buckets.getSize());
         ConcurrentHash.linkFirstLast(hash, firstInSequence, lastInSequence);
     }
 

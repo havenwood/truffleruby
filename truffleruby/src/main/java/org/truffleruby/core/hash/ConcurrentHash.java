@@ -11,12 +11,7 @@ import com.oracle.truffle.object.basic.DynamicObjectBasic;
 
 public final class ConcurrentHash implements ObjectGraphNode {
 
-    private final AtomicReferenceArray<ConcurrentEntry> buckets;
-
-    public static void initialize(DynamicObject hash) {
-        ConcurrentHash.setFirstInSequence(hash, new ConcurrentEntry(0, null, null));
-        ConcurrentHash.setLastInSequence(hash, new ConcurrentEntry(0, null, null));
-    }
+    private volatile AtomicReferenceArray<ConcurrentEntry> buckets;
 
     public static void linkFirstLast(DynamicObject hash, ConcurrentEntry first, ConcurrentEntry last) {
         ConcurrentEntry sentinelFirst = ConcurrentHash.getFirstInSequence(hash);
@@ -34,16 +29,19 @@ public final class ConcurrentHash implements ObjectGraphNode {
         }
     }
 
-    public ConcurrentHash() {
-        this(BucketsStrategy.INITIAL_CAPACITY);
-    }
-
-    public ConcurrentHash(int capacity) {
-        this.buckets = new AtomicReferenceArray<>(capacity);
+    public ConcurrentHash(DynamicObject hash) {
+        // this.buckets = new AtomicReferenceArray<>(BucketsStrategy.INITIAL_CAPACITY);
+        this.buckets = new AtomicReferenceArray<>(203 / 3 * 4);
+        ConcurrentHash.setFirstInSequence(hash, new ConcurrentEntry(0, null, null));
+        ConcurrentHash.setLastInSequence(hash, new ConcurrentEntry(0, null, null));
     }
 
     public AtomicReferenceArray<ConcurrentEntry> getBuckets() {
         return buckets;
+    }
+
+    public void setBuckets(AtomicReferenceArray<ConcurrentEntry> buckets) {
+        this.buckets = buckets;
     }
 
     public void getAdjacentObjects(Set<DynamicObject> reachable) {
@@ -77,18 +75,23 @@ public final class ConcurrentHash implements ObjectGraphNode {
 
     public static ConcurrentHash getStore(DynamicObject hash) {
         return (ConcurrentHash) UnsafeHolder.UNSAFE.getObject(hash, STORE_OFFSET);
+        // return (ConcurrentHash) UnsafeHolder.UNSAFE.getObjectVolatile(hash, STORE_OFFSET);
     }
 
     public static int getSize(DynamicObject hash) {
         return (int) UnsafeHolder.UNSAFE.getLongVolatile(hash, SIZE_OFFSET);
     }
 
+    public static void setSize(DynamicObject hash, int size) {
+        UnsafeHolder.UNSAFE.putLongVolatile(hash, SIZE_OFFSET, size);
+    }
+
     public static int incrementAndGetSize(DynamicObject hash) {
-        return (int) UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, 1) + 1;
+        return (int) UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, 1L) + 1;
     }
 
     public static void decrementSize(DynamicObject hash) {
-        UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, -1);
+        UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, -1L);
     }
 
     public static boolean compareAndSetCompareByIdentity(DynamicObject hash, boolean old, boolean newSize) {

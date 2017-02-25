@@ -34,25 +34,36 @@ public abstract class HashOperations {
     }
 
     public static boolean verifyConcurrentHashStore(DynamicObject hash) {
-        final ConcurrentEntry firstInSequence = ConcurrentHash.getFirstInSequence(hash);
-        final ConcurrentEntry lastInSequence = ConcurrentHash.getLastInSequence(hash);
+        final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
+        final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
-        assert firstInSequence != null;
-        assert firstInSequence.getKey() == null;
-        assert firstInSequence.getValue() == null;
-        assert firstInSequence.getNextInLookup() == null;
-        assert firstInSequence.getNextInSequence() != null;
-        assert firstInSequence.getPreviousInSequence() == null;
+        assert head != null;
+        assert head.getKey() == null;
+        assert head.getValue() == null;
+        assert head.getNextInLookup() == null;
+        assert head.getNextInSequence() != null;
+        assert head.getPreviousInSequence() == null;
 
-        assert lastInSequence != null;
-        assert lastInSequence.getKey() == null;
-        assert lastInSequence.getValue() == null;
-        assert lastInSequence.getNextInLookup() == null;
-        assert lastInSequence.getNextInSequence() == null;
-        assert lastInSequence.getPreviousInSequence() != null;
+        assert tail != null;
+        assert tail.getKey() == null;
+        assert tail.getValue() == null;
+        assert tail.getNextInLookup() == null;
+        assert tail.getNextInSequence() == null;
+        assert tail.getPreviousInSequence() != null;
 
-        ConcurrentEntry entry = firstInSequence.getNextInSequence();
-        while (entry != lastInSequence) {
+        ConcurrentEntry entry = head.getNextInSequence();
+        while (entry != tail) {
+            if (!entry.isRemoved()) {
+                ConcurrentEntry next = entry.getNextInSequence();
+                if (next.isRemoved()) {
+                    next = next.getNextInSequence();
+                }
+                ConcurrentEntry nextPrev = next.getPreviousInSequence();
+                if (nextPrev.isRemoved()) {
+                    nextPrev = nextPrev.getPreviousInSequence();
+                }
+                // assert entry == nextPrev; // not if removed
+            }
             entry = entry.getNextInSequence();
         }
 

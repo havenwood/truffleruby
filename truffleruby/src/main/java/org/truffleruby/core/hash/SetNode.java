@@ -210,7 +210,6 @@ public abstract class SetNode extends RubyNode {
 
                 final ConcurrentEntry firstEntry = result.getPreviousEntry();
                 final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value);
-                newEntry.setNextInLookup(firstEntry);
                 final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
                 newEntry.setNextInSequence(tail);
 
@@ -222,7 +221,7 @@ public abstract class SetNode extends RubyNode {
                 try {
                     final AtomicReferenceArray<ConcurrentEntry> buckets = ConcurrentHash.getStore(hash).getBuckets();
                     if (sameBucketsProfile.profile(buckets == result.getBuckets())) {
-                        success = buckets.compareAndSet(result.getIndex(), result.getPreviousEntry(), newEntry);
+                        success = ConcurrentBucketsStrategy.insertInLookup(buckets, result.getIndex(), firstEntry, newEntry);
                     } else {
                         // the buckets changed between the lookup and now, retry
                         success = false;
@@ -232,8 +231,16 @@ public abstract class SetNode extends RubyNode {
                 }
                 if (!insertionProfile.profile(success)) {
                     // An entry got inserted in this bucket concurrently, retry
+                    newEntry.setPublished(true);
                     continue;
                 }
+
+                // try {
+                // Thread.sleep(2000);
+                // } catch (InterruptedException e) {
+                // System.err.println(Thread.currentThread());
+                // Thread.currentThread().interrupt();
+                // }
 
                 // Increment size
 

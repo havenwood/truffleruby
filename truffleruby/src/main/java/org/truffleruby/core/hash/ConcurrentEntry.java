@@ -17,7 +17,7 @@ import org.truffleruby.core.UnsafeHolder;
  */
 public final class ConcurrentEntry {
 
-    private int hashed;
+    private volatile int hashed;
     private final Object key;
     private volatile Object value;
 
@@ -27,6 +27,9 @@ public final class ConcurrentEntry {
     private volatile ConcurrentEntry nextInSequence;
 
     private final boolean removed;
+    private final boolean lock;
+
+    private volatile boolean published = false;
 
     private static final long NEXT_IN_LOOKUP_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "nextInLookup");
     private static final long PREVIOUS_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "previousInSequence");
@@ -37,19 +40,38 @@ public final class ConcurrentEntry {
         this.key = key;
         this.value = value;
         this.removed = false;
+        this.lock = false;
     }
 
-    public ConcurrentEntry(boolean removed, ConcurrentEntry nextInSequence) {
+    public ConcurrentEntry(boolean removed, boolean lock, ConcurrentEntry prevInSequence, ConcurrentEntry nextInSequence, ConcurrentEntry nextInLookup) {
         this.hashed = 0;
         this.key = null;
         this.value = null;
-        this.previousInSequence = null;
+        this.previousInSequence = prevInSequence;
         this.nextInSequence = nextInSequence;
-        this.removed = true;
+        this.nextInLookup = nextInLookup;
+        this.removed = removed;
+        this.lock = lock;
     }
 
     public boolean isRemoved() {
         return removed;
+    }
+
+    public boolean isLock() {
+        return lock;
+    }
+
+    public void setPublished(boolean published) {
+        this.published = published;
+    }
+
+    public boolean isPublished() {
+        return published;
+    }
+
+    public boolean isTailSentinel() {
+        return key == null && !removed && nextInSequence == null;
     }
 
     public int getHashed() {
@@ -89,10 +111,12 @@ public final class ConcurrentEntry {
     }
 
     public void setPreviousInSequence(ConcurrentEntry previousInSequence) {
+        assert !removed;
         this.previousInSequence = previousInSequence;
     }
 
     public boolean compareAndSetPreviousInSequence(ConcurrentEntry old, ConcurrentEntry previousInSequence) {
+        assert !removed;
         return UnsafeHolder.UNSAFE.compareAndSwapObject(this, PREVIOUS_IN_SEQ_OFFSET, old, previousInSequence);
     }
 
@@ -101,11 +125,30 @@ public final class ConcurrentEntry {
     }
 
     public void setNextInSequence(ConcurrentEntry nextInSequence) {
+        assert !removed;
         this.nextInSequence = nextInSequence;
     }
 
     public boolean compareAndSetNextInSequence(ConcurrentEntry old, ConcurrentEntry nextInSequence) {
+        assert !removed;
         return UnsafeHolder.UNSAFE.compareAndSwapObject(this, NEXT_IN_SEQ_OFFSET, old, nextInSequence);
+    }
+
+    @Override
+    public String toString() {
+        if (key == null) {
+            if (lock) {
+                return "lock";
+            } else if (removed) {
+                return "removed";
+            } else if (previousInSequence == null) {
+                return "HEAD";
+            } else {
+                return "TAIL";
+            }
+        } else {
+            return key.toString();
+        }
     }
 
 }

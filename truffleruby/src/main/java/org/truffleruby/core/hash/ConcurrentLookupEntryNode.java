@@ -59,7 +59,7 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
         ConcurrentEntry previousEntry = null;
 
         while (entry != null) {
-            if (equalKeys(frame, compareByIdentity, key, hashed, entry.getKey(), entry.getHashed())) {
+            if (!entry.isRemoved() && equalKeys(frame, compareByIdentity, key, hashed, entry.getKey(), entry.getHashed())) {
                 return new ConcurrentHashLookupResult(entries, hashed, index, previousEntry, entry);
             }
 
