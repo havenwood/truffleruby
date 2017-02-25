@@ -1,19 +1,27 @@
 Thread.abort_on_exception = true
 require_relative 'common'
 
-N_THREADS = 4
+N_THREADS = 200 # 4
+OPS = N_THREADS / 2
 
 h = {}
 
 $done = false
+$deleted = 0
+M = Mutex.new
 
 threads = N_THREADS.times.map { |t|
+  # Do inserts early
+  # k = t/2
+  # h[k] = k if t.even?
+
   Thread.new {
     Thread.pass until $go
     k = t/2
     if t.odd?
       until deleted = h.delete(k)
       end
+      M.synchronize { $deleted += 1 }
     else
       sleep 0.1
       h[k] = k
@@ -25,8 +33,11 @@ threads = N_THREADS.times.map { |t|
 sleep 0.1
 $go = true
 
-until $done
-  p h.size
+Thread.pass until $done
+
+until (del = $deleted) == OPS
+  p [h.size, del]
+  sleep 0.01
 end
 
 p h.size
