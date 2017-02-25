@@ -14,7 +14,7 @@ import java.util.Random;
 public class Hashing {
 
     private static final boolean SIPHASH_ENABLED = false;
-    private static final boolean CONSISTENT_HASHING_ENABLED = false;
+    private static final boolean CONSISTENT_HASHING_ENABLED = true;
 
     private static final int MURMUR2_MAGIC = 0x5bd1e995;
 
