@@ -358,7 +358,9 @@ public abstract class HashNodes {
             } else {
                 final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
                 // Wait until layout change finishes
-                accessor.finishRead();
+                while (!accessor.finishRead()) {
+                    LayoutLock.yield();
+                }
                 return hash;
             }
         }
