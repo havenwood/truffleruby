@@ -27,6 +27,7 @@ common: ${common-base} {
     git:        ">=1.8.3"
     mercurial:  ">=3.2.4"
     ruby:       ">=2.1.0"
+    hwloc:      ">=1.9"
   }
 }
 
@@ -444,7 +445,10 @@ deploy-binaries: {
   timelimit: "30:00"
 }
 
-run-bench: ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "$STRATEGY"]
+# command prefix for binding a command to a certain node
+hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
+
+run-bench: ${hwloc.node0} ${jt} [ruby, --graal, bench/bench_array_conc_write_reads_ops.rb, "$STRATEGY"]
 
 custom-bench: {
   run: [
