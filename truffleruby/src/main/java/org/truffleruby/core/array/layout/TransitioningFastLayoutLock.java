@@ -67,6 +67,7 @@ public final class TransitioningFastLayoutLock {
                     unlockRead(stamp);
                     stamp = getWriteLock(); // enter exclusive mode (instead of direct upgrade)
                     selector.set(STATE_LAYOUT_LOCK);
+                    System.err.println("Transitioned");
                     unlockWrite(stamp);
                     if (ts == null) {
                         ts = getThreadState();
@@ -88,7 +89,7 @@ public final class TransitioningFastLayoutLock {
 
     public void finishWrite(AtomicInteger ts, final long stamp) {
         if (stamp != 0) {
-            baseLock.unlockWrite(stamp);
+            unlockRead(stamp);
             return;
         }
         ts.set(INACTIVE);
@@ -126,7 +127,13 @@ public final class TransitioningFastLayoutLock {
 
     @TruffleBoundary
     private void unlockWrite(long stamp) {
-        baseLock.unlockWrite(stamp);
+        try {
+            baseLock.unlockWrite(stamp);
+        } catch (IllegalMonitorStateException e) {
+            System.out.println("Stamp = " + stamp);
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @TruffleBoundary

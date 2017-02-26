@@ -13,11 +13,13 @@ public class ThreadWithDirtyFlag extends Thread {
 
     private final LayoutLock.Accessor layoutLockAccessor;
     private final FastLayoutLock fastLayoutLock;
+    private final TransitioningFastLayoutLock transitioningFastLayoutLock;
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
         this.layoutLockAccessor = LayoutLock.GLOBAL_LOCK.access();
         this.fastLayoutLock = FastLayoutLock.GLOBAL_LOCK;
+        this.transitioningFastLayoutLock = TransitioningFastLayoutLock.GLOBAL_LOCK;
         this.threadState = fastLayoutLock.registerThread(getThreadId());
     }
 
@@ -27,6 +29,10 @@ public class ThreadWithDirtyFlag extends Thread {
 
     public FastLayoutLock getFastLayoutLock() {
         return fastLayoutLock;
+    }
+
+    public TransitioningFastLayoutLock getTransitioningFastLayoutLock() {
+        return transitioningFastLayoutLock;
     }
 
     public AtomicInteger getThreadState() {

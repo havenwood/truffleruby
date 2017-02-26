@@ -1,7 +1,7 @@
 #!/bin/bash
 
 [ "$nthreads." == "." ] && export nthreads="2"
-[ "$strategies." == "." ] && export strategies="fixed sync reentrant custom stamped llock fll"
+[ "$strategies." == "." ] && export strategies="fixed sync reentrant custom stamped llock fll tfll"
 
 declare -A strategy_object
 
@@ -12,6 +12,7 @@ strategy_object[custom]="CustomLock"
 strategy_object[stamped]="StampedLock"
 strategy_object[llock]="LayoutLock"
 strategy_object[fll]="FastLayoutLock"
+strategy_object[tfll]="TransitioningFastLayoutLock"
 
 JT="../tool/jt.rb"
 
@@ -27,7 +28,7 @@ case $key in
    echo "                       Specify the numbers of threads to run with."
    echo "                       Default: -T \"$nthreads\""
    echo " -S \"<space separated list of synchronization strategies>\""
-   echo "                       Available strategies: fixed sync reentrant custom stamped llock fll"
+   echo "                       Available strategies: fixed sync reentrant custom stamped llock fll tfll"
    echo "                       Default: -S \"$strategies\""
    echo " -B <benchmark_tempalte_file>"
    ;;
