@@ -13,6 +13,8 @@ import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
+import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
+import org.truffleruby.core.array.layout.TransitioningFastLayoutLock;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -45,6 +47,10 @@ public abstract class ArraySyncReadNode extends RubyNode {
     @Specialization(guards = "isFixedSizeArray(array)")
     public Object fixedSizeRead(VirtualFrame frame, DynamicObject array) {
         return builtinNode.execute(frame);
+    }
+
+    protected ThreadWithDirtyFlag getCurrentThread(DynamicObject array) {
+        return (ThreadWithDirtyFlag) Thread.currentThread();
     }
 
     @Specialization(guards = "isSynchronizedArray(array)")
@@ -143,6 +149,23 @@ public abstract class ArraySyncReadNode extends RubyNode {
             // Out-of-thin-air values are prevented by the dirty flag check
             result = builtinNode.execute(frame);
             if (FastLayoutLock.GLOBAL_LOCK.finishRead(threadState, fastPathProfile)) {
+                return result;
+            }
+        }
+    }
+
+    @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
+    public Object TransitioningFastLayoutLockRead(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
+            @Cached("createBinaryProfile()") ConditionProfile transitioningFastPathProfile) {
+        final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
+        Object result;
+        while (true) {
+            // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
+            // Out-of-thin-air values are prevented by the dirty flag check
+            long stamp = TransitioningFastLayoutLock.GLOBAL_LOCK.startRead();
+            result = builtinNode.execute(frame);
+            if (TransitioningFastLayoutLock.GLOBAL_LOCK.finishRead(threadState, transitioningFastPathProfile, stamp)) {
                 return result;
             }
         }

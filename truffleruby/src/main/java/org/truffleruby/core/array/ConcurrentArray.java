@@ -110,4 +110,12 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
 
     }
 
+    public static final class TransitioningFastLayoutLockArray extends ConcurrentArray {
+
+        public TransitioningFastLayoutLockArray(Object store) {
+            super(store);
+        }
+
+    }
+
 }

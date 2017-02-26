@@ -19,6 +19,7 @@ import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
+import org.truffleruby.core.array.ConcurrentArray.TransitioningFastLayoutLockArray;
 
 public class ArrayGuards {
 
@@ -86,6 +87,11 @@ public class ArrayGuards {
     public static boolean isFastLayoutLockArray(DynamicObject array) {
         assert RubyGuards.isRubyArray(array);
         return Layouts.ARRAY.getStore(array) instanceof FastLayoutLockArray;
+    }
+
+    public static boolean isTransitioningFastLayoutLockArray(DynamicObject array) {
+        assert RubyGuards.isRubyArray(array);
+        return Layouts.ARRAY.getStore(array) instanceof TransitioningFastLayoutLockArray;
     }
 
     // Higher level properties

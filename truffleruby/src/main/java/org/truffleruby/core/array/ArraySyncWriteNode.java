@@ -15,6 +15,8 @@ import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
 import org.truffleruby.core.array.layout.MyBiasedLock;
+import org.truffleruby.core.array.layout.TransitioningFastLayoutLock;
+import org.truffleruby.core.array.layout.TransitioningFastLayoutLockNodes.TransitioningFastLayoutLockStartWriteNode;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -151,6 +153,20 @@ public abstract class ArraySyncWriteNode extends RubyNode {
             return builtinNode.execute(frame);
         } finally {
             FastLayoutLock.GLOBAL_LOCK.finishWrite(threadState);
+        }
+    }
+
+    @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
+    public Object TransitioningFastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
+            @Cached("create()") TransitioningFastLayoutLockStartWriteNode startWriteNode) {
+        final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
+        // accessor.startWrite();
+        long stamp = startWriteNode.executeStartWrite(threadState);
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            TransitioningFastLayoutLock.GLOBAL_LOCK.finishWrite(threadState, stamp);
         }
     }
 
