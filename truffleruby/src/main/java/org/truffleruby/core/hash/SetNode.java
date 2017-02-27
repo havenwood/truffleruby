@@ -259,7 +259,7 @@ public abstract class SetNode extends RubyNode {
                     final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
                     try {
                         // Check again to make sure another thread did not already resized
-                        bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
+                        bucketsCount = ConcurrentHash.getStore(hash).getBuckets().length();
                         if (newSize * 4 > bucketsCount * 3) {
                             ConcurrentBucketsStrategy.resize(getContext(), hash, newSize);
                         }
