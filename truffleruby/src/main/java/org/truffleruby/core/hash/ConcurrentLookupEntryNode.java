@@ -34,15 +34,9 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
         ConcurrentHashLookupResult result;
 
-        while (true) {
+        do {
             result = doLookup(frame, hash, key);
-
-            if (dirtyProfile.profile(accessor.isDirty())) {
-                accessor.resetDirty();
-            } else {
-                break;
-            }
-        }
+        } while (!accessor.finishRead(dirtyProfile));
 
         return result;
     }

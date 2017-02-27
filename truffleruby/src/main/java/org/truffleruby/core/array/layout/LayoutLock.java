@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 
 /**
  * LayoutLock based on Scalable RW Lock using accessors
@@ -54,8 +55,8 @@ public class LayoutLock {
         public void startRead() {
         }
 
-        public boolean finishRead() {
-            if (dirty) {
+        public boolean finishRead(ConditionProfile dirtyProfile) {
+            if (dirtyProfile.profile(dirty)) {
                 resetDirty();
                 return false;
             }
@@ -125,11 +126,7 @@ public class LayoutLock {
             }
         }
 
-        public boolean isDirty() {
-            return dirty;
-        }
-
-        public void resetDirty() {
+        private void resetDirty() {
             while (state.get() == LAYOUT_CHANGE) {
                 yield();
             }

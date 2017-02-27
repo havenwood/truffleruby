@@ -121,16 +121,11 @@ public abstract class ArraySyncReadNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
         Object result;
-        while (true) {
+        do {
             // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
             // Out-of-thin-air values are prevented by the dirty flag check
             result = builtinNode.execute(frame);
-            if (dirtyProfile.profile(accessor.isDirty())) {
-                accessor.resetDirty();
-            } else {
-                break;
-            }
-        }
+        } while (!accessor.finishRead(dirtyProfile));
         return result;
     }
 

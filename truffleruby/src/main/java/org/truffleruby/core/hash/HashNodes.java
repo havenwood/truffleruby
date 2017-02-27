@@ -354,14 +354,16 @@ public abstract class HashNodes {
                 @Cached("create()") InternalRehashNode internalRehashNode,
                 @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
                 @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
-                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode,
+                @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
             assert HashOperations.verifyStore(getContext(), hash);
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
 
             boolean compareByIdentity;
             do {
                 compareByIdentity = ConcurrentHash.getCompareByIdentity(hash);
-            } while (!accessor.finishRead());
+            } while (!accessor.finishRead(dirtyProfile));
+
             if (compareByIdentity) {
                 return hash;
             }
@@ -1624,13 +1626,15 @@ public abstract class HashNodes {
                 @Cached("create()") InternalRehashNode internalRehashNode,
                 @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
                 @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
-                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode,
+                @Cached("createBinaryProfile()") ConditionProfile dirtyProfile) {
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
 
             boolean compareByIdentity;
             do {
                 compareByIdentity = ConcurrentHash.getCompareByIdentity(hash);
-            } while (!accessor.finishRead());
+            } while (!accessor.finishRead(dirtyProfile));
+
             if (compareByIdentity) {
                 return hash;
             }
