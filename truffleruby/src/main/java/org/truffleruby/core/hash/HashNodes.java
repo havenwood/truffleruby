@@ -1582,29 +1582,20 @@ public abstract class HashNodes {
                 @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile) {
             assert HashOperations.verifyStore(getContext(), hash);
 
-            final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
-            final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
-            for (int i = 0; i < entries.length(); i++) {
-                entries.set(i, null);
-            }
+            final boolean compareByIdentity = byIdentityProfile.profile(ConcurrentHash.getCompareByIdentity(hash));
+            final ConcurrentHash concurrentHash = ConcurrentHash.getStore(hash);
+            final AtomicReferenceArray<ConcurrentEntry> newEntries = new AtomicReferenceArray<>(concurrentHash.getBuckets().length());
 
             for (ConcurrentEntry entry : ConcurrentBucketsStrategy.iterableEntries(hash)) {
                 final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity); // TODO: calling #hash under layout lock!
                 entry.setHashed(newHash);
-                entry.setNextInLookup(null);
-                final int index = BucketsStrategy.getBucketIndex(newHash, entries.length());
-                ConcurrentEntry bucketEntry = entries.get(index);
 
-                if (bucketEntry == null) {
-                    entries.set(index, entry);
-                } else {
-                    while (bucketEntry.getNextInLookup() != null) {
-                        bucketEntry = bucketEntry.getNextInLookup();
-                    }
-
-                    bucketEntry.setNextInLookup(entry);
-                }
+                final int index = BucketsStrategy.getBucketIndex(newHash, newEntries.length());
+                entry.setNextInLookup(newEntries.get(index));
+                newEntries.set(index, entry);
             }
+
+            concurrentHash.setBuckets(newEntries);
 
             assert HashOperations.verifyStore(getContext(), hash);
             return hash;
