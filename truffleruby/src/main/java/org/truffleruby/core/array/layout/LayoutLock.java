@@ -12,6 +12,8 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
  */
 public class LayoutLock {
 
+    public static final boolean OPTIMIZE_LC_LC = false;
+
     public static final LayoutLock GLOBAL_LOCK = new LayoutLock();
 
     private static final int MAX_THREADS = 600;
@@ -45,11 +47,17 @@ public class LayoutLock {
         }
 
         public boolean getCleanedAfterLayoutChange() {
-            return cleanedAfterLayoutChange;
+            if (OPTIMIZE_LC_LC) {
+                return cleanedAfterLayoutChange;
+            } else {
+                return true;
+            }
         }
 
         public void setCleanedAfterLayoutChange(boolean cleaned) {
-            cleanedAfterLayoutChange = cleaned;
+            if (OPTIMIZE_LC_LC) {
+                cleanedAfterLayoutChange = cleaned;
+            }
         }
 
         public void startRead() {
