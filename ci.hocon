@@ -498,6 +498,7 @@ custom-bench: {
     ${run-bench} ["48"],
     ${run-bench} ["64"],
   ]
+  timelimit: "01:00:00"
 }
 
 builds: [
