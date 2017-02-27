@@ -356,8 +356,16 @@ public abstract class HashNodes {
                 @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
                 @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
             assert HashOperations.verifyStore(getContext(), hash);
-
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+
+            boolean compareByIdentity;
+            do {
+                compareByIdentity = ConcurrentHash.getCompareByIdentity(hash);
+            } while (!accessor.finishRead());
+            if (compareByIdentity) {
+                return hash;
+            }
+
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
                 if (ConcurrentHash.compareAndSetCompareByIdentity(hash, false, true)) {
@@ -1608,16 +1616,43 @@ public abstract class HashNodes {
     @ImportStatic(HashGuards.class)
     public abstract static class RehashNode extends CoreMethodArrayArgumentsNode {
 
-        @Specialization(guards = "isCompareByIdentity(hash)")
+        @Specialization(guards = { "!isConcurrentHash(hash)", "isCompareByIdentity(hash)" })
         public DynamicObject rehashIdentity(DynamicObject hash) {
             // the identity hash of objects never change.
             return hash;
         }
 
-        @Specialization(guards = "!isCompareByIdentity(hash)")
+        @Specialization(guards = { "!isConcurrentHash(hash)", "!isCompareByIdentity(hash)" })
         public DynamicObject rehashNotIdentity(VirtualFrame frame, DynamicObject hash,
                 @Cached("create()") InternalRehashNode internalRehashNode) {
             return internalRehashNode.executeRehash(frame, hash);
+        }
+
+        @Specialization(guards = "isConcurrentHash(hash)")
+        public DynamicObject rehashConcurrent(VirtualFrame frame, DynamicObject hash,
+                @Cached("create()") InternalRehashNode internalRehashNode,
+                @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
+                @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+
+            boolean compareByIdentity;
+            do {
+                compareByIdentity = ConcurrentHash.getCompareByIdentity(hash);
+            } while (!accessor.finishRead());
+            if (compareByIdentity) {
+                return hash;
+            }
+
+            final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+            try {
+                if (!ConcurrentHash.getCompareByIdentity(hash)) {
+                    internalRehashNode.executeRehash(frame, hash);
+                }
+            } finally {
+                finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+            }
+            return hash;
         }
 
     }
