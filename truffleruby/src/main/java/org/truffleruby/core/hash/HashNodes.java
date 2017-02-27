@@ -537,23 +537,25 @@ public abstract class HashNodes {
                 return missingEntry(frame, key, maybeBlock);
             }
 
-            // Remove from the sequence chain
-
-            if (!ConcurrentBucketsStrategy.removeFromSequence(entry)) {
-                return missingEntry(frame, key, maybeBlock);
-            }
-
-            // Decrement size
-
-            ConcurrentHash.decrementSize(hash);
-
-            // Remove from the lookup chain
-
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             startWriteNode.executeStartWrite(accessor);
             try {
+
+                // Remove from the sequence chain
+
+                if (!ConcurrentBucketsStrategy.removeFromSequence(entry)) {
+                    return missingEntry(frame, key, maybeBlock);
+                }
+
+                // Decrement size
+
+                ConcurrentHash.decrementSize(hash);
+
+                // Remove from the lookup chain
+
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
                 ConcurrentBucketsStrategy.removeFromLookup(hash, entry, store);
+
             } finally {
                 accessor.finishWrite();
             }

@@ -188,7 +188,6 @@ public abstract class SetNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile,
             @Cached("createBinaryProfile()") ConditionProfile foundProfile,
             @Cached("createBinaryProfile()") ConditionProfile insertionProfile,
-            @Cached("createBinaryProfile()") ConditionProfile dirtyProfile,
             @Cached("createBinaryProfile()") ConditionProfile resizeProfile,
             @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
             @Cached("create()") WriteBarrierNode writeBarrierNode,
@@ -217,8 +216,11 @@ public abstract class SetNode extends RubyNode {
 
                 final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
                 boolean success;
+                int bucketsCount;
+                final int newSize;
                 startWriteNode.executeStartWrite(accessor);
                 try {
+
                     final AtomicReferenceArray<ConcurrentEntry> buckets = ConcurrentHash.getStore(hash).getBuckets();
                     if (sameBucketsProfile.profile(buckets == result.getBuckets())) {
                         success = ConcurrentBucketsStrategy.insertInLookup(buckets, result.getIndex(), firstEntry, newEntry);
@@ -226,34 +228,32 @@ public abstract class SetNode extends RubyNode {
                         // the buckets changed between the lookup and now, retry
                         success = false;
                     }
+
+                    if (!insertionProfile.profile(success)) {
+                        // An entry got inserted in this bucket concurrently, retry
+                        newEntry.setPublished(true);
+                        continue;
+                    }
+
+                    // try {
+                    // Thread.sleep(2000);
+                    // } catch (InterruptedException e) {
+                    // System.err.println(Thread.currentThread());
+                    // Thread.currentThread().interrupt();
+                    // }
+
+                    // Increment size
+
+                    newSize = ConcurrentHash.incrementAndGetSize(hash);
+                    bucketsCount = buckets.length();
+
+                    // Insert in the sequence chain
+
+                    ConcurrentBucketsStrategy.appendInSequence(newEntry, tail);
+
                 } finally {
                     accessor.finishWrite();
                 }
-                if (!insertionProfile.profile(success)) {
-                    // An entry got inserted in this bucket concurrently, retry
-                    newEntry.setPublished(true);
-                    continue;
-                }
-
-                // try {
-                // Thread.sleep(2000);
-                // } catch (InterruptedException e) {
-                // System.err.println(Thread.currentThread());
-                // Thread.currentThread().interrupt();
-                // }
-
-                // Increment size
-
-                final int newSize = ConcurrentHash.incrementAndGetSize(hash);
-
-                // Insert in the sequence chain
-
-                ConcurrentBucketsStrategy.appendInSequence(newEntry, tail);
-
-                int bucketsCount;
-                do {
-                    bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
-                } while (!accessor.finishRead(dirtyProfile));
 
                 if (resizeProfile.profile(newSize * 4 > bucketsCount * 3)) {
                     final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
