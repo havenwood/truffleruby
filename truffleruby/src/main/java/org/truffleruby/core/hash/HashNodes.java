@@ -352,18 +352,24 @@ public abstract class HashNodes {
         @Specialization(guards = "isConcurrentHash(hash)")
         DynamicObject compareByIdentityConcurrent(VirtualFrame frame, DynamicObject hash,
                 @Cached("create()") InternalRehashNode internalRehashNode,
-                @Cached("create()") GetLayoutLockAccessorNode getAccessorNode) {
-            // TODO this whole check needs to happen in LC or CAS=>true, finishRead()=>true, actual LC for rehash
-            if (ConcurrentHash.compareAndSetCompareByIdentity(hash, false, true)) {
-                return internalRehashNode.executeRehash(frame, hash);
-            } else {
-                final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
-                // Wait until layout change finishes
-                while (!accessor.finishRead()) {
-                    LayoutLock.yield();
+                @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
+                @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+            assert HashOperations.verifyStore(getContext(), hash);
+
+            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+            final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+            try {
+                if (ConcurrentHash.compareAndSetCompareByIdentity(hash, false, true)) {
+                    return internalRehashNode.executeRehash(frame, hash);
+                } else {
+                    // Already compare-by-identity and fully converted as we are in the exclusive lock
                 }
-                return hash;
+            } finally {
+                finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
             }
+
+            return hash;
         }
 
     }
@@ -1565,44 +1571,35 @@ public abstract class HashNodes {
 
         @Specialization(guards = "isConcurrentHash(hash)")
         DynamicObject rehashConcurrent(VirtualFrame frame, DynamicObject hash,
-                @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile,
-                @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
-                @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
-                @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+                @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile) {
             assert HashOperations.verifyStore(getContext(), hash);
 
-            final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
-            final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
-            try {
-                final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
-                final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
-                for (int i = 0; i < entries.length(); i++) {
-                    entries.set(i, null);
-                }
-
-                for (ConcurrentEntry entry : ConcurrentBucketsStrategy.iterableEntries(hash)) {
-                    final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity); // TODO: calling #hash under layout lock!
-                    entry.setHashed(newHash);
-                    entry.setNextInLookup(null);
-                    final int index = BucketsStrategy.getBucketIndex(newHash, entries.length());
-                    ConcurrentEntry bucketEntry = entries.get(index);
-
-                    if (bucketEntry == null) {
-                        entries.set(index, entry);
-                    } else {
-                        while (bucketEntry.getNextInLookup() != null) {
-                            bucketEntry = bucketEntry.getNextInLookup();
-                        }
-
-                        bucketEntry.setNextInLookup(entry);
-                    }
-                }
-
-                assert HashOperations.verifyStore(getContext(), hash);
-                return hash;
-            } finally {
-                finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
+            final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
+            final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
+            for (int i = 0; i < entries.length(); i++) {
+                entries.set(i, null);
             }
+
+            for (ConcurrentEntry entry : ConcurrentBucketsStrategy.iterableEntries(hash)) {
+                final int newHash = hashNode.hash(frame, entry.getKey(), compareByIdentity); // TODO: calling #hash under layout lock!
+                entry.setHashed(newHash);
+                entry.setNextInLookup(null);
+                final int index = BucketsStrategy.getBucketIndex(newHash, entries.length());
+                ConcurrentEntry bucketEntry = entries.get(index);
+
+                if (bucketEntry == null) {
+                    entries.set(index, entry);
+                } else {
+                    while (bucketEntry.getNextInLookup() != null) {
+                        bucketEntry = bucketEntry.getNextInLookup();
+                    }
+
+                    bucketEntry.setNextInLookup(entry);
+                }
+            }
+
+            assert HashOperations.verifyStore(getContext(), hash);
+            return hash;
         }
 
     }
