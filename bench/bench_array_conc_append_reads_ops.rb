@@ -1,8 +1,9 @@
 require_relative 'common'
 
+STRATEGY = ARGV[0].to_sym || raise("First argument must be the strategy")
 N = 1_000 # 10_000_000 / 100 / 100
 READS = 100 # 1000
-N_THREADS = Integer(ARGV[0] || 4)
+N_THREADS = Integer(ARGV[1] || 4)
 ary = READS.times.to_a
 SUM = ary.reduce(:+)
 
@@ -77,26 +78,6 @@ end
 setup(:first)
 p bench_first(ary)
 
-Truffle::Array.set_strategy(ary, :Synchronized)
+Truffle::Array.set_strategy(ary, STRATEGY)
 puts Truffle::Debug.array_storage(ary)
-p measure(ary, :synchd)
-
-Truffle::Array.set_strategy(ary, :ReentrantLock)
-puts Truffle::Debug.array_storage(ary)
-p measure(ary, :reentrant)
-
-Truffle::Array.set_strategy(ary, :CustomLock)
-puts Truffle::Debug.array_storage(ary)
-p measure(ary, :custom)
-
-Truffle::Array.set_strategy(ary, :StampedLock)
-puts Truffle::Debug.array_storage(ary)
-p measure(ary, :stamped)
-
-Truffle::Array.set_strategy(ary, :LayoutLock)
-puts Truffle::Debug.array_storage(ary)
-p measure(ary, :layout)
-
-Truffle::Array.set_strategy(ary, :FastLayoutLock)
-puts Truffle::Debug.array_storage(ary)
-p measure(ary, :fast_layout)
+p measure(ary, STRATEGY)

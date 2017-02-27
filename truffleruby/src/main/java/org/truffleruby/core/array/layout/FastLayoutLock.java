@@ -1,6 +1,7 @@
 package org.truffleruby.core.array.layout;
 
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
@@ -19,6 +20,7 @@ public final class FastLayoutLock {
     public volatile AtomicInteger[] gather = new AtomicInteger[0];
 
     public final StampedLock baseLock = new StampedLock();
+    public final AtomicBoolean needToRecover = new AtomicBoolean(false);
 
     public FastLayoutLock() {
     }
@@ -26,19 +28,29 @@ public final class FastLayoutLock {
     public long startLayoutChange(ConditionProfile tryLock, ConditionProfile waitProfile) {
         long stamp = baseLock.tryWriteLock();
         if (tryLock.profile(stamp != 0)) {
-            final AtomicInteger[] gather = this.gather;
-            for (int i = 0; i < gather.length; i++) {
-                AtomicInteger state = gather[i];
-                if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
-                    while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                        LayoutLock.yield();
-                    }
-                }
-            }
+            markLCFlags(waitProfile);
             return stamp;
         } else {
-            return getWriteLock();
+            long stamp1 = getWriteLock();
+            if (needToRecover.get()) {
+                markLCFlags(waitProfile);
+                needToRecover.set(false);
+            }
+            return stamp1;
         }
+    }
+
+    private void markLCFlags(ConditionProfile waitProfile) {
+        for (int i = 0; i < gather.length; i++) {
+            final AtomicInteger[] gather = this.gather;
+            AtomicInteger state = gather[i];
+            if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
+                while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                    LayoutLock.yield();
+                }
+            }
+        }
+
     }
 
     public void finishLayoutChange(long stamp) {
@@ -67,6 +79,7 @@ public final class FastLayoutLock {
     private void changeThreadState(AtomicInteger ts, int state) {
         long stamp = getReadLock();
         ts.set(state);
+        needToRecover.compareAndSet(false, true);
         unlockRead(stamp);
     }
 
