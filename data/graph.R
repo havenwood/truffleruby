@@ -23,6 +23,7 @@ full = load_data("conc_write_reads_sep.csv")
 full = load_data("conc_write_reads_sep_fair.csv")
 full = load_data("conc_write_reads_1numa.csv")
 full = load_data("conc_write_reads_1numa_16gb_heap.csv")
+full = load_data("conc_write_reads_2numa_16gb_heap.csv")
 
 base_fixed = subset(full, VM=="FixedSize" & Threads=="1")$Value
 base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
@@ -39,7 +40,7 @@ base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
 #png(file = "times.png", width=740, height=400)
 ggplot(data = full, aes(y=Value, x=Threads)) + geom_point(aes(color=VM)) +
   xlab("Threads") + ylab("Throughput") +
-  scale_x_continuous(breaks = c(0, 2^(0:6), 12, 48), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
+  scale_x_continuous(breaks = c(0, 2^(0:6), 12, 24, 48), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
   scale_y_continuous(limits = c(0, max(full$Value))) +
   #scale_y_continuous(breaks = seq(0, max(full$Value), 10000)) +
   theme(text = element_text(size=20), legend.position="bottom",
