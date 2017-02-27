@@ -58,7 +58,7 @@ def measure(input)
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
     $go = true
 
-    sleep 2
+    sleep 10
 
     $run = false
     results = THREADS.map { |q,ret| ret.pop }
