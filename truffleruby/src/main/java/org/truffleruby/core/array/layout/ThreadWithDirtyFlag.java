@@ -35,6 +35,10 @@ public class ThreadWithDirtyFlag extends Thread {
         return transitioningFastLayoutLock;
     }
 
+    public AtomicInteger getTransitioningThreadState() {
+        return transitioningFastLayoutLock.getThreadState();
+    }
+
     public AtomicInteger getThreadState() {
         return threadState;
     }

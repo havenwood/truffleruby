@@ -191,7 +191,6 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
 
     @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
     public Object TransitioningFastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
-            @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("create()") TransitioningFastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
             @Cached("create()") TransitioningFastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
         // final TransitioningFastLayoutLock.ThreadState threadState =

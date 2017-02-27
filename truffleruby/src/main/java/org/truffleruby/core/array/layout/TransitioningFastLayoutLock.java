@@ -88,7 +88,7 @@ public final class TransitioningFastLayoutLock {
     }
 
     public void finishWrite(AtomicInteger ts, final long stamp) {
-        if (stamp != 0) {
+        if (stamp != 0 && selector.get() != STATE_LAYOUT_LOCK) {
             unlockRead(stamp);
             return;
         }

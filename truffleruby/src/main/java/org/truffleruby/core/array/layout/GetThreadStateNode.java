@@ -18,6 +18,8 @@ public abstract class GetThreadStateNode extends RubyNode {
 
     public abstract AtomicInteger executeGetThreadState(DynamicObject array);
 
+    public abstract AtomicInteger executeGetTransitioningThreadState(DynamicObject array);
+
     @Specialization(guards = "getCurrentThread(array) == cachedThread", limit = "1")
     protected AtomicInteger cachedThread(DynamicObject array,
             @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread) {
@@ -27,6 +29,11 @@ public abstract class GetThreadStateNode extends RubyNode {
     @Specialization(contains = "cachedThread")
     protected AtomicInteger getThreadState(DynamicObject array) {
         return getCurrentThread(array).getThreadState();
+    }
+
+    @Specialization(contains = "cachedThread")
+    protected AtomicInteger getTransitioningThreadState(DynamicObject array) {
+        return getCurrentThread(array).getTransitioningThreadState();
     }
 
     protected ThreadWithDirtyFlag getCurrentThread(DynamicObject array) {

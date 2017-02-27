@@ -158,7 +158,7 @@ public abstract class ArraySyncReadNode extends RubyNode {
     public Object TransitioningFastLayoutLockRead(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile transitioningFastPathProfile) {
-        final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
+        final AtomicInteger threadState = getThreadStateNode.executeGetTransitioningThreadState(array);
         Object result;
         while (true) {
             // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad

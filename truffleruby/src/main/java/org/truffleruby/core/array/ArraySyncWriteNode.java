@@ -160,7 +160,7 @@ public abstract class ArraySyncWriteNode extends RubyNode {
     public Object TransitioningFastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("create()") TransitioningFastLayoutLockStartWriteNode startWriteNode) {
-        final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
+        final AtomicInteger threadState = getThreadStateNode.executeGetTransitioningThreadState(array);
         // accessor.startWrite();
         long stamp = startWriteNode.executeStartWrite(threadState);
         try {
