@@ -144,6 +144,11 @@ public final class ConcurrentLinkedList {
                 while (!go) {
                     Thread.yield();
                 }
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ie) {
+                    throw new Error(ie);
+                }
                 list.append(e);
             });
             appenders[i].start();
