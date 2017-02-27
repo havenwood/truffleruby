@@ -250,17 +250,16 @@ public abstract class SetNode extends RubyNode {
 
                 ConcurrentBucketsStrategy.appendInSequence(newEntry, tail);
 
-                boolean resize;
+                int bucketsCount;
                 do {
-                    int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
-                    resize = newSize * 4 > bucketsCount * 3;
+                    bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
                 } while (!accessor.finishRead(dirtyProfile));
 
-                if (resizeProfile.profile(resize)) {
+                if (resizeProfile.profile(newSize * 4 > bucketsCount * 3)) {
                     final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
                     try {
                         // Check again to make sure another thread did not already resized
-                        int bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
+                        bucketsCount = ((ConcurrentHash) Layouts.HASH.getStore(hash)).getBuckets().length();
                         if (newSize * 4 > bucketsCount * 3) {
                             ConcurrentBucketsStrategy.resize(getContext(), hash, newSize);
                         }
