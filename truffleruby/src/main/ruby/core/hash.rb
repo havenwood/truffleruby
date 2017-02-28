@@ -201,6 +201,19 @@ class Hash
       end
     end
 
+    # Override BasicObject methods to delegate
+    def ==(other)
+      @source == other
+    end
+
+    def !=(other)
+      @source != other
+    end
+
+    def !
+      !@source
+    end
+
     def method_missing(meth, *args, &block)
       @source.public_send(meth, *args, &block)
     end
