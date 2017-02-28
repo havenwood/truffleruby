@@ -231,7 +231,6 @@ public abstract class SetNode extends RubyNode {
 
                     if (!insertionProfile.profile(success)) {
                         // An entry got inserted in this bucket concurrently, retry
-                        newEntry.setPublished(true);
                         continue;
                     }
 
