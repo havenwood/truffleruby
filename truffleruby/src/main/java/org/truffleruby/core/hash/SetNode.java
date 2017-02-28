@@ -235,13 +235,6 @@ public abstract class SetNode extends RubyNode {
                         continue;
                     }
 
-                    // try {
-                    // Thread.sleep(2000);
-                    // } catch (InterruptedException e) {
-                    // System.err.println(Thread.currentThread());
-                    // Thread.currentThread().interrupt();
-                    // }
-
                     // Increment size
 
                     newSize = ConcurrentHash.incrementAndGetSize(hash);

@@ -43,18 +43,11 @@ public abstract class ConcurrentBucketsStrategy {
         }
 
         entry.setPublished(true);
-        assert entry.isPublished();
     }
 
     public static boolean removeFromSequence(ConcurrentEntry entry) {
         assert !entry.isRemoved() && entry.getKey() != null;
         while (!entry.isPublished()) {
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                System.err.println(Thread.currentThread());
-                System.exit(2);
-            }
             Thread.yield();
         }
 
