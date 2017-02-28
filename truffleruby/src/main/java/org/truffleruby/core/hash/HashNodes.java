@@ -1453,24 +1453,27 @@ public abstract class HashNodes {
             final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
             final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
-            // Remove from the sequence chain
-
-            final ConcurrentEntry entry = ConcurrentBucketsStrategy.removeFirstFromSequence(head, tail);
-            if (entry == null) {
-                return callDefaultNode.call(frame, hash, "default", nil());
-            }
-
-            // Decrement size
-
-            ConcurrentHash.decrementSize(hash);
-
-            // Remove from the lookup chain
-
+            ConcurrentEntry entry;
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
             startWriteNode.executeStartWrite(accessor);
             try {
+
+                // Remove from the sequence chain
+
+                entry = ConcurrentBucketsStrategy.removeFirstFromSequence(head, tail);
+                if (entry == null) {
+                    return callDefaultNode.call(frame, hash, "default", nil());
+                }
+
+                // Decrement size
+
+                ConcurrentHash.decrementSize(hash);
+
+                // Remove from the lookup chain
+
                 final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
                 ConcurrentBucketsStrategy.removeFromLookup(hash, entry, store);
+
             } finally {
                 accessor.finishWrite();
             }

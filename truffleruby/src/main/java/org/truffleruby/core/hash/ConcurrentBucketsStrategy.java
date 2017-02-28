@@ -136,46 +136,20 @@ public abstract class ConcurrentBucketsStrategy {
     }
 
     public static ConcurrentEntry removeFirstFromSequence(ConcurrentEntry head, ConcurrentEntry tail) {
-        assert false : "need to be reimplemented like removeFromSequence";
-
-        ConcurrentEntry entry = head.getNextInSequence();
-        if (entry == tail) {
-            // Empty Hash, nothing to remove
-            return null;
-        }
-
-        // Remove from the forward list
-
-        // First mark as deleted to avoid losing concurrent insertions
-        ConcurrentEntry nextInSequence;
-        ConcurrentEntry nextDeleted;
-        do {
-            nextInSequence = entry.getNextInSequence();
-            while (nextInSequence.isRemoved()) {
-                // when another thread is removing the same entry, wait and shift the next entry
-                entry = head.getNextInSequence();
-                if (entry == tail) {
-                    return null;
-                }
-                nextInSequence = entry.getNextInSequence();
+        // TODO: should skip to next instead of busy waiting on first?
+        while (true) {
+            ConcurrentEntry entry = head.getNextInSequence();
+            if (entry.isRemoved()) {
+                entry = entry.getNextInSequence();
             }
-            nextDeleted = new ConcurrentEntry(true, false, null, nextInSequence, null);
-        } while (!entry.compareAndSetNextInSequence(nextInSequence, nextDeleted));
-        // Now, nobody can insert between entry, nextDeleted and nextInSequence
-
-        // Link entry.prev -> nextInSequence, as entry.next and nextDeleted.next cannot be changed by insertion
-        ConcurrentEntry previousInSequence;
-        do {
-            previousInSequence = entry.getPreviousInSequence();
-        } while (!previousInSequence.compareAndSetNextInSequence(entry, nextInSequence));
-
-        // Remove from the backward list
-
-        if (!nextInSequence.compareAndSetPreviousInSequence(entry, previousInSequence)) {
-            assert false; // TODO
+            if (entry == tail) {
+                // Empty Hash, nothing to remove
+                return null;
+            }
+            if (removeFromSequence(entry)) {
+                return entry;
+            }
         }
-
-        return entry;
     }
 
     public static boolean insertInLookup(AtomicReferenceArray<ConcurrentEntry> buckets, int index, ConcurrentEntry firstEntry, ConcurrentEntry newEntry) {
