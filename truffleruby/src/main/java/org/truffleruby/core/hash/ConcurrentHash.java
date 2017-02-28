@@ -117,4 +117,15 @@ public final class ConcurrentHash implements ObjectGraphNode {
         UnsafeHolder.UNSAFE.putObject(hash, LAST_IN_SEQ_OFFSET, entry);
     }
 
+    /** Returns first non-removed entry, possibly tail */
+    public static ConcurrentEntry getFirstEntry(DynamicObject hash) {
+        final ConcurrentEntry head = getFirstInSequence(hash);
+        ConcurrentEntry entry = head.getNextInSequence();
+        if (entry.isRemoved()) {
+            entry = entry.getNextInSequence();
+        }
+        assert !entry.isRemoved();
+        return entry;
+    }
+
 }

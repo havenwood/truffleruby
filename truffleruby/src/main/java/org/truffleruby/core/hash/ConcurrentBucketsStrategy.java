@@ -135,21 +135,19 @@ public abstract class ConcurrentBucketsStrategy {
         return true;
     }
 
-    public static ConcurrentEntry removeFirstFromSequence(ConcurrentEntry head, ConcurrentEntry tail) {
+    public static ConcurrentEntry removeFirstFromSequence(DynamicObject hash, ConcurrentEntry tail) {
         // TODO: should skip to next instead of busy waiting on first?
-        while (true) {
-            ConcurrentEntry entry = head.getNextInSequence();
-            if (entry.isRemoved()) {
-                entry = entry.getNextInSequence();
-            }
-            if (entry == tail) {
-                // Empty Hash, nothing to remove
-                return null;
-            }
+        ConcurrentEntry entry = ConcurrentHash.getFirstEntry(hash);
+        while (entry != tail) {
             if (removeFromSequence(entry)) {
                 return entry;
             }
+
+            entry = ConcurrentHash.getFirstEntry(hash);
         }
+
+        // Empty Hash, nothing to remove
+        return null;
     }
 
     public static boolean insertInLookup(AtomicReferenceArray<ConcurrentEntry> buckets, int index, ConcurrentEntry firstEntry, ConcurrentEntry newEntry) {
@@ -338,12 +336,12 @@ public abstract class ConcurrentBucketsStrategy {
 
     public static Iterator<KeyValue> iterateKeyValues(DynamicObject hash) {
         assert HashGuards.isConcurrentHash(hash);
-        final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
+        final ConcurrentEntry first = ConcurrentHash.getFirstEntry(hash);
         final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
         return new Iterator<KeyValue>() {
 
-            private ConcurrentEntry entry = head.getNextInSequence();
+            private ConcurrentEntry entry = first;
 
             @Override
             public boolean hasNext() {
@@ -379,12 +377,12 @@ public abstract class ConcurrentBucketsStrategy {
 
     public static Iterator<ConcurrentEntry> iterateEntries(DynamicObject hash) {
         assert HashGuards.isConcurrentHash(hash);
-        final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
+        final ConcurrentEntry first = ConcurrentHash.getFirstEntry(hash);
         final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
         return new Iterator<ConcurrentEntry>() {
 
-            private ConcurrentEntry entry = head.getNextInSequence();
+            private ConcurrentEntry entry = first;
 
             @Override
             public boolean hasNext() {

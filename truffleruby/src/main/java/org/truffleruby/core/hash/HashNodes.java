@@ -681,9 +681,7 @@ public abstract class HashNodes {
 
         @Specialization(guards = "isConcurrentHash(hash)")
         public boolean emptyConcurrent(DynamicObject hash) {
-            final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
-            final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
-            return head.getNextInSequence() == tail;
+            return ConcurrentHash.getFirstEntry(hash) == ConcurrentHash.getLastInSequence(hash);
         }
 
     }
@@ -1450,7 +1448,6 @@ public abstract class HashNodes {
                 @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
             assert HashOperations.verifyStore(getContext(), hash);
 
-            final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
             final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
 
             ConcurrentEntry entry;
@@ -1460,7 +1457,7 @@ public abstract class HashNodes {
 
                 // Remove from the sequence chain
 
-                entry = ConcurrentBucketsStrategy.removeFirstFromSequence(head, tail);
+                entry = ConcurrentBucketsStrategy.removeFirstFromSequence(hash, tail);
                 if (entry == null) {
                     return callDefaultNode.call(frame, hash, "default", nil());
                 }
