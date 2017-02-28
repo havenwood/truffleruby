@@ -18,7 +18,7 @@ public class ThreadWithDirtyFlag extends Thread {
     private final LayoutLock.Accessor layoutLockAccessor;
     private final FastLayoutLock fastLayoutLock;
     private final TransitioningFastLayoutLock transitioningFastLayoutLock;
-    private HashMap<DynamicObject, AtomicInteger> lockStates = new HashMap<>();
+    private HashMap<Object, AtomicInteger> lockStates = new HashMap<>();
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
