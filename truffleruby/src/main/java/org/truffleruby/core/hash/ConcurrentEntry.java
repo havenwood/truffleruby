@@ -9,13 +9,20 @@
  */
 package org.truffleruby.core.hash;
 
-import org.truffleruby.core.UnsafeHolder;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * An entry in the Ruby hash. That is, a container for a key and a value, and a member of two lists - the chain of
  * buckets for a given index, and the chain of entries for the insertion order across the whole hash.
  */
 public final class ConcurrentEntry {
+
+    private static final AtomicReferenceFieldUpdater<ConcurrentEntry, ConcurrentEntry> NEXT_IN_LOOKUP_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ConcurrentEntry.class, ConcurrentEntry.class, "nextInLookup");
+    private static final AtomicReferenceFieldUpdater<ConcurrentEntry, ConcurrentEntry> PREV_IN_SEQ_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ConcurrentEntry.class, ConcurrentEntry.class, "previousInSequence");
+    private static final AtomicReferenceFieldUpdater<ConcurrentEntry, ConcurrentEntry> NEXT_IN_SEQ_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ConcurrentEntry.class, ConcurrentEntry.class, "nextInSequence");
 
     private volatile int hashed;
     private final Object key;
@@ -30,10 +37,6 @@ public final class ConcurrentEntry {
     private final boolean lock;
 
     private volatile boolean published = false;
-
-    private static final long NEXT_IN_LOOKUP_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "nextInLookup");
-    private static final long PREVIOUS_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "previousInSequence");
-    private static final long NEXT_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(ConcurrentEntry.class, "nextInSequence");
 
     public ConcurrentEntry(int hashed, Object key, Object value) {
         this.hashed = hashed;
@@ -103,7 +106,7 @@ public final class ConcurrentEntry {
     }
 
     public boolean compareAndSetNextInLookup(ConcurrentEntry old, ConcurrentEntry nextInLookup) {
-        return UnsafeHolder.UNSAFE.compareAndSwapObject(this, NEXT_IN_LOOKUP_OFFSET, old, nextInLookup);
+        return NEXT_IN_LOOKUP_UPDATER.compareAndSet(this, old, nextInLookup);
     }
 
     public ConcurrentEntry getPreviousInSequence() {
@@ -117,7 +120,7 @@ public final class ConcurrentEntry {
 
     public boolean compareAndSetPreviousInSequence(ConcurrentEntry old, ConcurrentEntry previousInSequence) {
         assert !removed;
-        return UnsafeHolder.UNSAFE.compareAndSwapObject(this, PREVIOUS_IN_SEQ_OFFSET, old, previousInSequence);
+        return PREV_IN_SEQ_UPDATER.compareAndSet(this, old, previousInSequence);
     }
 
     public ConcurrentEntry getNextInSequence() {
@@ -131,7 +134,7 @@ public final class ConcurrentEntry {
 
     public boolean compareAndSetNextInSequence(ConcurrentEntry old, ConcurrentEntry nextInSequence) {
         assert !removed;
-        return UnsafeHolder.UNSAFE.compareAndSwapObject(this, NEXT_IN_SEQ_OFFSET, old, nextInSequence);
+        return NEXT_IN_SEQ_UPDATER.compareAndSet(this, old, nextInSequence);
     }
 
     @Override
