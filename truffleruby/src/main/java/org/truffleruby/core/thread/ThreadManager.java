@@ -166,7 +166,7 @@ public class ThreadManager {
         assert RubyGuards.isRubyThread(thread);
 
         Layouts.THREAD.setStatus(thread, ThreadStatus.ABORTING);
-        context.getThreadManager().unregisterThread(thread);
+        context.getThreadManager().unregisterThread(thread, null); // FIXME do a real cleanup here
 
         Layouts.THREAD.setStatus(thread, ThreadStatus.DEAD);
         Layouts.THREAD.setThread(thread, null);
@@ -341,9 +341,9 @@ public class ThreadManager {
         }
     }
 
-    public synchronized void unregisterThread(DynamicObject thread) {
+    public synchronized void unregisterThread(DynamicObject thread, DynamicObject array) {
         assert RubyGuards.isRubyThread(thread);
-        FastLayoutLock.GLOBAL_LOCK.unregisterThread();
+        FastLayoutLock.GLOBAL_LOCK.unregisterThread(null); // FIXME put real thread's state
         runningRubyThreads.remove(thread);
         currentThread.set(null);
     }

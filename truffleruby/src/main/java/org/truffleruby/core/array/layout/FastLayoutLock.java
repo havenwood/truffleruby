@@ -1,6 +1,6 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
@@ -16,8 +16,7 @@ public final class FastLayoutLock {
     public static final int WRITER_ACTIVE = -11;
     public static final int LAYOUT_CHANGE = 1;
 
-    final HashMap<Long, AtomicInteger> threadStates = new HashMap<>();
-    public volatile AtomicInteger[] gather = new AtomicInteger[0];
+    public ArrayList<AtomicInteger> gather = new ArrayList<>();
 
     public final StampedLock baseLock = new StampedLock();
     public final AtomicBoolean needToRecover = new AtomicBoolean(false);
@@ -41,9 +40,8 @@ public final class FastLayoutLock {
     }
 
     private void markLCFlags(ConditionProfile waitProfile) {
-        for (int i = 0; i < gather.length; i++) {
-            final AtomicInteger[] gather = this.gather;
-            AtomicInteger state = gather[i];
+        for (int i = 0; i < gather.size(); i++) {
+            AtomicInteger state = gather.get(i);
             if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
                 while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                     LayoutLock.yield();
@@ -103,34 +101,19 @@ public final class FastLayoutLock {
         baseLock.unlockRead(stamp);
     }
 
-    private void updateGather() {
-        gather = new AtomicInteger[threadStates.size()];
-        int next = 0;
-        for (AtomicInteger ts : threadStates.values())
-            gather[next++] = ts;
-    }
 
     public AtomicInteger registerThread(long tid) {
         AtomicInteger ts = new AtomicInteger();
         long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
-        try {
-            threadStates.put(tid, ts);
-            updateGather();
-        } finally {
-            finishLayoutChange(stamp);
-        }
+        gather.add(ts);
+        finishLayoutChange(stamp);
         return ts;
     }
 
-    public void unregisterThread() {
-        long tid = ((ThreadWithDirtyFlag) Thread.currentThread()).getThreadId();
+    public void unregisterThread(AtomicInteger ts) {
         long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
-        try {
-            threadStates.remove(tid);
-            updateGather();
-        } finally {
-            finishLayoutChange(stamp);
-        }
+        gather.remove(ts);
+        finishLayoutChange(stamp);
     }
 
     private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
