@@ -229,7 +229,7 @@ public abstract class ConcurrentBucketsStrategy {
 
     @TruffleBoundary
     public static void resize(RubyContext context, DynamicObject hash, int newSize) {
-        System.err.println("RESIZE " + newSize);
+        // System.err.println("RESIZE " + newSize);
         assert HashGuards.isConcurrentHash(hash);
         assert HashOperations.verifyStore(context, hash);
 
