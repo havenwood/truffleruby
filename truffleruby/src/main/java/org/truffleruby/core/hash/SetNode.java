@@ -10,6 +10,7 @@
 package org.truffleruby.core.hash;
 
 import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.NodeChild;
@@ -246,16 +247,7 @@ public abstract class SetNode extends RubyNode {
                 }
 
                 if (resizeProfile.profile(newSize * 4 > bucketsCount * 3)) {
-                    final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
-                    try {
-                        // Check again to make sure another thread did not already resized
-                        bucketsCount = ConcurrentHash.getStore(hash).getBuckets().length();
-                        if (newSize * 4 > bucketsCount * 3) {
-                            ConcurrentBucketsStrategy.resize(getContext(), hash, newSize);
-                        }
-                    } finally {
-                        finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
-                    }
+                    doResize(hash, startLayoutChangeNode, finishLayoutChangeNode, accessor, newSize);
                 }
             } else {
                 if (onlyIfAbsent) {
@@ -271,6 +263,21 @@ public abstract class SetNode extends RubyNode {
             assert HashOperations.verifyStore(getContext(), hash);
 
             return value;
+        }
+    }
+
+    @TruffleBoundary
+    private void doResize(DynamicObject hash, LayoutLockStartLayoutChangeNode startLayoutChangeNode, LayoutLockFinishLayoutChangeNode finishLayoutChangeNode,
+            LayoutLock.Accessor accessor, int newSize) {
+        final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
+        try {
+            // Check again to make sure another thread did not already resized
+            int bucketsCount = ConcurrentHash.getStore(hash).getBuckets().length();
+            if (newSize * 4 > bucketsCount * 3) {
+                ConcurrentBucketsStrategy.resize(getContext(), hash, newSize);
+            }
+        } finally {
+            finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
         }
     }
 
