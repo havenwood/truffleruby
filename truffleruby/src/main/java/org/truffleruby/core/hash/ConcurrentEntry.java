@@ -36,14 +36,15 @@ public final class ConcurrentEntry {
     private final boolean removed;
     private final boolean lock;
 
-    private volatile boolean published = false;
+    private volatile boolean published;
 
-    public ConcurrentEntry(int hashed, Object key, Object value) {
+    public ConcurrentEntry(int hashed, Object key, Object value, boolean published) {
         this.hashed = hashed;
         this.key = key;
         this.value = value;
         this.removed = false;
         this.lock = false;
+        this.published = published;
     }
 
     public ConcurrentEntry(boolean removed, boolean lock, ConcurrentEntry prevInSequence, ConcurrentEntry nextInSequence, ConcurrentEntry nextInLookup) {
@@ -55,6 +56,7 @@ public final class ConcurrentEntry {
         this.nextInLookup = nextInLookup;
         this.removed = removed;
         this.lock = lock;
+        this.published = false;
     }
 
     public boolean isRemoved() {

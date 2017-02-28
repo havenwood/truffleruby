@@ -335,7 +335,8 @@ public abstract class ConcurrentBucketsStrategy {
         Entry entry = buckets.getFirstInSequence();
 
         while (entry != null) {
-            final ConcurrentEntry newEntry = new ConcurrentEntry(entry.getHashed(), entry.getKey(), entry.getValue());
+            // Immediately mark as published as we have the layout lock or we are the sharing a Hash
+            final ConcurrentEntry newEntry = new ConcurrentEntry(entry.getHashed(), entry.getKey(), entry.getValue(), true);
 
             final int index = BucketsStrategy.getBucketIndex(entry.getHashed(), newEntries.length());
 

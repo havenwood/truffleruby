@@ -208,7 +208,7 @@ public abstract class SetNode extends RubyNode {
                 writeBarrierNode.executeWriteBarrier(value);
 
                 final ConcurrentEntry firstEntry = result.getPreviousEntry();
-                final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value);
+                final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value, false);
                 final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
                 newEntry.setNextInSequence(tail);
 
