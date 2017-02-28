@@ -184,16 +184,16 @@ public abstract class SetNode extends RubyNode {
     @Specialization(guards = "isConcurrentHash(hash)")
     public Object setConcurrent(VirtualFrame frame, DynamicObject hash, Object originalKey, Object value, boolean byIdentity,
             @Cached("createBinaryProfile()") ConditionProfile byIdentityProfile,
-            @Cached("createBinaryProfile()") ConditionProfile foundProfile,
-            @Cached("createBinaryProfile()") ConditionProfile insertionProfile,
-            @Cached("createBinaryProfile()") ConditionProfile resizeProfile,
+            @Cached("createCountingProfile()") ConditionProfile foundProfile,
+            @Cached("createCountingProfile()") ConditionProfile insertionProfile,
+            @Cached("createCountingProfile()") ConditionProfile resizeProfile,
             @Cached("new()") ConcurrentLookupEntryNode lookupEntryNode,
             @Cached("create()") WriteBarrierNode writeBarrierNode,
             @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
             @Cached("create()") LayoutLockStartWriteNode startWriteNode,
             @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
             @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode,
-            @Cached("createBinaryProfile()") ConditionProfile sameBucketsProfile) {
+            @Cached("createCountingProfile()") ConditionProfile sameBucketsProfile) {
         assert HashOperations.verifyStore(getContext(), hash);
         final boolean compareByIdentity = byIdentityProfile.profile(byIdentity);
         final Object key = freezeHashKeyIfNeededNode.executeFreezeIfNeeded(frame, originalKey, compareByIdentity);
