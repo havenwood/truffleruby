@@ -11,6 +11,7 @@ import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.FastLayoutLockNodes.FastLayoutLockStartWriteNode;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
+import org.truffleruby.core.array.layout.GetTransitioningThreadStateNode;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
@@ -158,9 +159,9 @@ public abstract class ArraySyncWriteNode extends RubyNode {
 
     @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
     public Object TransitioningFastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
-            @Cached("create()") GetThreadStateNode getThreadStateNode,
+            @Cached("create()") GetTransitioningThreadStateNode getTransitioningThreadStateNode,
             @Cached("create()") TransitioningFastLayoutLockStartWriteNode startWriteNode) {
-        final AtomicInteger threadState = getThreadStateNode.executeGetTransitioningThreadState(array);
+        final AtomicInteger threadState = getTransitioningThreadStateNode.executeGetTransitioningThreadState(array);
         // accessor.startWrite();
         long stamp = startWriteNode.executeStartWrite(threadState);
         try {
