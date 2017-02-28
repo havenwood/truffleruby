@@ -1458,21 +1458,24 @@ public abstract class HashNodes {
                 // Remove from the sequence chain
 
                 entry = ConcurrentBucketsStrategy.removeFirstFromSequence(hash, tail);
-                if (entry == null) {
-                    return callDefaultNode.call(frame, hash, "default", nil());
+                if (entry != null) {
+
+                    // Decrement size
+
+                    ConcurrentHash.decrementSize(hash);
+
+                    // Remove from the lookup chain
+
+                    final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
+                    ConcurrentBucketsStrategy.removeFromLookup(hash, entry, store);
                 }
-
-                // Decrement size
-
-                ConcurrentHash.decrementSize(hash);
-
-                // Remove from the lookup chain
-
-                final AtomicReferenceArray<ConcurrentEntry> store = ConcurrentHash.getStore(hash).getBuckets();
-                ConcurrentBucketsStrategy.removeFromLookup(hash, entry, store);
 
             } finally {
                 accessor.finishWrite();
+            }
+
+            if (entry == null) {
+                return callDefaultNode.call(frame, hash, "default", nil());
             }
 
             assert HashOperations.verifyStore(getContext(), hash);
