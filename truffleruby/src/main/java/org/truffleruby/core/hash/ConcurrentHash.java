@@ -1,7 +1,6 @@
 package org.truffleruby.core.hash;
 
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.truffleruby.core.UnsafeHolder;
 import org.truffleruby.language.objects.ObjectGraphNode;

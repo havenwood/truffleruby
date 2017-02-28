@@ -52,7 +52,6 @@ import org.truffleruby.language.objects.AllocateObjectNode;
 import org.truffleruby.language.yield.YieldNode;
 
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 @CoreClass("Hash")
 public abstract class HashNodes {

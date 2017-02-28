@@ -10,7 +10,6 @@
 package org.truffleruby.core.hash;
 
 import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.RubyContext;

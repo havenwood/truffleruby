@@ -9,8 +9,6 @@
  */
 package org.truffleruby.core.hash;
 
-import java.util.concurrent.atomic.AtomicReferenceArray;
-
 /**
  * The result of looking for an entry (an {@link Entry}) in a Ruby hash. We get the previous entry in the lookup chain
  * for this index until the entry was found, the entry that was found, and the index that was used. There are three
