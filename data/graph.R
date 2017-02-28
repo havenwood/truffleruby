@@ -24,6 +24,7 @@ full = load_data("conc_write_reads_sep_fair.csv")
 full = load_data("conc_write_reads_1numa.csv")
 full = load_data("conc_write_reads_1numa_16gb_heap.csv")
 full = load_data("conc_write_reads_2numa_16gb_heap.csv")
+full = load_data("conc_write_reads_2numa_10s_16gb_heap.csv")
 
 base_fixed = subset(full, VM=="FixedSize" & Threads=="1")$Value
 base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
