@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.truffleruby.core.array.ConcurrentArray;
 
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
 
 public class ThreadWithDirtyFlag extends Thread {
@@ -39,6 +40,7 @@ public class ThreadWithDirtyFlag extends Thread {
         return transitioningFastLayoutLock;
     }
 
+    @TruffleBoundary
     public AtomicInteger getTransitioningThreadState(DynamicObject array) {
         AtomicInteger ts = lockStates.get(array);
         if (ts == null) {
@@ -48,6 +50,7 @@ public class ThreadWithDirtyFlag extends Thread {
         return ts;
     }
 
+    @TruffleBoundary
     public AtomicInteger getThreadState(DynamicObject array) {
         AtomicInteger ts = lockStates.get(array);
         if (ts == null) {
