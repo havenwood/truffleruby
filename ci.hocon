@@ -16,7 +16,7 @@ common-base: {
     ["echo", "-n", "TRUFFLE_RUBY_VERSION=", ">setup-ci-env"],
     ["git", "rev-parse", "HEAD", ">>setup-ci-env"],
     ["export", ["<setup-ci-env"]]
-    [mx, build, --force-javac]
+    # [mx, build, --force-javac]
   ]
 
   timelimit: "01:00:00"
@@ -468,7 +468,7 @@ custom-bench: {
 }
 
 builds: [
-  {name: bench-shared-arrays} ${common} ${graal-core} ${sparc-bench-caps} ${truffleruby} ${custom-bench}
+  {name: bench-shared-arrays} ${common} ${sparc-bench-caps} ${truffleruby} ${custom-bench}
 ]
 
 // Disable overlays
