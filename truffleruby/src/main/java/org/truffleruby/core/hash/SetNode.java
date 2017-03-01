@@ -214,12 +214,12 @@ public abstract class SetNode extends RubyNode {
                 // Insert in the lookup chain
 
                 final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
-                boolean success;
-                int bucketsCount;
+                final int bucketsCount;
                 final int newSize;
                 startWriteNode.executeStartWrite(accessor);
                 try {
 
+                    boolean success;
                     final AtomicReferenceArray<ConcurrentEntry> buckets = ConcurrentHash.getStore(hash).getBuckets();
                     if (sameBucketsProfile.profile(buckets == result.getBuckets())) {
                         success = ConcurrentBucketsStrategy.insertInLookup(buckets, result.getIndex(), firstEntry, newEntry);
