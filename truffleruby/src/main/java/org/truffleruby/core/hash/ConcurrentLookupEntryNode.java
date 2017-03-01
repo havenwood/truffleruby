@@ -27,6 +27,7 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
 
     private final ConditionProfile byIdentityProfile = ConditionProfile.createBinaryProfile();
     private final ConditionProfile dirtyProfile = ConditionProfile.createBinaryProfile();
+    private final ConditionProfile isRemovedProfile = ConditionProfile.createBinaryProfile();
 
     public ConcurrentHashLookupResult lookup(VirtualFrame frame, DynamicObject hash, Object key) {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
@@ -51,7 +52,8 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
         ConcurrentEntry previousEntry = null;
 
         while (entry != null) {
-            if (!entry.isRemoved() && equalKeys(frame, compareByIdentity, key, hashed, entry.getKey(), entry.getHashed())) {
+            if (!isRemovedProfile.profile(entry.isRemoved()) &&
+                    equalKeys(frame, compareByIdentity, key, hashed, entry.getKey(), entry.getHashed())) {
                 return new ConcurrentHashLookupResult(entries, hashed, index, previousEntry, entry);
             }
 
