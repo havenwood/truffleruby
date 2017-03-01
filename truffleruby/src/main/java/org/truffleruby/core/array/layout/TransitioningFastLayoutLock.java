@@ -97,7 +97,11 @@ public final class TransitioningFastLayoutLock {
     }
 
     public void finishWrite(AtomicInteger ts, final long stamp) {
+<<<<<<< HEAD
         if (stamp != 0 && selector.get() != STATE_LAYOUT_LOCK) {
+=======
+        if (stamp != 0 && (selector.get() != STATE_LAYOUT_LOCK) ) {
+>>>>>>> tfll debugging
             unlockRead(stamp);
             return;
         }
@@ -152,7 +156,13 @@ public final class TransitioningFastLayoutLock {
 
     @TruffleBoundary
     private void unlockRead(long stamp) {
-        baseLock.unlockRead(stamp);
+        try {
+            baseLock.unlockRead(stamp);
+        } catch (IllegalMonitorStateException e) {
+            System.out.println("Stamp = " + stamp);
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     private void updateGather() {
@@ -166,6 +176,7 @@ public final class TransitioningFastLayoutLock {
         AtomicInteger ts = new AtomicInteger();
         long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
         try {
+	   System.err.println("Register thread "+tid);
             threadStates.put(tid, ts);
             updateGather();
         } finally {
@@ -185,6 +196,25 @@ public final class TransitioningFastLayoutLock {
         }
     }
 
+<<<<<<< HEAD
+=======
+    public AtomicInteger getThreadState() {
+       System.err.println("Get thread state");
+        if (selector.get() == STATE_STAMPED)
+            return null;
+        long tid = Thread.currentThread().getId();
+        AtomicInteger ts = null;
+        long stamp = 0;
+        do {
+            stamp = baseLock.readLock();
+            ts = threadStates.get(tid);
+        } while (!baseLock.validate(stamp));
+        if (ts != null)
+            return ts;
+        return registerThread(tid);
+    }
+
+>>>>>>> tfll debugging
     private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
 
 }
