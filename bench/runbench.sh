@@ -56,11 +56,11 @@ done
 
 # prepare the benchmark script
 for strategy in $strategies; do
-   cat $benchmark | sed "s/@STRATEGY@/${strategy_object[$strategy]}/g" | sed "s/@NAME@/$strategy/g" > script.rb
+#   cat $benchmark | sed "s/@STRATEGY@/${strategy_object[$strategy]}/g" | sed "s/@NAME@/$strategy/g" > script.rb
 #  run the script on the thread groups
    for threads in $nthreads; do
        echo "Run with strategy=$strategy, threads=$threads"
-       $JT ruby --graal script.rb $threads
+       $JT ruby --graal $benchmark ${strategy_object[$strategy]} $threads
    done
 done
   

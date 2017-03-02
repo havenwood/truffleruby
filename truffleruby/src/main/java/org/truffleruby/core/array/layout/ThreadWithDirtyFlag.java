@@ -8,6 +8,7 @@ import org.truffleruby.core.array.ConcurrentArray;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public class ThreadWithDirtyFlag extends Thread {
 
@@ -20,6 +21,8 @@ public class ThreadWithDirtyFlag extends Thread {
     private final FastLayoutLock fastLayoutLock;
     private final TransitioningFastLayoutLock transitioningFastLayoutLock;
     private HashMap<Object, AtomicInteger> lockStates = new HashMap<>();
+    private AtomicInteger last = null;
+    private DynamicObject lastObject = null;
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
@@ -50,13 +53,21 @@ public class ThreadWithDirtyFlag extends Thread {
         return ts;
     }
 
+    public AtomicInteger getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
+       if (fastPathProfile.profile(lastObject == array))
+	  return last;
+       return getThreadState_slowPath(array);
+    }
+
     @TruffleBoundary
-    public AtomicInteger getThreadState(DynamicObject array) {
+    private AtomicInteger getThreadState_slowPath(DynamicObject array) {
         AtomicInteger ts = lockStates.get(array);
         if (ts == null) {
             ts = fastLayoutLock.registerThread(Thread.currentThread().getId());
             lockStates.put(array, ts);
         }
+	lastObject = array;
+	last = ts;
         return ts;
     }
 
