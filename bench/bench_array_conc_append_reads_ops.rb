@@ -50,7 +50,7 @@ THREADS = N_THREADS.times.map {
 
 def measure(input, name)
   meth = setup(name)
-  n = 5
+  n = 10
   results = eval <<EOR
   n.times.map do
     input.clear
@@ -60,7 +60,7 @@ def measure(input, name)
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
     $run = true
     THREADS.each { |q,ret| q.push -> { #{meth}(input) } }
-    sleep 2
+    sleep 5
     $run = false
     THREADS.each { |q,ret| ops += ret.pop }
     t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
@@ -71,7 +71,8 @@ def measure(input, name)
   end
 EOR
 
-  [results.min, results.sort[results.size/2], results.max]
+  results=results[1..-1] # discard warmup round
+  [results.min, results.sort[results.size/2], results.max, results.inject{ |sum, el| sum + el }.to_f / results.size]
   # results.min
 end
 
