@@ -70,7 +70,7 @@ public class TruffleArrayNodes {
         @Specialization(guards = "isRubySymbol(strategy)")
         public DynamicObject setStrategy(DynamicObject array, DynamicObject strategy) {
             if (!(SharedObjects.isShared(getContext(), array))) {
-                throw new UnsupportedOperationException("array needs to be shared to change the concurrent strategy");
+                SharedObjects.writeBarrier(getContext(), array);
             }
             final Thread thread = Thread.currentThread();
             getContext().getSafepointManager().pauseAllThreadsAndExecute(this, false, (rubyThread, currentNode) -> {
