@@ -18,34 +18,38 @@ end
 # Avoid global var invalidation
 11.times { |i| $run = $go = i }
 
-def thread_pool_ops
+def thread_pool_ops(input)
   N_THREADS.times.map { |t|
     q = Queue.new
     ret = Queue.new
     Thread.new {
       while job = q.pop
-        Thread.pass until $go
-        ops = 0
-        while $run
-          job.call(t)
-          ops += 1
-        end
-        ret.push ops
+        ret.push thread_bench(input, t)
       end
     }
     [q, ret]
   }
 end
 
+def thread_bench(input, t)
+  Thread.pass until $go
+  ops = 0
+  while $run
+    bench(input, t)
+    ops += 1
+  end
+  ops
+end
+
 def measure_ops(input, &prepare_input)
-  threads = thread_pool_ops
+  threads = thread_pool_ops(input)
 
   results = ROUNDS.times.map do
     prepare_input.call if prepare_input
 
     $go = false
     $run = true
-    threads.each { |q,ret| q.push -> t { bench(input, t) } }
+    threads.each { |q,ret| q.push :token }
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     $go = true
 
