@@ -12,7 +12,7 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
  */
 public class LayoutLock {
 
-    public static final boolean OPTIMIZE_LC_LC = false;
+    public static final boolean OPTIMIZE_LC_LC = System.getProperty("optimizeLCLC") != null; // false by default
 
     public static final LayoutLock GLOBAL_LOCK = new LayoutLock();
 

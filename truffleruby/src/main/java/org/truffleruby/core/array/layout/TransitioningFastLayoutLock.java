@@ -23,7 +23,7 @@ public final class TransitioningFastLayoutLock {
     public static final int INACTIVE = 0;
     public static final int LAYOUT_CHANGE = 1;
 
-    AtomicInteger selector = new AtomicInteger(STATE_STAMPED);
+    final AtomicInteger selector = new AtomicInteger(STATE_STAMPED);
 
     public static AtomicInteger nullState = new AtomicInteger(INACTIVE);
 

@@ -2,9 +2,6 @@ package org.truffleruby.core.array.layout;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.truffleruby.core.array.layout.FastLayoutLockNodesFactory.FastLayoutLockFinishLayoutChangeNodeGen;
-import org.truffleruby.core.array.layout.FastLayoutLockNodesFactory.FastLayoutLockStartLayoutChangeNodeGen;
-import org.truffleruby.core.array.layout.FastLayoutLockNodesFactory.FastLayoutLockStartWriteNodeGen;
 import org.truffleruby.core.array.layout.TransitioningFastLayoutLockNodesFactory.TransitioningFastLayoutLockFinishLayoutChangeNodeGen;
 import org.truffleruby.core.array.layout.TransitioningFastLayoutLockNodesFactory.TransitioningFastLayoutLockStartLayoutChangeNodeGen;
 import org.truffleruby.core.array.layout.TransitioningFastLayoutLockNodesFactory.TransitioningFastLayoutLockStartWriteNodeGen;

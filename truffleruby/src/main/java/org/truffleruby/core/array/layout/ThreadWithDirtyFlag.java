@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.truffleruby.core.array.ConcurrentArray;
-
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
@@ -20,7 +18,7 @@ public class ThreadWithDirtyFlag extends Thread {
     private final LayoutLock.Accessor layoutLockAccessor;
     private final FastLayoutLock fastLayoutLock;
     private final TransitioningFastLayoutLock transitioningFastLayoutLock;
-    private HashMap<Object, AtomicInteger> lockStates = new HashMap<>();
+    private final HashMap<Object, AtomicInteger> lockStates = new HashMap<>();
     private AtomicInteger last = null;
     private DynamicObject lastObject = null;
 
