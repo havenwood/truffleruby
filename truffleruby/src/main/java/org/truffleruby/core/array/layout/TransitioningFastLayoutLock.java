@@ -172,7 +172,7 @@ public final class TransitioningFastLayoutLock {
         AtomicInteger ts = new AtomicInteger();
         long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
         try {
-	   System.err.println("Register thread "+tid);
+            System.err.println("Register thread " + tid);
             threadStates.put(tid, ts);
             updateGather();
         } finally {
