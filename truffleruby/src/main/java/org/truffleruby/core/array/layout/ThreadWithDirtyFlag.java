@@ -54,9 +54,11 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     public AtomicInteger getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
-       if (fastPathProfile.profile(lastObject == array))
-	  return last;
-       return getThreadState_slowPath(array);
+        if (fastPathProfile.profile(lastObject == array)) {
+            return last;
+
+        }
+        return getThreadState_slowPath(array);
     }
 
     @TruffleBoundary
@@ -66,8 +68,8 @@ public class ThreadWithDirtyFlag extends Thread {
             ts = fastLayoutLock.registerThread(Thread.currentThread().getId());
             lockStates.put(array, ts);
         }
-	lastObject = array;
-	last = ts;
+        lastObject = array;
+        last = ts;
         return ts;
     }
 
