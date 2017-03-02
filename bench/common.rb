@@ -66,13 +66,28 @@ def measure_ops(input, &prepare_input)
   [results.min, results.sort[ROUNDS/2], results.max, results.reduce(:+).to_f / ROUNDS]
 end
 
+def measure_single(input)
+  n = 10
+  results = SINGLE_ROUNDS.times.map do
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+    bench(input)
+    t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+    (t1-t0) / 1000.0
+  end
+
+  # [results.min, results.sort[results.size/2], results.max]
+  p results.min
+end
+
 # Parse arguments
 
-unless ARGV.size == 2
-  raise "Usage: bench STRATEGY N_THREADS"
+if ARGV.size < 1
+  raise "Usage: bench STRATEGY [N_THREADS=1]"
 end
 
 STRATEGY = ARGV[0].to_sym
-N_THREADS = Integer(ARGV[1] || 4)
+N_THREADS = Integer(ARGV[1] || 1)
+
 ROUNDS = 10
 THROUGHPUT_TIME = 5
+SINGLE_ROUNDS = 100
