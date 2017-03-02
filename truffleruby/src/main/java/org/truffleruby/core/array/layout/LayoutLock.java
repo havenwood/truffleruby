@@ -71,6 +71,14 @@ public class LayoutLock {
             return true;
         }
 
+        public boolean finishRead() {
+            if (dirty) {
+                resetDirty();
+                return false;
+            }
+            return true;
+        }
+
         public void startWrite() {
             while (layoutChangeIntended.get() > 0 || !state.compareAndSet(INACTIVE, WRITE)) {
             }
