@@ -52,14 +52,15 @@ esac
 shift #past argument or value
 done
 
-[ "$benchmark." == "." ] && echo "Please specifiy a benchmark tempalte file" && exit
+[ "$benchmark." == "." ] && echo "Please specifiy a benchmark script" && exit
 
 # prepare the benchmark script
 for strategy in $strategies; do
 #   cat $benchmark | sed "s/@STRATEGY@/${strategy_object[$strategy]}/g" | sed "s/@NAME@/$strategy/g" > script.rb
 #  run the script on the thread groups
    for threads in $nthreads; do
-       echo "Run with strategy=$strategy, threads=$threads"
+       echo "Run with strategy=${strategy_object[$strategy]}, threads=$threads"
+       echo "$JT ruby --graal $benchmark ${strategy_object[$strategy]} $threads"
        $JT ruby --graal $benchmark ${strategy_object[$strategy]} $threads
    done
 done
