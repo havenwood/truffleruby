@@ -1,6 +1,6 @@
 // cc -std=gnu99 -O3 monte_carlo_pi.c -pthread -lrt -o monte_carlo_pi
 
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
 #define _POSIX_BARRIERS 1
 
