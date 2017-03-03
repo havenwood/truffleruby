@@ -320,7 +320,7 @@ public abstract class HashNodes {
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
                 ConcurrentHash.linkFirstLast(hash, null, null);
-                ConcurrentHash.getStore(hash).setBuckets(new AtomicReferenceArray<>(BucketsStrategy.INITIAL_CAPACITY));
+                ConcurrentHash.getStore(hash).setBuckets(new AtomicReferenceArray<>(ConcurrentBucketsStrategy.INITIAL_CAPACITY));
                 ConcurrentHash.setSize(hash, 0);
             } finally {
                 finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);

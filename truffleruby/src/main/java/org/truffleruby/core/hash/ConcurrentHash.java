@@ -29,7 +29,7 @@ public final class ConcurrentHash implements ObjectGraphNode {
     }
 
     public ConcurrentHash(DynamicObject hash) {
-        this.buckets = new AtomicReferenceArray<>(BucketsStrategy.INITIAL_CAPACITY);
+        this.buckets = new AtomicReferenceArray<>(ConcurrentBucketsStrategy.INITIAL_CAPACITY);
         ConcurrentHash.setFirstInSequence(hash, new ConcurrentEntry(0, null, null, false));
         ConcurrentHash.setLastInSequence(hash, new ConcurrentEntry(0, null, null, false));
     }
