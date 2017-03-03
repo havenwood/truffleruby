@@ -30,6 +30,15 @@ class MyRandom
   end
 end
 
+def thread_partition(t, total_size)
+  chunk = total_size / N_THREADS
+  if t == N_THREADS-1
+    [t*chunk, (t+1)*chunk]
+  else
+    [t*chunk, total_size]
+  end
+end
+
 if RUBY_ENGINE == 'truffleruby'
   def put_if_absent_hash(&default)
     Hash.new { |h,k| h[k] = default.call }
@@ -51,6 +60,11 @@ end
 
 # Avoid global var invalidation
 11.times { |i| $run = $go = i }
+
+def stats(results)
+  results.shift # discard warmup round
+  [results.min, results.sort[results.size/2], results.max, results.reduce(:+).to_f / results.size]
+end
 
 def thread_pool_ops(input)
   N_THREADS.times.map { |t|
@@ -103,8 +117,47 @@ def measure_ops(input, &prepare_input)
   threads.each { |q,ret| q.push nil }
   threads.each(&:join)
 
-  results.shift # discard warmup round
-  [results.min, results.sort[ROUNDS/2], results.max, results.reduce(:+).to_f / ROUNDS]
+  stats(results)
+end
+
+def thread_pool(input)
+  N_THREADS.times.map { |t|
+    q = Queue.new
+    ret = Queue.new
+    Thread.new {
+      while job = q.pop
+        Thread.pass until $go
+        ret.push bench(input, t)
+      end
+    }
+    [q, ret]
+  }
+end
+
+def measure_one_op(input, &prepare_input)
+  threads = thread_pool(input)
+
+  results = ROUNDS.times.map do
+    prepare_input.call if prepare_input
+
+    $go = false
+    $run = true
+    threads.each { |q,ret| q.push :token }
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    $go = true
+
+    threads.each { |q,ret| ret.pop }
+    t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    dt = (t1-t0)
+    ops = 1.0 / dt
+    p ops
+    ops
+  end
+
+  threads.each { |q,ret| q.push nil }
+  threads.each(&:join)
+
+  stats(results)
 end
 
 def measure_single(input)
