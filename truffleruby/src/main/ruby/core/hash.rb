@@ -221,7 +221,7 @@ class Hash
 
   def default(key=undefined)
     if default_proc and !undefined.equal?(key)
-      if Truffle::Debug.shared?(self)
+      if ::Truffle::Debug.shared?(self)
         # To make h=Hash.new { |h,k| h[k] = [] }; h[new_key] << 1; behave like put_if_absent
         h = DefaultValueHash.new(self, key)
         value = default_proc.call(h, key)
