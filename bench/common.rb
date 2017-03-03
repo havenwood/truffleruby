@@ -66,6 +66,9 @@ def measure_ops(input, &prepare_input)
     ops
   end
 
+  threads.each { |q,ret| q.push nil }
+  threads.each(&:join)
+
   results.shift # discard warmup round
   [results.min, results.sort[ROUNDS/2], results.max, results.reduce(:+).to_f / ROUNDS]
 end
