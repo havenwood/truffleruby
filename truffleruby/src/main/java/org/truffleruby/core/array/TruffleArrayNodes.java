@@ -69,45 +69,52 @@ public class TruffleArrayNodes {
         @TruffleBoundary
         @Specialization(guards = "isRubySymbol(strategy)")
         public DynamicObject setStrategy(DynamicObject array, DynamicObject strategy) {
-            if (!(SharedObjects.isShared(getContext(), array))) {
+            final boolean isLocalArray = !SharedObjects.isShared(getContext(), array);
+            final String name = Layouts.SYMBOL.getString(strategy);
+            if (isLocalArray) {
                 SharedObjects.writeBarrier(getContext(), array);
-            }
-            final Thread thread = Thread.currentThread();
-            getContext().getSafepointManager().pauseAllThreadsAndExecute(this, false, (rubyThread, currentNode) -> {
-                if (Thread.currentThread() == thread) {
-                    final ConcurrentArray concurrentArray = (ConcurrentArray) Layouts.ARRAY.getStore(array);
-                    final String name = Layouts.SYMBOL.getString(strategy);
-                    switch (name) {
-                        case "FixedSize":
-                            Layouts.ARRAY.setStore(array, new FixedSizeArray(concurrentArray.getStore()));
-                            break;
-                        case "Synchronized":
-                            Layouts.ARRAY.setStore(array, new SynchronizedArray(concurrentArray.getStore()));
-                            break;
-                        case "ReentrantLock":
-                            Layouts.ARRAY.setStore(array, new ReentrantLockArray(concurrentArray.getStore(), new ReentrantLock()));
-                            break;
-                        case "CustomLock":
-                            Layouts.ARRAY.setStore(array, new CustomLockArray(concurrentArray.getStore(), new MyBiasedLock()));
-                            break;
-                        case "StampedLock":
-                            Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));
-                            break;
-                        case "LayoutLock":
-                            Layouts.ARRAY.setStore(array, new LayoutLockArray(concurrentArray.getStore()));
-                            break;
-                        case "FastLayoutLock":
-                            Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore()));
-                            break;
-                        case "TransitioningFastLayoutLock":
-                            Layouts.ARRAY.setStore(array, new TransitioningFastLayoutLockArray(concurrentArray.getStore()));
-                            break;
-                        default:
-                            throw new UnsupportedOperationException("Invalid strategy " + name);
+                changeStrategy(array, name);
+            } else {
+                final Thread thread = Thread.currentThread();
+                getContext().getSafepointManager().pauseAllThreadsAndExecute(this, false, (rubyThread, currentNode) -> {
+                    if (Thread.currentThread() == thread) {
+                        changeStrategy(array, name);
                     }
-                }
-            });
+                });
+            }
             return array;
+        }
+
+        private void changeStrategy(DynamicObject array, String name) {
+            final ConcurrentArray concurrentArray = (ConcurrentArray) Layouts.ARRAY.getStore(array);
+            switch (name) {
+                case "FixedSize":
+                    Layouts.ARRAY.setStore(array, new FixedSizeArray(concurrentArray.getStore()));
+                    break;
+                case "Synchronized":
+                    Layouts.ARRAY.setStore(array, new SynchronizedArray(concurrentArray.getStore()));
+                    break;
+                case "ReentrantLock":
+                    Layouts.ARRAY.setStore(array, new ReentrantLockArray(concurrentArray.getStore(), new ReentrantLock()));
+                    break;
+                case "CustomLock":
+                    Layouts.ARRAY.setStore(array, new CustomLockArray(concurrentArray.getStore(), new MyBiasedLock()));
+                    break;
+                case "StampedLock":
+                    Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));
+                    break;
+                case "LayoutLock":
+                    Layouts.ARRAY.setStore(array, new LayoutLockArray(concurrentArray.getStore()));
+                    break;
+                case "FastLayoutLock":
+                    Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore()));
+                    break;
+                case "TransitioningFastLayoutLock":
+                    Layouts.ARRAY.setStore(array, new TransitioningFastLayoutLockArray(concurrentArray.getStore()));
+                    break;
+                default:
+                    throw new UnsupportedOperationException("Invalid strategy " + name);
+            }
         }
 
     }
