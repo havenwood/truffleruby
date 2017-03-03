@@ -22,7 +22,7 @@ import com.oracle.truffle.api.object.DynamicObject;
 
 public abstract class ConcurrentBucketsStrategy {
 
-    public static final int INITIAL_CAPACITY = BucketsStrategy.INITIAL_CAPACITY;
+    public static final int INITIAL_CAPACITY = Integer.valueOf(System.getProperty("hash.initial.size", "" + BucketsStrategy.INITIAL_CAPACITY));
 
     // The general technique to handle removal in a linked list is to first CAS node.next to a
     // removed node with removed.next = next and then CAS node.next to next. Otherwise,
