@@ -12,5 +12,5 @@ c.each { |run|
   times.sort!
   median = times[times.size/2]
 
-  puts [bench, threads, "RB", median].join(';')
+  puts [bench, threads, "C", median].join(';')
 }

@@ -36,8 +36,9 @@ base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
 
 # full = load_data("monte_carlo_pi.csv")
 # full = load_data("monte_carlo_pi_rb.csv")
-# full$Value = 1 / full$Value
-# full$Value = full$Value / subset(full, Threads=="1")$Value
+full = load_data("monte_carlo_pi_sparc.csv")
+full$Value = 1 / full$Value
+full$Value = full$Value / subset(full, Threads=="1")$Value
 
 #png(file = "times.png", width=740, height=400)
 ggplot(data = full, aes(x=Threads, y=Value, group=VM, color=VM)) + geom_point() + geom_line() +
