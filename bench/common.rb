@@ -74,7 +74,6 @@ def measure_single(input)
   # Make sure we enable shared objects tracking
   Thread.new {}.join
 
-  n = 10
   results = SINGLE_ROUNDS.times.map do
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
     bench(input)
