@@ -15,6 +15,22 @@ unless defined?(Truffle)
   end
 end
 
+class MyRandom
+  def initialize(seed)
+    @seed = seed
+  end
+
+  def next
+    @seed = ((@seed * 1309) + 13849) & 65535
+  end
+
+  def next_int(bound)
+    # fair enough for low values of bound
+    self.next % bound
+  end
+end
+
+
 # Avoid global var invalidation
 11.times { |i| $run = $go = i }
 
