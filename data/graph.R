@@ -36,7 +36,7 @@ base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
 
 # full = load_data("monte_carlo_pi.csv")
 # full = load_data("monte_carlo_pi_rb.csv")
-full = load_data("monte_carlo_pi_sparc.csv")
+full = load_data("monte_carlo_pi_sparc2.csv")
 full$Value = 1 / full$Value
 full$Value = full$Value / subset(full, Threads=="1")$Value
 
