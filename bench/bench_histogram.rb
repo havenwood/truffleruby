@@ -18,7 +18,7 @@ end
 
 hist = put_if_absent_hash { Truffle::Array.set_strategy([], STRATEGY) }
 
-measure_one_op(hist) {
+p measure_one_op(hist) {
   hist.clear
 }
 
