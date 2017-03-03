@@ -30,6 +30,24 @@ class MyRandom
   end
 end
 
+if RUBY_ENGINE == 'truffleruby'
+  def put_if_absent_hash(&default)
+    Hash.new { |h,k| h[k] = default.call }
+  end
+else
+  def put_if_absent_hash(&default)
+    mutex = Mutex.new
+    Hash.new { |h,k|
+      mutex.synchronize {
+        if h.key?(k)
+          h[k]
+        else
+          h[k] = default.call
+        end
+      }
+    }
+  end
+end
 
 # Avoid global var invalidation
 11.times { |i| $run = $go = i }
