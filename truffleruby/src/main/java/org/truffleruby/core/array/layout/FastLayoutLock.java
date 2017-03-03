@@ -10,8 +10,6 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public final class FastLayoutLock {
 
-    public static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
-
     public static final int INACTIVE = 0;
     public static final int WRITER_ACTIVE = -11;
     public static final int LAYOUT_CHANGE = 1;

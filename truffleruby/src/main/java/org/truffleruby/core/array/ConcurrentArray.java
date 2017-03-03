@@ -4,6 +4,7 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
+import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.language.objects.ObjectGraphNode;
 
@@ -103,9 +104,15 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
     }
 
     public static final class FastLayoutLockArray extends ConcurrentArray {
+        FastLayoutLock lock;
 
         public FastLayoutLockArray(Object store) {
             super(store);
+            lock = new FastLayoutLock();
+        }
+
+        public FastLayoutLock getLock() {
+            return lock;
         }
 
     }

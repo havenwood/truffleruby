@@ -5,13 +5,13 @@ import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
-import org.truffleruby.core.array.layout.FastLayoutLockNodes.FastLayoutLockFinishLayoutChangeNode;
-import org.truffleruby.core.array.layout.FastLayoutLockNodes.FastLayoutLockStartLayoutChangeNode;
+import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
@@ -177,20 +177,23 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
     @Specialization(guards = "isFastLayoutLockArray(array)")
     public Object FastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
-            @Cached("create()") FastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
-            @Cached("create()") FastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
+            @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
+            @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
         // final FastLayoutLock.ThreadState threadState =
         // getThreadStateNode.executeGetThreadState(array);
-        final long stamp = startLayoutChangeNode.executeStartLayoutChange();
+        final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
+
+        final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
         try {
             return builtinNode.execute(frame);
         } finally {
-            finishLayoutChangeNode.executeFinishLayoutChange(stamp);
+            lock.finishLayoutChange(stamp);
         }
     }
 
     @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
     public Object TransitioningFastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("create()") TransitioningFastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
             @Cached("create()") TransitioningFastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
         // final TransitioningFastLayoutLock.ThreadState threadState =

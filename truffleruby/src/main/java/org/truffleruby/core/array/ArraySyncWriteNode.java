@@ -6,10 +6,10 @@ import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.layout.FastLayoutLock;
-import org.truffleruby.core.array.layout.FastLayoutLockNodes.FastLayoutLockStartWriteNode;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.GetTransitioningThreadStateNode;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
@@ -29,6 +29,7 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.NodeCost;
 import com.oracle.truffle.api.nodes.NodeInfo;
 import com.oracle.truffle.api.object.DynamicObject;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @NodeInfo(cost = NodeCost.NONE)
 @NodeChild("self")
@@ -146,14 +147,16 @@ public abstract class ArraySyncWriteNode extends RubyNode {
     @Specialization(guards = "isFastLayoutLockArray(array)")
     public Object FastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
-            @Cached("create()") FastLayoutLockStartWriteNode startWriteNode) {
+            @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
         final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
         // accessor.startWrite();
-        startWriteNode.executeStartWrite(threadState);
+        final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
+
+        lock.startWrite(threadState, fastPathProfile);
         try {
             return builtinNode.execute(frame);
         } finally {
-            FastLayoutLock.GLOBAL_LOCK.finishWrite(threadState);
+            lock.finishWrite(threadState);
         }
     }
 

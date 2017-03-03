@@ -1,8 +1,12 @@
 package org.truffleruby.core.array.layout;
 
 import java.util.HashMap;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.truffleruby.Layouts;
+import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -16,25 +20,19 @@ public class ThreadWithDirtyFlag extends Thread {
     public final long threadId = threadIds.incrementAndGet();
 
     private final LayoutLock.Accessor layoutLockAccessor;
-    private final FastLayoutLock fastLayoutLock;
     private final TransitioningFastLayoutLock transitioningFastLayoutLock;
-    private final HashMap<Object, AtomicInteger> lockStates = new HashMap<>();
+    private final HashMap<DynamicObject, AtomicInteger> lockStates = new HashMap<>();
     private AtomicInteger last = null;
     private DynamicObject lastObject = null;
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
         this.layoutLockAccessor = LayoutLock.GLOBAL_LOCK.access();
-        this.fastLayoutLock = FastLayoutLock.GLOBAL_LOCK;
         this.transitioningFastLayoutLock = TransitioningFastLayoutLock.GLOBAL_LOCK;
     }
 
     public LayoutLock.Accessor getLayoutLockAccessor() {
         return layoutLockAccessor;
-    }
-
-    public FastLayoutLock getFastLayoutLock() {
-        return fastLayoutLock;
     }
 
     public TransitioningFastLayoutLock getTransitioningFastLayoutLock() {
@@ -63,12 +61,19 @@ public class ThreadWithDirtyFlag extends Thread {
     private AtomicInteger getThreadState_slowPath(DynamicObject array) {
         AtomicInteger ts = lockStates.get(array);
         if (ts == null) {
-            ts = fastLayoutLock.registerThread(Thread.currentThread().getId());
+            ts = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock().registerThread(Thread.currentThread().getId());
             lockStates.put(array, ts);
         }
         lastObject = array;
         last = ts;
         return ts;
+    }
+
+    public void cleanup() {
+        for (Entry<DynamicObject, AtomicInteger> entry : lockStates.entrySet()) {
+            FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(entry.getKey())).getLock();
+            lock.unregisterThread(entry.getValue());
+        }
     }
 
     public long getThreadId() {
