@@ -1,3 +1,5 @@
+require './random'
+
 Thread.abort_on_exception = true
 
 unless defined?(Truffle)
