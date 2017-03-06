@@ -1,4 +1,4 @@
-require './random'
+require_relative 'random'
 
 Thread.abort_on_exception = true
 
