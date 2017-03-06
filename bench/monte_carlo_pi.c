@@ -29,7 +29,7 @@ double estimate_pi(int samples) {
 }
 
 int T = 1;
-int N = 400000000;
+int N = 1600000000;
 int iterations = 10;
 
 pthread_barrier_t barrier;
