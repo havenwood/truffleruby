@@ -21,7 +21,9 @@ public class ThreadWithDirtyFlag extends Thread {
 
     private final LayoutLock.Accessor layoutLockAccessor;
     private final TransitioningFastLayoutLock transitioningFastLayoutLock;
+
     private final HashMap<DynamicObject, AtomicInteger> lockStates = new HashMap<>();
+
     private AtomicInteger last = null;
     private DynamicObject lastObject = null;
 
@@ -61,7 +63,8 @@ public class ThreadWithDirtyFlag extends Thread {
     private AtomicInteger getThreadState_slowPath(DynamicObject array) {
         AtomicInteger ts = lockStates.get(array);
         if (ts == null) {
-            ts = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock().registerThread(Thread.currentThread().getId());
+            FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
+            ts = fastLayoutLockArray.getLock().registerThread(Thread.currentThread().getId());
             lockStates.put(array, ts);
         }
         lastObject = array;
