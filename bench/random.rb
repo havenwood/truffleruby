@@ -7,7 +7,7 @@ class Random
 
   def initialize(seed=nil)
     @seedUniquifier = 8682522807148012
-    @seed = seed.nil? ? seedUniquifier ^ Time.now.nsec : initialScramble(seed)
+    @seed = seed.nil? ? seedUniquifier : initialScramble(seed)
     @haveNextNextGaussian = false
   end
 
