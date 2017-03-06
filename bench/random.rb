@@ -7,12 +7,12 @@ class Random
 
   def initialize(seed=nil)
     @seedUniquifier = 8682522807148012
-    @seed = (seed.nil?) ? seedUniquifier ^ Time.now.nsec : initialScramble(seed)
+    @seed = seed.nil? ? seedUniquifier ^ Time.now.nsec : initialScramble(seed)
     @haveNextNextGaussian = false
   end
 
   def seedUniquifier  # this has no meaning if seedUniquifier isn't atomically accessed by multiple threads
-    @seedUniquifier *= 181783497276652981
+    @seedUniquifier = (@seedUniquifier * 181783497276652981) & MASK
   end
 
   def initialScramble(seed)
