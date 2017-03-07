@@ -58,11 +58,11 @@ class Random
   end
 
   def nextFloat
-    next_(24).to_f / (1 << 24).to_f
+    rand(24).to_f / (1 << 24).to_f
   end
 
   def nextDouble
-    next_(26) * DOUBLE_UNIT_HIGH + next_(27) * DOUBLE_UNIT_LOW
+    rand(26) * DOUBLE_UNIT_HIGH + rand(27) * DOUBLE_UNIT_LOW
   end
 
   def nextGaussian
