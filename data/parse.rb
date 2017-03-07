@@ -9,6 +9,7 @@ c.each { |run|
   bench, name, threads = run.shift.split[-3..-1]
   bench = File.basename(bench)
   threads = Integer(threads)
+  run.pop while run.last.start_with?('[GC')
   median = eval(run.last)[1]
   puts [bench, threads, name, median].join(';')
 }

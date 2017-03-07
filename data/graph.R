@@ -30,10 +30,11 @@ full = load_data("conc_write_reads_1numa_16gb_heap.csv")
 # java = load_data("java_write_read_ops2numa.csv")
 # full = rbind(full, java)
 full = load_data("conc_write_reads_ops_1numa.csv")
+full = load_data("conc_write_reads_ops_2numa.csv")
 
-base_fixed = subset(full, VM=="FixedSize" & Threads=="1")$Value
+base = max(subset(full, Threads=="1")$Value)
 base_fll = 1 # subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
-# full$Value = full$Value / base_fixed
+# full$Value = full$Value / base
 
 # full = subset(full, VM != "FixedSize")
 # full = subset(full, Threads != "1")
@@ -54,7 +55,7 @@ ggplot(data = full, aes(x=Threads, y=Value, group=VM, color=VM)) + geom_point() 
   theme(text = element_text(size=20), legend.position="bottom",
         legend.title = element_blank(), legend.background = element_blank(), legend.key = element_blank(),
         legend.text = element_text(size = 16)) +
-  geom_abline(slope = base_fixed) +
+  geom_abline(slope = base) +
   geom_abline(slope = base_fll)
   
 #   scale_y_continuous(breaks = c(seq(0, 200, 30), 20, 40), minor_breaks = NULL) +

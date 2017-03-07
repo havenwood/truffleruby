@@ -1,0 +1,11 @@
+bench_array_conc_write_reads_ops.rb;1;FixedSize;6321.19969058216
+bench_array_conc_write_reads_ops.rb;2;FixedSize;12188.7463101678
+bench_array_conc_write_reads_ops.rb;4;FixedSize;24918.4282139359
+bench_array_conc_write_reads_ops.rb;8;FixedSize;49427.2592481805
+bench_array_conc_write_reads_ops.rb;12;FixedSize;75239.868623772
+bench_array_conc_write_reads_ops.rb;16;FixedSize;99077.9234467264
+bench_array_conc_write_reads_ops.rb;18;FixedSize;110038.325616966
+bench_array_conc_write_reads_ops.rb;22;FixedSize;136478.094850385
+bench_array_conc_write_reads_ops.rb;26;FixedSize;161950.3781419
+bench_array_conc_write_reads_ops.rb;32;FixedSize;197972.992882195
+bench_array_conc_write_reads_ops.rb;36;FixedSize;209271.744693671
