@@ -1,0 +1,7 @@
+bench_array_conc_write_reads_ops.rb;1;FixedSize;6323.9373269154
+bench_array_conc_write_reads_ops.rb;2;FixedSize;12601.8761327574
+bench_array_conc_write_reads_ops.rb;4;FixedSize;25222.935111246
+bench_array_conc_write_reads_ops.rb;8;FixedSize;50344.3069755047
+bench_array_conc_write_reads_ops.rb;12;FixedSize;75440.4688914874
+bench_array_conc_write_reads_ops.rb;16;FixedSize;100710.473708271
+bench_array_conc_write_reads_ops.rb;18;FixedSize;113380.751968006
