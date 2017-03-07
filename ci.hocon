@@ -454,7 +454,7 @@ deploy-binaries: {
 # command prefix for binding a command to a certain node
 hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
 
-run-bench: ${hwloc.node0} ${jt} ["ruby", "--graal", "-J-Dgraal.TruffleCompilerThreads=1", "-J-verbose:gc", "--disable-gems", "bench/bench_array_conc_write_reads_ops.rb", "FixedSize"]
+run-bench: ${jt} ["ruby", "--graal", "-J-Dgraal.TruffleCompilerThreads=1", "-J-verbose:gc", "--disable-gems", "bench/bench_array_conc_write_reads_ops.rb", "FixedSize"]
 
 custom-bench: {
   run: [
@@ -465,10 +465,10 @@ custom-bench: {
     ${run-bench} ["12"],
     ${run-bench} ["16"],
     ${run-bench} ["18"],
-    // ${run-bench} ["22"],
-    // ${run-bench} ["26"],
-    // ${run-bench} ["32"],
-    // ${run-bench} ["36"],
+    ${run-bench} ["22"],
+    ${run-bench} ["26"],
+    ${run-bench} ["32"],
+    ${run-bench} ["36"],
   ]
   timelimit: "01:30:00"
 }
