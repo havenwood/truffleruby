@@ -6,14 +6,9 @@ class Random
   DOUBLE_UNIT_LOW = 1.0 / (1<<53).to_f
   DOUBLE_UNIT_HIGH = 1.0 / (1<<26).to_f
 
-  def initialize(seed=nil)
-    @seedUniquifier = 8682522807148012
-    @seed = (seed.nil?) ? ((seedUniquifier ^ Time.now.nsec) & MASK) : initialScramble(seed)
+  def initialize(seed)
+    @seed = initialScramble(seed)
     @haveNextNextGaussian = false
-  end
-
-  def seedUniquifier()  # this has no meaning if seedUniquifier isn't atomically accessed by multiple threads
-    @seedUniquifier = @seedUniquifier * 181783497276652981
   end
 
   def initialScramble(seed)
