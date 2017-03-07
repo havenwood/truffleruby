@@ -131,13 +131,14 @@ public abstract class ConcurrentBucketsStrategy {
 
     public static ConcurrentEntry removeFirstFromSequence(DynamicObject hash, ConcurrentEntry tail) {
         // TODO: should skip to next instead of busy waiting on first?
-        ConcurrentEntry entry = ConcurrentHash.getFirstEntry(hash);
+        final ConcurrentHash concurrentHash = ConcurrentHash.getStore(hash);
+        ConcurrentEntry entry = concurrentHash.getFirstEntry();
         while (entry != tail) {
             if (removeFromSequence(entry)) {
                 return entry;
             }
 
-            entry = ConcurrentHash.getFirstEntry(hash);
+            entry = concurrentHash.getFirstEntry();
         }
 
         // Empty Hash, nothing to remove
@@ -324,15 +325,17 @@ public abstract class ConcurrentBucketsStrategy {
             entry = entry.getNextInSequence();
         }
 
-        ConcurrentHash.getStore(hash).setBuckets(newEntries);
+        final ConcurrentHash concurrentHash = ConcurrentHash.getStore(hash);
+        concurrentHash.setBuckets(newEntries);
         ConcurrentHash.setSize(hash, buckets.getSize());
-        ConcurrentHash.linkFirstLast(hash, firstInSequence, lastInSequence);
+        concurrentHash.linkFirstLast(firstInSequence, lastInSequence);
     }
 
     public static Iterator<KeyValue> iterateKeyValues(DynamicObject hash) {
         assert HashGuards.isConcurrentHash(hash);
-        final ConcurrentEntry first = ConcurrentHash.getFirstEntry(hash);
-        final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+        final ConcurrentHash concurrentHash = ConcurrentHash.getStore(hash);
+        final ConcurrentEntry first = concurrentHash.getFirstEntry();
+        final ConcurrentEntry tail = concurrentHash.getTail();
 
         return new Iterator<KeyValue>() {
 
@@ -372,8 +375,9 @@ public abstract class ConcurrentBucketsStrategy {
 
     public static Iterator<ConcurrentEntry> iterateEntries(DynamicObject hash) {
         assert HashGuards.isConcurrentHash(hash);
-        final ConcurrentEntry first = ConcurrentHash.getFirstEntry(hash);
-        final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+        final ConcurrentHash concurrentHash = ConcurrentHash.getStore(hash);
+        final ConcurrentEntry first = concurrentHash.getFirstEntry();
+        final ConcurrentEntry tail = concurrentHash.getTail();
 
         return new Iterator<ConcurrentEntry>() {
 

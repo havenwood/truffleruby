@@ -12,28 +12,27 @@ import com.oracle.truffle.api.object.ObjectType;
 
 public final class ConcurrentHash implements ObjectGraphNode {
 
+    private final ConcurrentEntry head;
+    private final ConcurrentEntry tail;
     private volatile AtomicReferenceArray<ConcurrentEntry> buckets;
 
-    public static void linkFirstLast(DynamicObject hash, ConcurrentEntry first, ConcurrentEntry last) {
-        ConcurrentEntry sentinelFirst = ConcurrentHash.getFirstInSequence(hash);
-        ConcurrentEntry sentinelLast = ConcurrentHash.getLastInSequence(hash);
-
+    public void linkFirstLast(ConcurrentEntry first, ConcurrentEntry last) {
         if (first != null) {
-            sentinelFirst.setNextInSequence(first);
-            first.setPreviousInSequence(sentinelFirst);
+            head.setNextInSequence(first);
+            first.setPreviousInSequence(head);
 
-            sentinelLast.setPreviousInSequence(last);
-            last.setNextInSequence(sentinelLast);
+            tail.setPreviousInSequence(last);
+            last.setNextInSequence(tail);
         } else {
-            sentinelFirst.setNextInSequence(sentinelLast);
-            sentinelLast.setPreviousInSequence(sentinelFirst);
+            head.setNextInSequence(tail);
+            tail.setPreviousInSequence(head);
         }
     }
 
     public ConcurrentHash(DynamicObject hash) {
+        this.head = new ConcurrentEntry(0, null, null, false);
+        this.tail = new ConcurrentEntry(0, null, null, false);
         this.buckets = new AtomicReferenceArray<>(ConcurrentBucketsStrategy.INITIAL_CAPACITY);
-        ConcurrentHash.setFirstInSequence(hash, new ConcurrentEntry(0, null, null, false));
-        ConcurrentHash.setLastInSequence(hash, new ConcurrentEntry(0, null, null, false));
     }
 
     public AtomicReferenceArray<ConcurrentEntry> getBuckets() {
@@ -42,6 +41,24 @@ public final class ConcurrentHash implements ObjectGraphNode {
 
     public void setBuckets(AtomicReferenceArray<ConcurrentEntry> buckets) {
         this.buckets = buckets;
+    }
+
+    public ConcurrentEntry getHead() {
+        return head;
+    }
+
+    public ConcurrentEntry getTail() {
+        return tail;
+    }
+
+    /** Returns first non-removed entry, possibly tail */
+    public ConcurrentEntry getFirstEntry() {
+        ConcurrentEntry entry = head.getNextInSequence();
+        if (entry.isRemoved()) {
+            entry = entry.getNextInSequence();
+        }
+        assert !entry.isRemoved();
+        return entry;
     }
 
     public void getAdjacentObjects(Set<DynamicObject> reachable) {
@@ -81,8 +98,6 @@ public final class ConcurrentHash implements ObjectGraphNode {
 
     private static final long SIZE_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "primitive1");
     private static final long COMPARE_BY_IDENTITY_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "primitive2");
-    private static final long FIRST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "object2");
-    private static final long LAST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "object3");
 
     public static ConcurrentHash getStore(DynamicObject hash) {
         return (ConcurrentHash) Layouts.HASH.getStore(hash);
@@ -110,33 +125,6 @@ public final class ConcurrentHash implements ObjectGraphNode {
 
     public static boolean compareAndSetCompareByIdentity(DynamicObject hash, boolean old, boolean byIdentity) {
         return UnsafeHolder.UNSAFE.compareAndSwapLong(hash, COMPARE_BY_IDENTITY_OFFSET, old ? 1L : 0L, byIdentity ? 1L : 0L);
-    }
-
-    public static ConcurrentEntry getFirstInSequence(DynamicObject hash) {
-        return (ConcurrentEntry) UnsafeHolder.UNSAFE.getObject(hash, FIRST_IN_SEQ_OFFSET);
-    }
-
-    private static void setFirstInSequence(DynamicObject hash, ConcurrentEntry entry) {
-        UnsafeHolder.UNSAFE.putObject(hash, FIRST_IN_SEQ_OFFSET, entry);
-    }
-
-    public static ConcurrentEntry getLastInSequence(DynamicObject hash) {
-        return (ConcurrentEntry) UnsafeHolder.UNSAFE.getObject(hash, LAST_IN_SEQ_OFFSET);
-    }
-
-    private static void setLastInSequence(DynamicObject hash, ConcurrentEntry entry) {
-        UnsafeHolder.UNSAFE.putObject(hash, LAST_IN_SEQ_OFFSET, entry);
-    }
-
-    /** Returns first non-removed entry, possibly tail */
-    public static ConcurrentEntry getFirstEntry(DynamicObject hash) {
-        final ConcurrentEntry head = getFirstInSequence(hash);
-        ConcurrentEntry entry = head.getNextInSequence();
-        if (entry.isRemoved()) {
-            entry = entry.getNextInSequence();
-        }
-        assert !entry.isRemoved();
-        return entry;
     }
 
 }

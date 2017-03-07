@@ -208,7 +208,7 @@ public abstract class SetNode extends RubyNode {
 
                 final ConcurrentEntry firstEntry = result.getPreviousEntry();
                 final ConcurrentEntry newEntry = new ConcurrentEntry(result.getHashed(), key, value, false);
-                final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+                final ConcurrentEntry tail = ConcurrentHash.getStore(hash).getTail();
                 newEntry.setNextInSequence(tail);
 
                 // Insert in the lookup chain

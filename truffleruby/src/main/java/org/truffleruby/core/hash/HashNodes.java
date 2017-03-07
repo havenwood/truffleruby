@@ -317,10 +317,11 @@ public abstract class HashNodes {
             assert HashOperations.verifyStore(getContext(), hash);
 
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
+            final ConcurrentHash concurrentHash = ConcurrentHash.getStore(hash);
             final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
             try {
-                ConcurrentHash.linkFirstLast(hash, null, null);
-                ConcurrentHash.getStore(hash).setBuckets(new AtomicReferenceArray<>(ConcurrentBucketsStrategy.INITIAL_CAPACITY));
+                concurrentHash.linkFirstLast(null, null);
+                concurrentHash.setBuckets(new AtomicReferenceArray<>(ConcurrentBucketsStrategy.INITIAL_CAPACITY));
                 ConcurrentHash.setSize(hash, 0);
             } finally {
                 finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
@@ -685,7 +686,8 @@ public abstract class HashNodes {
 
         @Specialization(guards = "isConcurrentHash(hash)")
         public boolean emptyConcurrent(DynamicObject hash) {
-            return ConcurrentHash.getFirstEntry(hash) == ConcurrentHash.getLastInSequence(hash);
+            final ConcurrentHash concurrentHash = ConcurrentHash.getStore(hash);
+            return concurrentHash.getFirstEntry() == concurrentHash.getTail();
         }
 
     }
@@ -1452,7 +1454,7 @@ public abstract class HashNodes {
                 @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
             assert HashOperations.verifyStore(getContext(), hash);
 
-            final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+            final ConcurrentEntry tail = ConcurrentHash.getStore(hash).getTail();
 
             ConcurrentEntry entry;
             final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);

@@ -34,8 +34,8 @@ public abstract class HashOperations {
     }
 
     public static boolean verifyConcurrentHashStore(DynamicObject hash) {
-        final ConcurrentEntry head = ConcurrentHash.getFirstInSequence(hash);
-        final ConcurrentEntry tail = ConcurrentHash.getLastInSequence(hash);
+        final ConcurrentEntry head = ConcurrentHash.getStore(hash).getHead();
+        final ConcurrentEntry tail = ConcurrentHash.getStore(hash).getTail();
 
         assert head != null;
         assert head.getKey() == null;
