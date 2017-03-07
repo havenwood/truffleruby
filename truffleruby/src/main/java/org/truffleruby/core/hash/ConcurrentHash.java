@@ -2,11 +2,13 @@ package org.truffleruby.core.hash;
 
 import java.util.Set;
 
+import org.truffleruby.Layouts;
 import org.truffleruby.core.UnsafeHolder;
 import org.truffleruby.language.objects.ObjectGraphNode;
 
 import com.oracle.truffle.api.object.DynamicObject;
-import com.oracle.truffle.object.basic.DynamicObjectBasic;
+import com.oracle.truffle.api.object.Layout;
+import com.oracle.truffle.api.object.ObjectType;
 
 public final class ConcurrentHash implements ObjectGraphNode {
 
@@ -65,15 +67,25 @@ public final class ConcurrentHash implements ObjectGraphNode {
     // "size":int@0,
     // "store":Object@0}
 
-    private static final long STORE_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object1");
-    private static final long SIZE_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive1");
-    private static final long COMPARE_BY_IDENTITY_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "primitive2");
-    private static final long FIRST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object2");
-    private static final long LAST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(DynamicObjectBasic.class, "object3");
+    // @{"compareByIdentity":boolean@1,
+    // "defaultValue":Object[0],
+    // "defaultBlock":DynamicObject@3,
+    // "lastInSequence":Entry@2,
+    // "firstInSequence":Entry@1,
+    // "size":int@0,
+    // "store":Object@0}
+
+
+    private static final Layout LAYOUT = Layout.createLayout();
+    private static final DynamicObject SOME_OBJECT = LAYOUT.newInstance(LAYOUT.createShape(new ObjectType()));
+
+    private static final long SIZE_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "primitive1");
+    private static final long COMPARE_BY_IDENTITY_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "primitive2");
+    private static final long FIRST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "object2");
+    private static final long LAST_IN_SEQ_OFFSET = UnsafeHolder.getFieldOffset(SOME_OBJECT.getClass(), "object3");
 
     public static ConcurrentHash getStore(DynamicObject hash) {
-        return (ConcurrentHash) UnsafeHolder.UNSAFE.getObject(hash, STORE_OFFSET);
-        // return (ConcurrentHash) UnsafeHolder.UNSAFE.getObjectVolatile(hash, STORE_OFFSET);
+        return (ConcurrentHash) Layouts.HASH.getStore(hash);
     }
 
     public static int getSize(DynamicObject hash) {
