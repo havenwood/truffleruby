@@ -26,6 +26,7 @@ full = load_data("conc_write_reads_1numa_16gb_heap.csv")
 full = load_data("conc_write_reads_2numa_16gb_heap.csv")
 full = load_data("conc_write_reads_2numa_10s_16gb_heap.csv")
 full = load_data("bench_array_conc_write_reads_arie.csv")
+full = load_data("java_write_read_ops.csv")
 
 base_fixed = subset(full, VM=="FixedSize" & Threads=="1")$Value
 base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
@@ -36,8 +37,8 @@ base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
 
 # full = load_data("monte_carlo_pi.csv")
 # full = load_data("monte_carlo_pi_rb.csv")
-full = load_data("monte_carlo_pi_sparc4x.csv")
-full$Value = 1 / full$Value
+# full = load_data("monte_carlo_pi_sparc4x.csv")
+# full$Value = 1 / full$Value
 full$Value = full$Value / subset(full, Threads=="1")$Value
 base_fixed = 1
 
@@ -50,8 +51,8 @@ ggplot(data = full, aes(x=Threads, y=Value, group=VM, color=VM)) + geom_point() 
   theme(text = element_text(size=20), legend.position="bottom",
         legend.title = element_blank(), legend.background = element_blank(), legend.key = element_blank(),
         legend.text = element_text(size = 16)) +
-  geom_abline(slope = base_fixed) +
-  geom_abline(slope = base_fll)
+  geom_abline(slope = base_fixed)
+#   geom_abline(slope = base_fll)
   
 #   scale_y_continuous(breaks = c(seq(0, 200, 30), 20, 40), minor_breaks = NULL) +
 #   scale_x_continuous(breaks = seq(0, 3000, 600)) +
