@@ -56,11 +56,11 @@ public class ThreadWithDirtyFlag extends Thread {
             return last;
 
         }
-        return getThreadState_slowPath(array);
+        return getThreadStateSlowPath(array);
     }
 
     @TruffleBoundary
-    private AtomicInteger getThreadState_slowPath(DynamicObject array) {
+    public AtomicInteger getThreadStateSlowPath(DynamicObject array) {
         AtomicInteger ts = lockStates.get(array);
         if (ts == null) {
             FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
