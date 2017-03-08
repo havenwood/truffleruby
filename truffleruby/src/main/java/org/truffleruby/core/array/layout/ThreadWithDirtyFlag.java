@@ -59,6 +59,10 @@ public class ThreadWithDirtyFlag extends Thread {
         return getThreadStateSlowPath(array);
     }
 
+    public AtomicInteger getThreadState(DynamicObject array) {
+        return (array == lastObject) ? last : getThreadStateSlowPath(array);
+    }
+
     @TruffleBoundary
     public AtomicInteger getThreadStateSlowPath(DynamicObject array) {
         AtomicInteger ts = lockStates.get(array);
