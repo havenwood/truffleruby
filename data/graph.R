@@ -49,7 +49,7 @@ base_fll = 1 # subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
 #png(file = "times.png", width=740, height=400)
 ggplot(data = full, aes(x=Threads, y=Value, group=VM, color=VM)) + geom_point() + geom_line() +
   xlab("Threads") + ylab("Throughput") +
-  scale_x_continuous(breaks = c(0, 2^(0:6), 12, 24, 36, 48), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
+  scale_x_continuous(breaks = c(0, 1, 2, 4, 8, 12, 16, 18, 20, 24, 28, 32, 36, 48), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
   scale_y_continuous(limits = c(0, max(full$Value))) +
   #scale_y_continuous(breaks = seq(0, max(full$Value), 10000)) +
   theme(text = element_text(size=20), legend.position="bottom",
