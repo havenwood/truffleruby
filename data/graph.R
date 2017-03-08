@@ -33,6 +33,7 @@ full = load_data("conc_write_reads_ops_1numa.csv")
 full = load_data("conc_write_reads_ops_2numa.csv")
 full = load_data("conc_write_reads_ops_2numa_all.csv")
 full = load_data("conc_write_reads_ops_2numa_2.csv")
+full = load_data("conc_write_reads_ops_2numa_3.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
