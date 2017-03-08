@@ -13,6 +13,8 @@ import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public class ThreadWithDirtyFlag extends Thread {
+   private static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
+   private final AtomicInteger fllThreadState = GLOBAL_LOCK.registerThread(0);
 
     private static final AtomicLong threadIds = new AtomicLong();
 
@@ -52,15 +54,17 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     public AtomicInteger getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
-        if (fastPathProfile.profile(lastObject == array)) {
-            return last;
-
-        }
-        return getThreadStateSlowPath(array);
+       return fllThreadState;
+//        if (fastPathProfile.profile(lastObject == array)) {
+//            return last;
+//
+//        }
+//        return getThreadStateSlowPath(array);
     }
 
     public AtomicInteger getThreadState(DynamicObject array) {
-        return (array == lastObject) ? last : getThreadStateSlowPath(array);
+       return fllThreadState;
+//        return (array == lastObject) ? last : getThreadStateSlowPath(array);
     }
 
     @TruffleBoundary
