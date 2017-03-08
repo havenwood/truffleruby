@@ -159,7 +159,7 @@ public abstract class ArraySyncReadNode extends RubyNode {
     }
 
     @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
-    public Object TransitioningFastLayoutLockRead(VirtualFrame frame, DynamicObject array,
+    public Object transitioningFastLayoutLockRead(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetTransitioningThreadStateNode getTransitioningThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile transitioningFastPathProfile) {
         final AtomicInteger threadState = getTransitioningThreadStateNode.executeGetTransitioningThreadState(array);

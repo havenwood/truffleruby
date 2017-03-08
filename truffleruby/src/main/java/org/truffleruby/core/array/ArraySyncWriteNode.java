@@ -145,7 +145,7 @@ public abstract class ArraySyncWriteNode extends RubyNode {
     }
 
     @Specialization(guards = "isFastLayoutLockArray(array)")
-    public Object FastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
+    public Object fastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
         final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
@@ -161,7 +161,7 @@ public abstract class ArraySyncWriteNode extends RubyNode {
     }
 
     @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
-    public Object TransitioningFastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
+    public Object transitioningFastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetTransitioningThreadStateNode getTransitioningThreadStateNode,
             @Cached("create()") TransitioningFastLayoutLockStartWriteNode startWriteNode) {
         final AtomicInteger threadState = getTransitioningThreadStateNode.executeGetTransitioningThreadState(array);

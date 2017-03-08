@@ -175,7 +175,7 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
     }
 
     @Specialization(guards = "isFastLayoutLockArray(array)")
-    public Object FastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
+    public Object fastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
             @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
@@ -192,7 +192,7 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
     }
 
     @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
-    public Object TransitioningFastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
+    public Object transitioningFastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("create()") TransitioningFastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
             @Cached("create()") TransitioningFastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
