@@ -31,9 +31,10 @@ full = load_data("conc_write_reads_1numa_16gb_heap.csv")
 # full = rbind(full, java)
 full = load_data("conc_write_reads_ops_1numa.csv")
 full = load_data("conc_write_reads_ops_2numa.csv")
+full = load_data("conc_write_reads_ops_2numa_all.csv")
 
 base = max(subset(full, Threads=="1")$Value)
-base_fll = 1 # subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
+base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
 # full$Value = full$Value / base
 
 # full = subset(full, VM != "FixedSize")
