@@ -11,6 +11,7 @@ package org.truffleruby.core.hash;
 
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.object.DynamicObject;
+import com.oracle.truffle.api.profiles.BranchProfile;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 import org.truffleruby.Layouts;
@@ -27,21 +28,28 @@ public class ConcurrentLookupEntryNode extends RubyBaseNode {
 
     private final ConditionProfile byIdentityProfile = ConditionProfile.createBinaryProfile();
     private final ConditionProfile isRemovedProfile = ConditionProfile.createBinaryProfile();
+    private final BranchProfile changedToIdentityHashProfile = BranchProfile.create();
 
     public ConcurrentHashLookupResult lookup(VirtualFrame frame, DynamicObject hash, Object key) {
+        final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
+        final int hashed = hashNode.hash(frame, key, compareByIdentity);
+
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(hash);
         ConcurrentHashLookupResult result;
 
         do {
-            result = doLookup(frame, hash, key);
+            result = doLookup(frame, hash, key, compareByIdentity, hashed);
         } while (!accessor.finishRead());
 
         return result;
     }
 
-    private ConcurrentHashLookupResult doLookup(VirtualFrame frame, DynamicObject hash, Object key) {
-        final boolean compareByIdentity = byIdentityProfile.profile(Layouts.HASH.getCompareByIdentity(hash));
-        int hashed = hashNode.hash(frame, key, compareByIdentity);
+    private ConcurrentHashLookupResult doLookup(VirtualFrame frame, DynamicObject hash, Object key, boolean compareByIdentity, int hashed) {
+        if (Layouts.HASH.getCompareByIdentity(hash) != compareByIdentity) {
+            changedToIdentityHashProfile.enter();
+            compareByIdentity = true;
+            hashed = hashNode.hash(frame, key, compareByIdentity);
+        }
 
         final AtomicReferenceArray<ConcurrentEntry> entries = ConcurrentHash.getStore(hash).getBuckets();
         final int index = BucketsStrategy.getBucketIndex(hashed, entries.length());
