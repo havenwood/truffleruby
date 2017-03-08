@@ -1,6 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
@@ -14,7 +13,7 @@ public final class FastLayoutLock {
     public static final int WRITER_ACTIVE = -11;
     public static final int LAYOUT_CHANGE = 1;
 
-    public ArrayList<AtomicInteger> gather = new ArrayList<>();
+    public AtomicInteger[] gather = new AtomicInteger[0];
 
     public final StampedLock baseLock = new StampedLock();
     public final AtomicBoolean needToRecover = new AtomicBoolean(false);
@@ -38,8 +37,9 @@ public final class FastLayoutLock {
     }
 
     private void markLCFlags(ConditionProfile waitProfile) {
-        for (int i = 0; i < gather.size(); i++) {
-            AtomicInteger state = gather.get(i);
+        final AtomicInteger[] gather = this.gather;
+        for (int i = 0; i < gather.length; i++) {
+            AtomicInteger state = gather[i];
             if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
                 while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                     LayoutLock.yield();
@@ -103,15 +103,35 @@ public final class FastLayoutLock {
     public AtomicInteger registerThread(long tid) {
         AtomicInteger ts = new AtomicInteger();
         long stamp = baseLock.writeLock();
-        gather.add(ts);
+        addToGather(ts);
         baseLock.unlockWrite(stamp);
         return ts;
     }
 
     public void unregisterThread(AtomicInteger ts) {
         long stamp = baseLock.writeLock();
-        gather.remove(ts);
+        removeFromGather(ts);
         baseLock.unlockWrite(stamp);
+    }
+
+    private void addToGather(AtomicInteger e) {
+        AtomicInteger[] newGather = new AtomicInteger[gather.length + 1];
+        System.arraycopy(gather, 0, newGather, 0, gather.length);
+        newGather[gather.length] = e;
+        gather = newGather;
+    }
+
+    private void removeFromGather(AtomicInteger e) {
+        for (int i = 0; i < gather.length; i++) {
+            if (gather[i] == e) {
+                AtomicInteger[] newGather = new AtomicInteger[gather.length - 1];
+                System.arraycopy(gather, 0, newGather, 0, i);
+                System.arraycopy(gather, i + 1, newGather, i, gather.length - i - 1);
+                gather = newGather;
+                return;
+            }
+        }
+        throw new Error("not found");
     }
 
     // private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
