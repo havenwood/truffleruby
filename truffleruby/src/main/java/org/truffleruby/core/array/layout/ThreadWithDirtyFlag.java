@@ -13,7 +13,7 @@ import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public class ThreadWithDirtyFlag extends Thread {
-    public final static boolean USE_GLOBAL_FLL = false;
+    public final static boolean USE_GLOBAL_FLL = true;
 
     private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
     private final AtomicInteger fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.registerThread(0) : null;
