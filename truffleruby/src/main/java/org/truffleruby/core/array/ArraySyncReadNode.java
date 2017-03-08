@@ -152,9 +152,14 @@ public abstract class ArraySyncReadNode extends RubyNode {
             result = builtinNode.execute(frame);
 
             final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
-            if (lock.finishRead(threadState, fastPathProfile)) {
+            if (fastPathProfile.profile(threadState.get() == FastLayoutLock.INACTIVE)) {
                 return result;
             }
+            lock.changeThreadState(threadState, FastLayoutLock.INACTIVE);
+
+            // if (lock.finishRead(threadState, fastPathProfile)) {
+            // return result;
+            // }
         }
     }
 

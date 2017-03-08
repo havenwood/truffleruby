@@ -72,7 +72,7 @@ public final class FastLayoutLock {
     }
 
     @TruffleBoundary
-    private void changeThreadState(AtomicInteger ts, int state) {
+    public void changeThreadState(AtomicInteger ts, int state) {
         long stamp = getReadLock();
         ts.set(state);
         needToRecover.compareAndSet(false, true);

@@ -152,11 +152,15 @@ public abstract class ArraySyncWriteNode extends RubyNode {
         // accessor.startWrite();
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
 
-        lock.startWrite(threadState, fastPathProfile);
+        // lock.startWrite(threadState, fastPathProfile);
+        if (fastPathProfile.profile(threadState.compareAndSet(FastLayoutLock.INACTIVE, FastLayoutLock.WRITER_ACTIVE))) {
+            lock.changeThreadState(threadState, FastLayoutLock.WRITER_ACTIVE);
+        }
         try {
             return builtinNode.execute(frame);
         } finally {
-            lock.finishWrite(threadState);
+            // lock.finishWrite(threadState);
+            threadState.set(FastLayoutLock.INACTIVE);
         }
     }
 
