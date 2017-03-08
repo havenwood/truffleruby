@@ -13,8 +13,10 @@ import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public class ThreadWithDirtyFlag extends Thread {
-   private static final FastLayoutLock GLOBAL_LOCK = new FastLayoutLock();
-   private final AtomicInteger fllThreadState = GLOBAL_LOCK.registerThread(0);
+    public final static boolean USE_GLOBAL_FLL = false;
+
+    private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
+    private final AtomicInteger fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.registerThread(0) : null;
 
     private static final AtomicLong threadIds = new AtomicLong();
 
@@ -54,17 +56,23 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     public AtomicInteger getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
-       return fllThreadState;
-//        if (fastPathProfile.profile(lastObject == array)) {
-//            return last;
-//
-//        }
-//        return getThreadStateSlowPath(array);
+        if (USE_GLOBAL_FLL) {
+            return fllThreadState;
+        } else {
+            if (fastPathProfile.profile(lastObject == array)) {
+                return last;
+
+            }
+            return getThreadStateSlowPath(array);
+        }
     }
 
     public AtomicInteger getThreadState(DynamicObject array) {
-       return fllThreadState;
-//        return (array == lastObject) ? last : getThreadStateSlowPath(array);
+        if (USE_GLOBAL_FLL) {
+            return fllThreadState;
+        } else {
+            return (array == lastObject) ? last : getThreadStateSlowPath(array);
+        }
     }
 
     @TruffleBoundary

@@ -144,6 +144,8 @@ public abstract class ArraySyncWriteNode extends RubyNode {
         }
     }
 
+    public static final boolean INLINE_PATH = false;
+
     @Specialization(guards = "isFastLayoutLockArray(array)")
     public Object fastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
@@ -152,15 +154,21 @@ public abstract class ArraySyncWriteNode extends RubyNode {
         // accessor.startWrite();
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
 
-        // lock.startWrite(threadState, fastPathProfile);
-        if (fastPathProfile.profile(threadState.compareAndSet(FastLayoutLock.INACTIVE, FastLayoutLock.WRITER_ACTIVE))) {
-            lock.changeThreadState(threadState, FastLayoutLock.WRITER_ACTIVE);
+        if (INLINE_PATH) {
+            if (fastPathProfile.profile(threadState.compareAndSet(FastLayoutLock.INACTIVE, FastLayoutLock.WRITER_ACTIVE))) {
+                lock.changeThreadState(threadState, FastLayoutLock.WRITER_ACTIVE);
+            }
+        } else {
+            lock.startWrite(threadState, fastPathProfile);
         }
         try {
             return builtinNode.execute(frame);
         } finally {
-            // lock.finishWrite(threadState);
-            threadState.set(FastLayoutLock.INACTIVE);
+            if (INLINE_PATH) {
+                threadState.set(FastLayoutLock.INACTIVE);
+            } else {
+                lock.finishWrite(threadState);
+            }
         }
     }
 
