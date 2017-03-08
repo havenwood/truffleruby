@@ -102,18 +102,18 @@ public final class FastLayoutLock {
 
     public AtomicInteger registerThread(long tid) {
         AtomicInteger ts = new AtomicInteger();
-        long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
+        long stamp = baseLock.writeLock();
         gather.add(ts);
-        finishLayoutChange(stamp);
+        baseLock.unlockWrite(stamp);
         return ts;
     }
 
     public void unregisterThread(AtomicInteger ts) {
-        long stamp = startLayoutChange(DUMMY_PROFILE, DUMMY_PROFILE);
+        long stamp = baseLock.writeLock();
         gather.remove(ts);
-        finishLayoutChange(stamp);
+        baseLock.unlockWrite(stamp);
     }
 
-    private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
+    // private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
 
 }
