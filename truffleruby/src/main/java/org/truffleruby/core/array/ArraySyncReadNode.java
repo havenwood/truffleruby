@@ -140,8 +140,6 @@ public abstract class ArraySyncReadNode extends RubyNode {
         return result;
     }
 
-    public static final boolean INLINE_PATH = false;
-
     @Specialization(guards = "isFastLayoutLockArray(array)")
     public Object fastLayoutLockRead(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
@@ -155,15 +153,8 @@ public abstract class ArraySyncReadNode extends RubyNode {
 
             final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
             
-            if (INLINE_PATH) {
-                if (fastPathProfile.profile(threadState.get() == FastLayoutLock.INACTIVE)) {
-                    return result;
-                }
-                lock.changeThreadState(threadState, FastLayoutLock.INACTIVE);
-            } else {
-                if (lock.finishRead(threadState, fastPathProfile)) {
-                    return result;
-                }
+            if (lock.finishRead(threadState, fastPathProfile)) {
+                return result;
             }
         }
     }
