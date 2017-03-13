@@ -3,12 +3,13 @@ require_relative 'common'
 N = 100
 READS = 1024 # 90 % reads
 WRITES = 102 # 10 % writes
-raise if N > READS
 
-ary = READS.times.to_a * N_THREADS
+SLICE = READS + 1024 # Some padding to avoid false sharing
+
+ary = SLICE.times.to_a * N_THREADS
 
 def bench(ary, t)
-  base = t * READS
+  base = t * SLICE
   i = 0
   while i < N
     sum = 0
