@@ -25,6 +25,7 @@ public final class FastLayoutLock {
         public ThreadStateReference(int index, AtomicIntegerArray store) {
             this.index = index;
             this.store = store;
+            set(INACTIVE);
         }
 
         public boolean compareAndSet(int expect, int update) {
