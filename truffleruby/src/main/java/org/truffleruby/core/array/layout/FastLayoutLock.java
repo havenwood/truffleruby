@@ -3,8 +3,6 @@ package org.truffleruby.core.array.layout;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.StampedLock;
 
-import org.truffleruby.core.UnsafeHolder;
-
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
@@ -15,38 +13,10 @@ public final class FastLayoutLock {
     public static final int LAYOUT_CHANGE = 4;
 
     public ThreadStateReference[] gather = new ThreadStateReference[1];
+    int nextTs = 0;
 
     public final StampedLock baseLock = new StampedLock();
     public boolean needToRecover = false; // Protected by the baseLock
-
-    public class ThreadStateReference {
-        final int index;
-        final int[] store;
-        final int arrayBaseOffset;
-        final int arrayIndexScale;
-
-        public ThreadStateReference(int index, int[] store) {
-            this.index = index;
-            this.store = store;
-            this.arrayBaseOffset = UnsafeHolder.UNSAFE.arrayBaseOffset(store.getClass());
-            this.arrayIndexScale = UnsafeHolder.UNSAFE.arrayIndexScale(store.getClass());
-            set(INACTIVE);
-        }
-
-        public boolean compareAndSet(int expect, int update) {
-            return UnsafeHolder.UNSAFE.compareAndSwapInt(store, arrayBaseOffset + index * arrayIndexScale, expect, update);
-            // return store.compareAndSet(index, expect, update);
-        }
-
-        public int get() {
-            return store[index];
-        }
-
-        public void set(int val) {
-            store[index] = val;
-        }
-
-    }
 
     public FastLayoutLock() {
     }
@@ -68,7 +38,7 @@ public final class FastLayoutLock {
 
     private void markLCFlags(ConditionProfile waitProfile) {
         final ThreadStateReference[] gather = this.gather;
-        for (int i = 0; i < gather.length; i++) {
+        for (int i = 0; i < nextTs; i++) {
             ThreadStateReference state = gather[i];
             if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
                 while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
@@ -147,19 +117,24 @@ public final class FastLayoutLock {
     }
 
     private void addToGather(ThreadStateReference e) {
-        ThreadStateReference[] newGather = new ThreadStateReference[gather.length + 1];
-        System.arraycopy(gather, 0, newGather, 0, gather.length);
-        newGather[gather.length] = e;
-        gather = newGather;
+        if (nextTs < gather.length) {
+            gather[nextTs++] = e;
+        } else {
+            ThreadStateReference[] newGather = new ThreadStateReference[gather.length * 2];
+            System.arraycopy(gather, 0, newGather, 0, nextTs);
+            newGather[nextTs++] = e;
+            gather = newGather;
+        }
     }
 
     private void removeFromGather(ThreadStateReference e) {
-        for (int i = 0; i < gather.length; i++) {
+        for (int i = 0; i < nextTs; i++) {
             if (gather[i] == e) {
-                ThreadStateReference[] newGather = new ThreadStateReference[gather.length - 1];
-                System.arraycopy(gather, 0, newGather, 0, i);
-                System.arraycopy(gather, i + 1, newGather, i, gather.length - i - 1);
-                gather = newGather;
+                // ThreadStateReference[] newGather = new ThreadStateReference[gather.length - 1];
+                // System.arraycopy(gather, 0, newGather, 0, i);
+                System.arraycopy(gather, i + 1, gather, i, nextTs - i - 1);
+                nextTs--;
+                // gather = newGather;
                 return;
             }
         }

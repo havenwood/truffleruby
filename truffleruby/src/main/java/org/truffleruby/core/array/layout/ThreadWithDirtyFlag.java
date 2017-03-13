@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
-import org.truffleruby.core.array.layout.FastLayoutLock.ThreadStateReference;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -21,7 +20,7 @@ public class ThreadWithDirtyFlag extends Thread {
     private final int[] threadStateStore = new int[TS_ARRAY_SIZE];
 
     private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
-    private final ThreadStateReference fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.new ThreadStateReference(0, threadStateStore) : null;
+    private final ThreadStateReference fllThreadState = (USE_GLOBAL_FLL) ? new ThreadStateReference(0, threadStateStore) : null;
 
     private static final AtomicLong threadIds = new AtomicLong();
 
@@ -90,7 +89,7 @@ public class ThreadWithDirtyFlag extends Thread {
         if (ts == null) {
             FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
             FastLayoutLock lock = fastLayoutLockArray.getLock();
-            ts = lock.new ThreadStateReference(nextThreadState++, threadStateStore); // FIXME check
+            ts = new ThreadStateReference(nextThreadState++, threadStateStore); // FIXME check
                                                                                      // overflow
                                                                                      // here
             lock.registerThread(ts);

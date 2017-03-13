@@ -1,8 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.truffleruby.core.array.layout.FastLayoutLock.ThreadStateReference;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.Cached;
