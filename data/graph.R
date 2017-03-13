@@ -39,6 +39,7 @@ full = load_data("conc_write_reads_1_64_goliath_global_fll.csv")
 full = load_data("conc_write_reads_1_64_goliath_global_fll1.csv")
 full = load_data("conc_write_reads_reads_10_90_1_64_goliath_global_fll1.csv")
 full = load_data("conc_write_reads_10_90_1.csv")
+full = load_data("conc_write_reads_10_90_2.csv")
 
 
 base = max(subset(full, Threads=="1")$Value)
