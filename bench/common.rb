@@ -73,6 +73,7 @@ def thread_pool_ops(input)
     q = Queue.new
     ret = Queue.new
     Thread.new {
+      input.size # Cache input on the thread
       ret.push :started
       while job = q.pop
         ret.push thread_bench(input, t)
@@ -131,6 +132,7 @@ def thread_pool(input)
     q = Queue.new
     ret = Queue.new
     Thread.new {
+      input.size # Cache input on the thread
       ret.push :started
       while job = q.pop
         Thread.pass until $go
