@@ -60,8 +60,10 @@ for strategy in $strategies; do
 #  run the script on the thread groups
    for threads in $nthreads; do
        echo "Run with strategy=${strategy_object[$strategy]}, threads=$threads"
-       echo "$JT ruby --graal -J-Dgraal.TruffleSplittingMaxCalleeSize=0 -J-Dgraal.TruffleOSR=false $benchmark ${strategy_object[$strategy]} $threads"
-       $JT ruby --graal -J-Dgraal.TruffleSplittingMaxCalleeSize=0 -J-Dgraal.TruffleOSR=false --trace $benchmark ${strategy_object[$strategy]} $threads 2>&1
+       #echo "$JT ruby --graal -J-Dgraal.TruffleSplittingMaxCalleeSize=0 -J-Dgraal.TruffleOSR=false $benchmark ${strategy_object[$strategy]} $threads"
+       echo "$JT ruby --graal $benchmark ${strategy_object[$strategy]} $threads"
+       #$JT ruby --graal -J-Dgraal.TruffleSplittingMaxCalleeSize=0 -J-Dgraal.TruffleOSR=false --trace $benchmark ${strategy_object[$strategy]} $threads 2>&1
+       $JT ruby --graal $benchmark ${strategy_object[$strategy]} $threads 2>&1
    done
 done
   
