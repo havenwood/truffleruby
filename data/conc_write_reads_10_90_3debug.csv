@@ -1,0 +1,12 @@
+bench_array_conc_write_reads_ops_10_90.rb;1;FastLayoutLock;1034.10726697158
+bench_array_conc_write_reads_ops_10_90.rb;2;FastLayoutLock;1912.95063944026
+bench_array_conc_write_reads_ops_10_90.rb;4;FastLayoutLock;4006.55466280557
+bench_array_conc_write_reads_ops_10_90.rb;8;FastLayoutLock;7948.48888847103
+bench_array_conc_write_reads_ops_10_90.rb;12;FastLayoutLock;12030.6508764635
+bench_array_conc_write_reads_ops_10_90.rb;16;FastLayoutLock;16013.326192317
+bench_array_conc_write_reads_ops_10_90.rb;18;FastLayoutLock;17727.4664144558
+bench_array_conc_write_reads_ops_10_90.rb;20;FastLayoutLock;16313.0663044606
+bench_array_conc_write_reads_ops_10_90.rb;24;FastLayoutLock;9751.58988272941
+bench_array_conc_write_reads_ops_10_90.rb;28;FastLayoutLock;27827.378708492
+bench_array_conc_write_reads_ops_10_90.rb;32;FastLayoutLock;31386.3600031873
+bench_array_conc_write_reads_ops_10_90.rb;36;FastLayoutLock;33367.9529775843
