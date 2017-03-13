@@ -73,6 +73,7 @@ def thread_pool_ops(input)
     q = Queue.new
     ret = Queue.new
     Thread.new {
+      ret.push :started
       while job = q.pop
         ret.push thread_bench(input, t)
       end
@@ -93,6 +94,9 @@ end
 
 def measure_ops(input, &prepare_input)
   threads = thread_pool_ops(input)
+
+  # Wait for all threads to start
+  threads.each { |q,ret| ret.pop }
 
   results = ROUNDS.times.map do
     prepare_input.call if prepare_input
@@ -127,6 +131,7 @@ def thread_pool(input)
     q = Queue.new
     ret = Queue.new
     Thread.new {
+      ret.push :started
       while job = q.pop
         Thread.pass until $go
         ret.push bench(input, t)
@@ -138,6 +143,9 @@ end
 
 def measure_one_op(input, &prepare_input)
   threads = thread_pool(input)
+
+  # Wait for all threads to start
+  threads.each { |q,ret| ret.pop }
 
   results = ROUNDS.times.map do
     prepare_input.call if prepare_input
