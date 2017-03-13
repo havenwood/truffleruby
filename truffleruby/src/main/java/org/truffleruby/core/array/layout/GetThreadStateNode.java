@@ -39,7 +39,7 @@ public abstract class GetThreadStateNode extends RubyNode {
 //        return cachedThread.getThreadState(array, fastPathProfile);
 //    }
 
-    @Specialization(replaces = "cachedThread")
+    @Specialization // (replaces = "cachedThread")
     protected ThreadStateReference getThreadState(DynamicObject array,
             @Cached("createCountingProfile()") ConditionProfile fastPathProfile) {
          return getCurrentThread(array).getThreadState(array, fastPathProfile);
