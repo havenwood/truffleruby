@@ -74,6 +74,7 @@ public final class FastLayoutLock {
     public void changeThreadState(AtomicInteger ts, int state) {
         System.err.println("SLOW PATH changeThreadState " + ts.get() + " to " + state);
         long stamp = getReadLock();
+	System.err.println("slow path");
         ts.set(state);
         needToRecover = true;
         unlockRead(stamp);
