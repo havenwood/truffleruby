@@ -101,9 +101,10 @@ public final class FastLayoutLock {
 
 
     public AtomicInteger registerThread(long tid) {
-        AtomicInteger ts = new AtomicInteger();
+        AtomicInteger ts = new AtomicInteger(INACTIVE);
         long stamp = baseLock.writeLock();
         addToGather(ts);
+        needToRecover.compareAndSet(false, true);
         baseLock.unlockWrite(stamp);
         return ts;
     }
