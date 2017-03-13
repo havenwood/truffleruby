@@ -1,6 +1,7 @@
 package org.truffleruby.core.array.layout;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.StampedLock;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -9,13 +10,36 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 public final class FastLayoutLock {
 
     public static final int INACTIVE = 0;
-    public static final int WRITER_ACTIVE = -11;
-    public static final int LAYOUT_CHANGE = 1;
+    public static final int WRITER_ACTIVE = 2;
+    public static final int LAYOUT_CHANGE = 4;
 
-    public AtomicInteger[] gather = new AtomicInteger[0];
+    public ThreadStateReference[] gather = new ThreadStateReference[1];
 
     public final StampedLock baseLock = new StampedLock();
     public boolean needToRecover = false; // Protected by the baseLock
+
+    public class ThreadStateReference {
+        int index;
+        AtomicIntegerArray store;
+
+        public ThreadStateReference(int index, AtomicIntegerArray store) {
+            this.index = index;
+            this.store = store;
+        }
+
+        public boolean compareAndSet(int expect, int update) {
+            return store.compareAndSet(index, expect, update);
+        }
+
+        public int get() {
+            return store.get(index);
+        }
+
+        public void set(int val) {
+            store.set(index, val);
+        }
+
+    }
 
     public FastLayoutLock() {
     }
@@ -36,9 +60,9 @@ public final class FastLayoutLock {
     }
 
     private void markLCFlags(ConditionProfile waitProfile) {
-        final AtomicInteger[] gather = this.gather;
+        final ThreadStateReference[] gather = this.gather;
         for (int i = 0; i < gather.length; i++) {
-            AtomicInteger state = gather[i];
+            ThreadStateReference state = gather[i];
             if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
                 while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
                     LayoutLock.yield();
@@ -52,17 +76,17 @@ public final class FastLayoutLock {
         unlockWrite(stamp);
     }
 
-    public void startWrite(AtomicInteger ts, ConditionProfile fastPath) {
+    public void startWrite(ThreadStateReference ts, ConditionProfile fastPath) {
         if (!fastPath.profile(ts.compareAndSet(INACTIVE, WRITER_ACTIVE))) {
             changeThreadState(ts, WRITER_ACTIVE);
         }
     }
 
-    public void finishWrite(AtomicInteger ts) {
+    public void finishWrite(ThreadStateReference ts) {
         ts.set(INACTIVE);
     }
 
-    public boolean finishRead(AtomicInteger ts, ConditionProfile fastPath) {
+    public boolean finishRead(ThreadStateReference ts, ConditionProfile fastPath) {
         if (fastPath.profile(ts.get() == INACTIVE)) {
             return true;
         }
@@ -71,8 +95,7 @@ public final class FastLayoutLock {
     }
 
     @TruffleBoundary
-    public void changeThreadState(AtomicInteger ts, int state) {
-        System.err.println("SLOW PATH changeThreadState " + ts.get() + " to " + state);
+    public void changeThreadState(ThreadStateReference ts, int state) {
         long stamp = getReadLock();
 	System.err.println("slow path");
         ts.set(state);
@@ -101,32 +124,30 @@ public final class FastLayoutLock {
     }
 
 
-    public AtomicInteger registerThread() {
-        AtomicInteger ts = new AtomicInteger(INACTIVE);
+    public void registerThread(ThreadStateReference ts) {
         long stamp = baseLock.writeLock();
         addToGather(ts);
         needToRecover = true;
         baseLock.unlockWrite(stamp);
-        return ts;
     }
 
-    public void unregisterThread(AtomicInteger ts) {
+    public void unregisterThread(ThreadStateReference ts) {
         long stamp = baseLock.writeLock();
         removeFromGather(ts);
         baseLock.unlockWrite(stamp);
     }
 
-    private void addToGather(AtomicInteger e) {
-        AtomicInteger[] newGather = new AtomicInteger[gather.length + 1];
+    private void addToGather(ThreadStateReference e) {
+        ThreadStateReference[] newGather = new ThreadStateReference[gather.length + 1];
         System.arraycopy(gather, 0, newGather, 0, gather.length);
         newGather[gather.length] = e;
         gather = newGather;
     }
 
-    private void removeFromGather(AtomicInteger e) {
+    private void removeFromGather(ThreadStateReference e) {
         for (int i = 0; i < gather.length; i++) {
             if (gather[i] == e) {
-                AtomicInteger[] newGather = new AtomicInteger[gather.length - 1];
+                ThreadStateReference[] newGather = new ThreadStateReference[gather.length - 1];
                 System.arraycopy(gather, 0, newGather, 0, i);
                 System.arraycopy(gather, i + 1, newGather, i, gather.length - i - 1);
                 gather = newGather;

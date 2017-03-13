@@ -10,6 +10,7 @@ import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.layout.FastLayoutLock;
+import org.truffleruby.core.array.layout.FastLayoutLock.ThreadStateReference;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.GetTransitioningThreadStateNode;
@@ -144,7 +145,7 @@ public abstract class ArraySyncReadNode extends RubyNode {
     public Object fastLayoutLockRead(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
-        final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
+        final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
         Object result;
         while (true) {
             // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad

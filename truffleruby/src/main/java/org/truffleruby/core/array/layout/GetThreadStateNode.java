@@ -2,6 +2,7 @@ package org.truffleruby.core.array.layout;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.truffleruby.core.array.layout.FastLayoutLock.ThreadStateReference;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.Cached;
@@ -17,29 +18,29 @@ public abstract class GetThreadStateNode extends RubyNode {
         return GetThreadStateNodeGen.create(null);
     }
 
-    public abstract AtomicInteger executeGetThreadState(DynamicObject array);
+    public abstract ThreadStateReference executeGetThreadState(DynamicObject array);
 
     // Disabled so one thread is not favored.
 //    @Specialization(guards = {
 //            "getCurrentThread(array) == cachedThread",
 //            "array == cachedArray"
 //    }, limit = "1")
-//    protected AtomicInteger cachedThreadAndObject(DynamicObject array,
+//    protected ThreadStateReference cachedThreadAndObject(DynamicObject array,
 //            @Cached("array") DynamicObject cachedArray,
 //            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread,
-//            @Cached("cachedThread.getThreadStateSlowPath(cachedArray)") AtomicInteger cachedThreadState) {
+//            @Cached("cachedThread.getThreadStateSlowPath(cachedArray)") ThreadStateReference cachedThreadState) {
 //        return cachedThreadState;
 //    }
 //
 //    @Specialization(guards = "getCurrentThread(array) == cachedThread", limit = "1", replaces = "cachedThreadAndObject")
-//    protected AtomicInteger cachedThread(DynamicObject array,
+//    protected ThreadStateReference cachedThread(DynamicObject array,
 //            @Cached("createCountingProfile()") ConditionProfile fastPathProfile,
 //            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread) {
 //        return cachedThread.getThreadState(array, fastPathProfile);
 //    }
 
-    @Specialization // (replaces = "cachedThread")
-    protected AtomicInteger getThreadState(DynamicObject array,
+    @Specialization(replaces = "cachedThread")
+    protected ThreadStateReference getThreadState(DynamicObject array,
             @Cached("createCountingProfile()") ConditionProfile fastPathProfile) {
          return getCurrentThread(array).getThreadState(array, fastPathProfile);
     }

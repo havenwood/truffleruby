@@ -10,6 +10,7 @@ import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.layout.FastLayoutLock;
+import org.truffleruby.core.array.layout.FastLayoutLock.ThreadStateReference;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.GetTransitioningThreadStateNode;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
@@ -148,7 +149,7 @@ public abstract class ArraySyncWriteNode extends RubyNode {
     public Object fastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
-        final AtomicInteger threadState = getThreadStateNode.executeGetThreadState(array);
+        final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
         // accessor.startWrite();
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
 

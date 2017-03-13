@@ -3,10 +3,12 @@ package org.truffleruby.core.array.layout;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
+import org.truffleruby.core.array.layout.FastLayoutLock.ThreadStateReference;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -15,10 +17,16 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 public class ThreadWithDirtyFlag extends Thread {
     public final static boolean USE_GLOBAL_FLL = true;
 
+    public final static int TS_ARRAY_SIZE = 64;
+
+    private static final AtomicIntegerArray threadStateStore = new AtomicIntegerArray(TS_ARRAY_SIZE);
+
     private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
-    private final AtomicInteger fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.registerThread() : null;
+    private final ThreadStateReference fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.new ThreadStateReference(0, threadStateStore) : null;
 
     private static final AtomicLong threadIds = new AtomicLong();
+
+    int nextThreadState = (USE_GLOBAL_FLL) ? 1 : 0;
 
     public volatile boolean dirty = false;
     public final long threadId = threadIds.incrementAndGet();
@@ -26,15 +34,17 @@ public class ThreadWithDirtyFlag extends Thread {
     private final LayoutLock.Accessor layoutLockAccessor;
     private final TransitioningFastLayoutLock transitioningFastLayoutLock;
 
-    private final HashMap<DynamicObject, AtomicInteger> lockStates = new HashMap<>();
+    private final HashMap<DynamicObject, ThreadStateReference> lockStates = new HashMap<>();
 
-    private AtomicInteger last = null;
+    private ThreadStateReference last = null;
     private DynamicObject lastObject = null;
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
         this.layoutLockAccessor = LayoutLock.GLOBAL_LOCK.access();
         this.transitioningFastLayoutLock = TransitioningFastLayoutLock.GLOBAL_LOCK;
+        if (USE_GLOBAL_FLL)
+            GLOBAL_LOCK.registerThread(fllThreadState);
     }
 
     public LayoutLock.Accessor getLayoutLockAccessor() {
@@ -47,15 +57,15 @@ public class ThreadWithDirtyFlag extends Thread {
 
     @TruffleBoundary
     public AtomicInteger getTransitioningThreadState(DynamicObject array) {
-        AtomicInteger ts = lockStates.get(array);
+        ThreadStateReference ts = lockStates.get(array);
         if (ts == null) {
-            ts = transitioningFastLayoutLock.registerThread(Thread.currentThread().getId());
+            // ts = transitioningFastLayoutLock.registerThread(Thread.currentThread().getId());
             lockStates.put(array, ts);
         }
-        return ts;
+        return null; // this code is obsolte. Should be removed.
     }
 
-    public AtomicInteger getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
+    public ThreadStateReference getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
         if (USE_GLOBAL_FLL) {
             return fllThreadState;
         } else {
@@ -67,7 +77,7 @@ public class ThreadWithDirtyFlag extends Thread {
         }
     }
 
-    public AtomicInteger getThreadState(DynamicObject array) {
+    public ThreadStateReference getThreadState(DynamicObject array) {
         if (USE_GLOBAL_FLL) {
             return fllThreadState;
         } else {
@@ -76,11 +86,15 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     @TruffleBoundary
-    public AtomicInteger getThreadStateSlowPath(DynamicObject array) {
-        AtomicInteger ts = lockStates.get(array);
+    public ThreadStateReference getThreadStateSlowPath(DynamicObject array) {
+        ThreadStateReference ts = lockStates.get(array);
         if (ts == null) {
             FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
-            ts = fastLayoutLockArray.getLock().registerThread();
+            FastLayoutLock lock = fastLayoutLockArray.getLock();
+            ts = lock.new ThreadStateReference(nextThreadState++, threadStateStore); // FIXME check
+                                                                                     // overflow
+                                                                                     // here
+            lock.registerThread(ts);
             lockStates.put(array, ts);
         }
         lastObject = array;
@@ -89,7 +103,7 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     public void cleanup() {
-        for (Entry<DynamicObject, AtomicInteger> entry : lockStates.entrySet()) {
+        for (Entry<DynamicObject, ThreadStateReference> entry : lockStates.entrySet()) {
             FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(entry.getKey())).getLock();
             lock.unregisterThread(entry.getValue());
         }

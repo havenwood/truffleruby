@@ -11,7 +11,7 @@ strategy_object[reentrant]="ReentrantLock"
 strategy_object[custom]="CustomLock"
 strategy_object[stamped]="StampedLock"
 strategy_object[llock]="LayoutLock"
-strategy_object[fll]="FastLayoutLock"
+strategy_object[fll]="LightweightLayoutLock"
 strategy_object[tfll]="TransitioningFastLayoutLock"
 
 JT="../tool/jt.rb"
