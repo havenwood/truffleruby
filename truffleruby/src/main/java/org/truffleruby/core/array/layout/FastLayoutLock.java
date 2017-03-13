@@ -1,6 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
@@ -16,7 +15,7 @@ public final class FastLayoutLock {
     public AtomicInteger[] gather = new AtomicInteger[0];
 
     public final StampedLock baseLock = new StampedLock();
-    public final AtomicBoolean needToRecover = new AtomicBoolean(false);
+    public boolean needToRecover = false; // Protected by the baseLock
 
     public FastLayoutLock() {
     }
@@ -28,9 +27,9 @@ public final class FastLayoutLock {
             return stamp;
         } else {
             long stamp1 = getWriteLock();
-            if (needToRecover.get()) {
+            if (needToRecover) {
                 markLCFlags(waitProfile);
-                needToRecover.set(false);
+                needToRecover = false;
             }
             return stamp1;
         }
@@ -75,7 +74,7 @@ public final class FastLayoutLock {
     public void changeThreadState(AtomicInteger ts, int state) {
         long stamp = getReadLock();
         ts.set(state);
-        needToRecover.compareAndSet(false, true);
+        needToRecover = true;
         unlockRead(stamp);
     }
 
@@ -104,7 +103,7 @@ public final class FastLayoutLock {
         AtomicInteger ts = new AtomicInteger(INACTIVE);
         long stamp = baseLock.writeLock();
         addToGather(ts);
-        needToRecover.compareAndSet(false, true);
+        needToRecover = true;
         baseLock.unlockWrite(stamp);
         return ts;
     }
