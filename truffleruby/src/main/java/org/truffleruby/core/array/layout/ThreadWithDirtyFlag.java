@@ -16,7 +16,7 @@ public class ThreadWithDirtyFlag extends Thread {
     public final static boolean USE_GLOBAL_FLL = true;
 
     private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
-    private final AtomicInteger fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.registerThread(0) : null;
+    private final AtomicInteger fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.registerThread() : null;
 
     private static final AtomicLong threadIds = new AtomicLong();
 
@@ -80,7 +80,7 @@ public class ThreadWithDirtyFlag extends Thread {
         AtomicInteger ts = lockStates.get(array);
         if (ts == null) {
             FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
-            ts = fastLayoutLockArray.getLock().registerThread(Thread.currentThread().getId());
+            ts = fastLayoutLockArray.getLock().registerThread();
             lockStates.put(array, ts);
         }
         lastObject = array;
