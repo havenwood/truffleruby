@@ -19,25 +19,26 @@ public abstract class GetThreadStateNode extends RubyNode {
 
     public abstract AtomicInteger executeGetThreadState(DynamicObject array);
 
-    @Specialization(guards = {
-            "getCurrentThread(array) == cachedThread",
-            "array == cachedArray"
-    }, limit = "1")
-    protected AtomicInteger cachedThreadAndObject(DynamicObject array,
-            @Cached("array") DynamicObject cachedArray,
-            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread,
-            @Cached("cachedThread.getThreadStateSlowPath(cachedArray)") AtomicInteger cachedThreadState) {
-        return cachedThreadState;
-    }
+    // Disabled so one thread is not favored.
+//    @Specialization(guards = {
+//            "getCurrentThread(array) == cachedThread",
+//            "array == cachedArray"
+//    }, limit = "1")
+//    protected AtomicInteger cachedThreadAndObject(DynamicObject array,
+//            @Cached("array") DynamicObject cachedArray,
+//            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread,
+//            @Cached("cachedThread.getThreadStateSlowPath(cachedArray)") AtomicInteger cachedThreadState) {
+//        return cachedThreadState;
+//    }
+//
+//    @Specialization(guards = "getCurrentThread(array) == cachedThread", limit = "1", replaces = "cachedThreadAndObject")
+//    protected AtomicInteger cachedThread(DynamicObject array,
+//            @Cached("createCountingProfile()") ConditionProfile fastPathProfile,
+//            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread) {
+//        return cachedThread.getThreadState(array, fastPathProfile);
+//    }
 
-    @Specialization(guards = "getCurrentThread(array) == cachedThread", limit = "1", replaces = "cachedThreadAndObject")
-    protected AtomicInteger cachedThread(DynamicObject array,
-            @Cached("createCountingProfile()") ConditionProfile fastPathProfile,
-            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread) {
-        return cachedThread.getThreadState(array, fastPathProfile);
-    }
-
-    @Specialization(replaces = "cachedThread")
+    @Specialization // (replaces = "cachedThread")
     protected AtomicInteger getThreadState(DynamicObject array,
             @Cached("createCountingProfile()") ConditionProfile fastPathProfile) {
          return getCurrentThread(array).getThreadState(array, fastPathProfile);

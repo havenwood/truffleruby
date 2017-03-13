@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -18,13 +17,14 @@ public abstract class GetTransitioningThreadStateNode extends RubyNode {
 
     public abstract AtomicInteger executeGetTransitioningThreadState(DynamicObject array);
 
-    @Specialization(guards = "getCurrentThread(array) == cachedThread", limit = "1")
-    protected AtomicInteger cachedThread(DynamicObject array,
-            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread) {
-        return cachedThread.getTransitioningThreadState(array);
-    }
+    // Disabled so one thread is not favored.
+//    @Specialization(guards = "getCurrentThread(array) == cachedThread", limit = "1")
+//    protected AtomicInteger cachedThread(DynamicObject array,
+//            @Cached("getCurrentThread(array)") ThreadWithDirtyFlag cachedThread) {
+//        return cachedThread.getTransitioningThreadState(array);
+//    }
 
-    @Specialization(contains = "cachedThread")
+    @Specialization // (contains = "cachedThread")
     protected AtomicInteger getTransitioningThreadState(DynamicObject array) {
         return getCurrentThread(array).getTransitioningThreadState(array);
     }
