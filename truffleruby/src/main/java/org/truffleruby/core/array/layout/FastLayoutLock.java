@@ -3,6 +3,8 @@ package org.truffleruby.core.array.layout;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.StampedLock;
 
+import org.truffleruby.core.UnsafeHolder;
+
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
@@ -19,24 +21,29 @@ public final class FastLayoutLock {
 
     public class ThreadStateReference {
         final int index;
-        final AtomicIntegerArray store;
+        final int[] store;
+        final int arrayBaseOffset;
+        final int arrayIndexScale;
 
-        public ThreadStateReference(int index, AtomicIntegerArray store) {
+        public ThreadStateReference(int index, int[] store) {
             this.index = index;
             this.store = store;
+            this.arrayBaseOffset = UnsafeHolder.UNSAFE.arrayBaseOffset(store.getClass());
+            this.arrayIndexScale = UnsafeHolder.UNSAFE.arrayIndexScale(store.getClass());
             set(INACTIVE);
         }
 
         public boolean compareAndSet(int expect, int update) {
-            return store.compareAndSet(index, expect, update);
+            return UnsafeHolder.UNSAFE.compareAndSwapInt(store, arrayBaseOffset + index * arrayIndexScale, expect, update);
+            // return store.compareAndSet(index, expect, update);
         }
 
         public int get() {
-            return store.get(index);
+            return store[index];
         }
 
         public void set(int val) {
-            store.set(index, val);
+            store[index] = val;
         }
 
     }

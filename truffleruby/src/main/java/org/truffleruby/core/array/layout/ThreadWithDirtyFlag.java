@@ -3,7 +3,6 @@ package org.truffleruby.core.array.layout;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.truffleruby.Layouts;
@@ -19,7 +18,7 @@ public class ThreadWithDirtyFlag extends Thread {
 
     public final static int TS_ARRAY_SIZE = 64;
 
-    private final AtomicIntegerArray threadStateStore = new AtomicIntegerArray(TS_ARRAY_SIZE);
+    private final int[] threadStateStore = new int[TS_ARRAY_SIZE];
 
     private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
     private final ThreadStateReference fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.new ThreadStateReference(0, threadStateStore) : null;
