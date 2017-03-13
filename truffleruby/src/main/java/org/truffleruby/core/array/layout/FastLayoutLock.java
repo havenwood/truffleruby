@@ -1,6 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.StampedLock;
 
@@ -79,6 +78,7 @@ public final class FastLayoutLock {
 
     public void startWrite(ThreadStateReference ts, ConditionProfile fastPath) {
         if (!fastPath.profile(ts.compareAndSet(INACTIVE, WRITER_ACTIVE))) {
+            System.out.println("W:ts.get() = " + ts.get());
             changeThreadState(ts, WRITER_ACTIVE);
         }
     }
@@ -91,6 +91,7 @@ public final class FastLayoutLock {
         if (fastPath.profile(ts.get() == INACTIVE)) {
             return true;
         }
+        System.out.println("R:ts.get() = " + ts.get());
         changeThreadState(ts, INACTIVE);
         return false;
     }
@@ -98,7 +99,7 @@ public final class FastLayoutLock {
     @TruffleBoundary
     public void changeThreadState(ThreadStateReference ts, int state) {
         long stamp = getReadLock();
-	System.err.println("slow path");
+        System.out.println("slow path");
         ts.set(state);
         needToRecover = true;
         unlockRead(stamp);

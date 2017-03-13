@@ -19,7 +19,7 @@ public class ThreadWithDirtyFlag extends Thread {
 
     public final static int TS_ARRAY_SIZE = 64;
 
-    private static final AtomicIntegerArray threadStateStore = new AtomicIntegerArray(TS_ARRAY_SIZE);
+    private final AtomicIntegerArray threadStateStore = new AtomicIntegerArray(TS_ARRAY_SIZE);
 
     private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
     private final ThreadStateReference fllThreadState = (USE_GLOBAL_FLL) ? GLOBAL_LOCK.new ThreadStateReference(0, threadStateStore) : null;
