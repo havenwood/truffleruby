@@ -18,8 +18,8 @@ public final class FastLayoutLock {
     public boolean needToRecover = false; // Protected by the baseLock
 
     public class ThreadStateReference {
-        int index;
-        AtomicIntegerArray store;
+        final int index;
+        final AtomicIntegerArray store;
 
         public ThreadStateReference(int index, AtomicIntegerArray store) {
             this.index = index;
