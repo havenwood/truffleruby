@@ -54,7 +54,6 @@ public final class FastLayoutLock {
 
     public void startWrite(ThreadStateReference ts, ConditionProfile fastPath) {
         if (!fastPath.profile(ts.compareAndSet(INACTIVE, WRITER_ACTIVE))) {
-            System.out.println("W:ts.get() = " + ts.get());
             changeThreadState(ts, WRITER_ACTIVE);
         }
     }
@@ -67,7 +66,6 @@ public final class FastLayoutLock {
         if (fastPath.profile(ts.get() == INACTIVE)) {
             return true;
         }
-        System.out.println("R:ts.get() = " + ts.get());
         changeThreadState(ts, INACTIVE);
         return false;
     }
@@ -75,7 +73,7 @@ public final class FastLayoutLock {
     @TruffleBoundary
     public void changeThreadState(ThreadStateReference ts, int state) {
         long stamp = getReadLock();
-        System.out.println("slow path");
+        System.err.println("SLOW PATH changeThreadState " + ts.get() + " to " + state);
         ts.set(state);
         needToRecover = true;
         unlockRead(stamp);
