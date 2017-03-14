@@ -132,6 +132,4 @@ public final class FastLayoutLock {
         throw new Error("not found");
     }
 
-    // private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
-
 }
