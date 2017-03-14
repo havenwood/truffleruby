@@ -10,7 +10,7 @@ public final class ThreadStateReference {
 
     final int index;
     final int[] store;
-    final int offset;
+    final long offset;
 
     public ThreadStateReference(int index, int[] store) {
         this.index = index;
