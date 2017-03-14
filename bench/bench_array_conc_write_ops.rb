@@ -3,9 +3,8 @@ require_relative 'common'
 # 100% writes
 
 N = 100
-WRITES = 1024 # 90 % reads
-
-SLICE = WRITES # + 1024 # Some padding to avoid false sharing
+CHUNK = 1000
+SLICE = CHUNK + 24 # Some padding to avoid false sharingg
 
 ary = SLICE.times.to_a * N_THREADS
 
@@ -14,7 +13,7 @@ def bench(ary, t)
   i = 0
   while i < N
     j = 0
-    while j < READS
+    while j < CHUNK
       ary[base+j] = j
       j += 1
     end

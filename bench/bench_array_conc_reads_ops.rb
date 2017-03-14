@@ -1,24 +1,20 @@
 require_relative 'common'
 
-# 1 write / READS reads
-# writes to the first N elements for per bench()
-
 N = 100
-READS = 1024
-raise if N > READS
+CHUNK = 1000
+SLICE = CHUNK + 24 # Some padding to avoid false sharingg
 
-ary = READS.times.to_a * N_THREADS
-SUM = READS.times.reduce(:+)
+ary = SLICE.times.to_a * N_THREADS
+SUM = CHUNK.times.reduce(:+)
 
 def bench(ary, t)
-  base = t * READS
+  base = t * SLICE
   i = 0
   while i < N
-    j = base
-    last = base + READS
     sum = 0
-    while j < last
-      sum += ary[j]
+    j = 0
+    while j < CHUNK
+      sum += ary[base+j]
       j += 1
     end
     i += 1
