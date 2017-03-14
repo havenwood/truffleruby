@@ -14,7 +14,7 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public class ThreadWithDirtyFlag extends Thread {
 
-    public final static boolean USE_GLOBAL_FLL = true;
+    public final static boolean USE_GLOBAL_FLL = false;
 
     private final ThreadStateProvider threadStateProvider = new ThreadStateProvider();
     private static final FastLayoutLock GLOBAL_LOCK = USE_GLOBAL_FLL ? new FastLayoutLock() : null;
