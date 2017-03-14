@@ -19,17 +19,16 @@ public class ThreadWithDirtyFlag extends Thread {
 
     private final int[] threadStateStore = new int[TS_ARRAY_SIZE];
 
-    private static final FastLayoutLock GLOBAL_LOCK = (USE_GLOBAL_FLL) ? new FastLayoutLock() : null;
-    private final ThreadStateReference fllThreadState = (USE_GLOBAL_FLL) ? new ThreadStateReference(0, threadStateStore) : null;
+    private static final FastLayoutLock GLOBAL_LOCK = USE_GLOBAL_FLL ? new FastLayoutLock() : null;
+    private final ThreadStateReference fllThreadState = USE_GLOBAL_FLL ? new ThreadStateReference(0, threadStateStore) : null;
+    int nextThreadState = USE_GLOBAL_FLL ? 1 : 0;
 
     private static final AtomicLong threadIds = new AtomicLong();
-
-    int nextThreadState = (USE_GLOBAL_FLL) ? 1 : 0;
-
-    public volatile boolean dirty = false;
     public final long threadId = threadIds.incrementAndGet();
 
+    public volatile boolean dirty = false;
     private final LayoutLock.Accessor layoutLockAccessor;
+
     private final TransitioningFastLayoutLock transitioningFastLayoutLock;
 
     private final HashMap<DynamicObject, ThreadStateReference> lockStates = new HashMap<>();
@@ -41,8 +40,9 @@ public class ThreadWithDirtyFlag extends Thread {
         super(runnable);
         this.layoutLockAccessor = LayoutLock.GLOBAL_LOCK.access();
         this.transitioningFastLayoutLock = TransitioningFastLayoutLock.GLOBAL_LOCK;
-        if (USE_GLOBAL_FLL)
+        if (USE_GLOBAL_FLL) {
             GLOBAL_LOCK.registerThread(fllThreadState);
+        }
     }
 
     public LayoutLock.Accessor getLayoutLockAccessor() {
@@ -89,9 +89,8 @@ public class ThreadWithDirtyFlag extends Thread {
         if (ts == null) {
             FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
             FastLayoutLock lock = fastLayoutLockArray.getLock();
-            ts = new ThreadStateReference(nextThreadState++, threadStateStore); // FIXME check
-                                                                                     // overflow
-                                                                                     // here
+            nextThreadState = Math.incrementExact(nextThreadState);
+            ts = new ThreadStateReference(nextThreadState, threadStateStore);
             lock.registerThread(ts);
             lockStates.put(array, ts);
         }
