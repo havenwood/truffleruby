@@ -2,7 +2,7 @@ require_relative 'common'
 
 N = 100
 READS = 1024 # 90 % reads
-WRITES = 102 # 10 % writes
+WRITES =  10 # 10 % writes
 
 SLICE = READS + 1024 # Some padding to avoid false sharing
 
