@@ -1,6 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.StampedLock;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
