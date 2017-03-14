@@ -81,12 +81,12 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     @TruffleBoundary
-    public ThreadStateReference getThreadStateSlowPath(DynamicObject array) {
+    private ThreadStateReference getThreadStateSlowPath(DynamicObject array) {
         ThreadStateReference ts = lockStates.get(array);
         if (ts == null) {
             FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
             FastLayoutLock lock = fastLayoutLockArray.getLock();
-            ts = USE_GLOBAL_FLL ? fllThreadState : threadStateProvider.newThreadStateReference();
+            ts = threadStateProvider.newThreadStateReference();
             lock.registerThread(ts);
             lockStates.put(array, ts);
         }
