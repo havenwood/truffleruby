@@ -1,10 +1,11 @@
 require_relative 'common'
 
-N = 100
-READS = 1024 # 90 % reads
-WRITES =  10 # 10 % writes
+WRITE_PERCENTS = 10
 
-SLICE = READS + 1024 # Some padding to avoid false sharing
+N = 100
+CHUNK = 1000
+SLICE = CHUNK + 24 # Some padding to avoid false sharing
+WRITES_MODULO = 100 / WRITE_PERCENTS
 
 ary = SLICE.times.to_a * N_THREADS
 
@@ -14,8 +15,8 @@ def bench(ary, t)
   while i < N
     sum = 0
     j = 0
-    while j < READS
-      if j % WRITES == 0
+    while j < CHUNK
+      if j % WRITES_MODULO == 0
         ary[base+j] = sum
       else
         sum += ary[base+j]
