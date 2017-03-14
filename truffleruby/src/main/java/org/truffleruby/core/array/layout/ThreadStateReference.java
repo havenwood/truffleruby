@@ -8,12 +8,10 @@ public final class ThreadStateReference {
 
     private static final Unsafe UNSAFE = UnsafeHolder.UNSAFE;
 
-    final int index;
     final int[] store;
     final long offset;
 
     public ThreadStateReference(int index, int[] store) {
-        this.index = index;
         this.store = store;
         this.offset = UNSAFE.arrayBaseOffset(int[].class) + index * UNSAFE.arrayIndexScale(int[].class);
         set(FastLayoutLock.INACTIVE);
