@@ -11,8 +11,7 @@ public final class FastLayoutLock {
     public static final int WRITER_ACTIVE = 2;
     public static final int LAYOUT_CHANGE = 4;
 
-    public ThreadStateReference[] gather = new ThreadStateReference[1];
-    int nextTs = 0;
+    public ThreadStateReference[] gather = new ThreadStateReference[0];
 
     public final StampedLock baseLock = new StampedLock();
     public boolean needToRecover = false; // Protected by the baseLock
@@ -37,7 +36,7 @@ public final class FastLayoutLock {
 
     private void markLCFlags(ConditionProfile waitProfile) {
         final ThreadStateReference[] gather = this.gather;
-        for (int i = 0; i < nextTs; i++) {
+        for (int i = 0; i < gather.length; i++) {
             ThreadStateReference state = gather[i];
             if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
                 while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
@@ -114,24 +113,19 @@ public final class FastLayoutLock {
     }
 
     private void addToGather(ThreadStateReference e) {
-        if (nextTs < gather.length) {
-            gather[nextTs++] = e;
-        } else {
-            ThreadStateReference[] newGather = new ThreadStateReference[gather.length * 2];
-            System.arraycopy(gather, 0, newGather, 0, nextTs);
-            newGather[nextTs++] = e;
-            gather = newGather;
-        }
+        ThreadStateReference[] newGather = new ThreadStateReference[gather.length + 1];
+        System.arraycopy(gather, 0, newGather, 0, gather.length);
+        newGather[gather.length] = e;
+        gather = newGather;
     }
 
     private void removeFromGather(ThreadStateReference e) {
-        for (int i = 0; i < nextTs; i++) {
+        for (int i = 0; i < gather.length; i++) {
             if (gather[i] == e) {
-                // ThreadStateReference[] newGather = new ThreadStateReference[gather.length - 1];
-                // System.arraycopy(gather, 0, newGather, 0, i);
-                System.arraycopy(gather, i + 1, gather, i, nextTs - i - 1);
-                nextTs--;
-                // gather = newGather;
+                ThreadStateReference[] newGather = new ThreadStateReference[gather.length - 1];
+                System.arraycopy(gather, 0, newGather, 0, i);
+                System.arraycopy(gather, i + 1, newGather, i, gather.length - i - 1);
+                gather = newGather;
                 return;
             }
         }
