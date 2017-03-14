@@ -13,15 +13,12 @@ import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public class ThreadWithDirtyFlag extends Thread {
+
     public final static boolean USE_GLOBAL_FLL = true;
 
-    public final static int TS_ARRAY_SIZE = 64;
-
-    private final int[] threadStateStore = new int[TS_ARRAY_SIZE];
-
+    private final ThreadStateProvider threadStateProvider = new ThreadStateProvider();
     private static final FastLayoutLock GLOBAL_LOCK = USE_GLOBAL_FLL ? new FastLayoutLock() : null;
-    private final ThreadStateReference fllThreadState = USE_GLOBAL_FLL ? new ThreadStateReference(0, threadStateStore) : null;
-    int nextThreadState = USE_GLOBAL_FLL ? 1 : 0;
+    private final ThreadStateReference fllThreadState = USE_GLOBAL_FLL ? threadStateProvider.newThreadStateReference() : null;
 
     private static final AtomicLong threadIds = new AtomicLong();
     public final long threadId = threadIds.incrementAndGet();
@@ -89,8 +86,7 @@ public class ThreadWithDirtyFlag extends Thread {
         if (ts == null) {
             FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
             FastLayoutLock lock = fastLayoutLockArray.getLock();
-            nextThreadState = Math.incrementExact(nextThreadState);
-            ts = new ThreadStateReference(nextThreadState, threadStateStore);
+            ts = USE_GLOBAL_FLL ? fllThreadState : threadStateProvider.newThreadStateReference();
             lock.registerThread(ts);
             lockStates.put(array, ts);
         }
