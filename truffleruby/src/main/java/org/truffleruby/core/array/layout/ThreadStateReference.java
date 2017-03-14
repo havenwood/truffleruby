@@ -2,7 +2,11 @@ package org.truffleruby.core.array.layout;
 
 import org.truffleruby.core.UnsafeHolder;
 
+import sun.misc.Unsafe;
+
 public final class ThreadStateReference {
+
+    private static final Unsafe UNSAFE = UnsafeHolder.UNSAFE;
 
     final int index;
     final int[] store;
@@ -11,20 +15,20 @@ public final class ThreadStateReference {
     public ThreadStateReference(int index, int[] store) {
         this.index = index;
         this.store = store;
-        this.offset = UnsafeHolder.UNSAFE.arrayBaseOffset(int[].class) + index * UnsafeHolder.UNSAFE.arrayIndexScale(int[].class);
+        this.offset = UNSAFE.arrayBaseOffset(int[].class) + index * UNSAFE.arrayIndexScale(int[].class);
         set(FastLayoutLock.INACTIVE);
     }
 
     public boolean compareAndSet(int expect, int update) {
-        return UnsafeHolder.UNSAFE.compareAndSwapInt(store, offset, expect, update);
+        return UNSAFE.compareAndSwapInt(store, offset, expect, update);
     }
 
     public int get() {
-        return store[index];
+        return UNSAFE.getIntVolatile(store, offset);
     }
 
-    public void set(int val) {
-        store[index] = val;
+    public void set(int value) {
+        UNSAFE.putIntVolatile(store, offset, value);
     }
 
 }
