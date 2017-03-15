@@ -10,7 +10,6 @@ import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public final class ConcurrentLinkedListResizing {
-
     static final class Entry {
 
         private static final AtomicReferenceFieldUpdater<Entry, Entry> NEXT_UPDATER =
@@ -72,7 +71,9 @@ public final class ConcurrentLinkedListResizing {
     }
 
     private Accessor getAccessor() {
-        return ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor();
+        // FIXME return ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor(this,
+        // DUMMY_PROFILE);
+        return null;
     }
 
     public void append(Object key) {
