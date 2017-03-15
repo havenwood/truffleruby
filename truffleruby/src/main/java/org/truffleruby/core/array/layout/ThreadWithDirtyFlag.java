@@ -2,8 +2,6 @@ package org.truffleruby.core.array.layout;
 
 import java.util.HashMap;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
@@ -19,9 +17,6 @@ public class ThreadWithDirtyFlag extends Thread {
     private final ThreadStateProvider threadStateProvider = new ThreadStateProvider();
     private static final FastLayoutLock GLOBAL_LOCK = USE_GLOBAL_FLL ? new FastLayoutLock() : null;
     private final ThreadStateReference fllThreadState = USE_GLOBAL_FLL ? threadStateProvider.newThreadStateReference() : null;
-
-    private static final AtomicLong threadIds = new AtomicLong();
-    public final long threadId = threadIds.incrementAndGet();
 
     public volatile boolean dirty = false;
     private final LayoutLock.Accessor layoutLockAccessor;
@@ -85,7 +80,4 @@ public class ThreadWithDirtyFlag extends Thread {
         }
     }
 
-    public long getThreadId() {
-        return threadId;
-    }
 }
