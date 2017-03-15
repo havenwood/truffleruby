@@ -2,10 +2,14 @@ package org.truffleruby.core.array.layout;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.truffleruby.core.UnsafeHolder;
+
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.profiles.ConditionProfile;
+
+import sun.misc.Unsafe;
 
 /**
  * LayoutLock based on Scalable RW Lock using accessors
@@ -26,16 +30,61 @@ public class LayoutLock {
     private final AtomicInteger nextThread = new AtomicInteger(0);
     private boolean cleanedAfterLayoutChange = true;
 
+    private final static Unsafe unsafe = UnsafeHolder.UNSAFE;
+
+    private static Accessor dummyAccessor = GLOBAL_LOCK.new Accessor(null);
+
+    private static final long stateOffset = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "state");
+    private static final long dirtyOffset = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "dirty");
+    private static final long layoutChangeIntendedOffset = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "layoutChangeIntended");
+
     public class Accessor {
 
-        public final AtomicInteger state = new AtomicInteger();
-        volatile boolean dirty;
-        public final AtomicInteger layoutChangeIntended = new AtomicInteger(0);
+        private int state = INACTIVE;
+        private int layoutChangeIntended = 0;
+        private boolean dirty = false;
+        private boolean d1, d2, d3; // fillers
+        private int i1;
+        private long l1, l2, l3, l4, l5, l6;
+
+
+        void setState(int value) {
+            unsafe.putIntVolatile(this, stateOffset, value);
+        }
+
+        int getState() {
+            return unsafe.getIntVolatile(this, stateOffset);
+        }
+
+        boolean compareAndSwapState(int expect, int update) {
+            return unsafe.compareAndSwapInt(this, stateOffset, expect, update);
+        }
+
+        void setDirty(boolean value) {
+            unsafe.putBooleanVolatile(this, dirtyOffset, value);
+        }
+
+        boolean getDirty() {
+            return unsafe.getBooleanVolatile(this, dirtyOffset);
+        }
+
+        int getLayoutChangeIntended() {
+            return unsafe.getIntVolatile(this, layoutChangeIntendedOffset);
+        }
+
+        int getAndIncrementLayoutChangeIntended() {
+            return unsafe.getAndAddInt(this, layoutChangeIntendedOffset, 1);
+        }
+
+        int getAndDecrementLayoutChangeIntended() {
+            return unsafe.getAndAddInt(this, layoutChangeIntendedOffset, -1);
+        }
+
+        void setLayoutChangeIntended(int value) {
+            unsafe.putIntVolatile(this, layoutChangeIntendedOffset, value);
+        }
 
         private Accessor(LayoutLock layoutLock) {
-            this.state.set(INACTIVE);
-            this.dirty = false;
-            this.layoutChangeIntended.set(0);
         }
 
         public Accessor[] getAccessors() {
@@ -64,7 +113,7 @@ public class LayoutLock {
         }
 
         public boolean finishRead(ConditionProfile dirtyProfile) {
-            if (dirtyProfile.profile(dirty)) {
+            if (dirtyProfile.profile(getDirty())) {
                 resetDirty();
                 return false;
             }
@@ -72,7 +121,7 @@ public class LayoutLock {
         }
 
         public boolean finishRead() {
-            if (dirty) {
+            if (getDirty()) {
                 resetDirty();
                 return false;
             }
@@ -80,22 +129,22 @@ public class LayoutLock {
         }
 
         public void startWrite() {
-            while (layoutChangeIntended.get() > 0 || !state.compareAndSet(INACTIVE, WRITE)) {
+            while (getLayoutChangeIntended() > 0 || !compareAndSwapState(INACTIVE, WRITE)) {
             }
         }
 
         public void finishWrite() {
-            state.set(INACTIVE);
+            setState(INACTIVE);
         }
 
         public int startLayoutChange() {
             final Accessor first = accessors[0];
-            if (!first.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                first.layoutChangeIntended.getAndIncrement();
-                while (!first.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+            if (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
+                first.getAndIncrementLayoutChangeIntended();
+                while (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                     yield();
                 }
-                first.layoutChangeIntended.getAndDecrement();
+                first.getAndIncrementLayoutChangeIntended();
             }
 
             final boolean cleaned = cleanedAfterLayoutChange;
@@ -110,20 +159,20 @@ public class LayoutLock {
                         CompilerDirectives.transferToInterpreterAndInvalidate();
                         accessor = accessors[i];
                     }
-                    if (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
-                        accessor.layoutChangeIntended.getAndIncrement();
-                        while (!accessor.state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+                    if (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
+                        accessor.getAndIncrementLayoutChangeIntended();
+                        while (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                             yield();
                         }
-                        accessor.layoutChangeIntended.getAndDecrement();
+                        accessor.getAndDecrementLayoutChangeIntended();
                     }
                 }
 
                 for (int i = 0; i < n; i++) {
-                    accessors[i].dirty = true;
+                    accessors[i].setDirty(true);
                 }
             } else {
-                first.dirty = true;
+                first.setDirty(true);
             }
 
             return n;
@@ -131,23 +180,23 @@ public class LayoutLock {
 
         public void finishLayoutChange(int n) {
             final Accessor first = accessors[0];
-            if (first.layoutChangeIntended.get() > 0) { // Another layout change is going to follow
+            if (first.getLayoutChangeIntended() > 0) { // Another layout change is going to follow
                 cleanedAfterLayoutChange = false;
-                first.state.set(INACTIVE);
+                first.setState(INACTIVE);
             } else {
                 cleanedAfterLayoutChange = true;
                 for (int i = n - 1; i >= 0; i--) {
-                    accessors[i].state.set(INACTIVE);
+                    accessors[i].setState(INACTIVE);
                 }
             }
         }
 
         private void resetDirty() {
-            while (state.get() == LAYOUT_CHANGE) {
+            while (getState() == LAYOUT_CHANGE) {
                 yield();
             }
             dirty = false;
-            if (state.get() == LAYOUT_CHANGE) {
+            if (getState() == LAYOUT_CHANGE) {
                 dirty = true;
             }
         }
@@ -165,7 +214,7 @@ public class LayoutLock {
         accessors[n] = ac;
         if (n > 0) {
             // Wait for no Layout changes
-            while (accessors[0].state.get() == LAYOUT_CHANGE) {
+            while (accessors[0].getState() == LAYOUT_CHANGE) {
                 yield();
             }
         }

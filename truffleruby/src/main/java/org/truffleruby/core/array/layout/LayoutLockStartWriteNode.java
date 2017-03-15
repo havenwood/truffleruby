@@ -19,11 +19,11 @@ public abstract class LayoutLockStartWriteNode extends RubyNode {
     @Specialization
     protected Object layoutLockStartWrite(LayoutLock.Accessor accessor,
             @Cached("createBinaryProfile()") ConditionProfile stateProfile) {
-        while (accessor.layoutChangeIntended.get() > 0) {
+        while (accessor.getLayoutChangeIntended() > 0) {
             LayoutLock.yield();
         }
 
-        while (!stateProfile.profile(accessor.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.WRITE))) {
+        while (!stateProfile.profile(accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.WRITE))) {
             LayoutLock.yield();
         }
 

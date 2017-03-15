@@ -26,14 +26,14 @@ public abstract class LayoutLockFinishLayoutChangeNode extends RubyNode {
         final Accessor[] accessors = layoutLock.getAccessors();
 
         final Accessor first = accessors[0];
-        if (LayoutLock.OPTIMIZE_LC_LC && multiLayoutChangesProfile.profile(first.layoutChangeIntended.get() > 0)) {
+        if (LayoutLock.OPTIMIZE_LC_LC && multiLayoutChangesProfile.profile(first.getLayoutChangeIntended() > 0)) {
             // Another layout change is going to follow
             layoutLock.setCleanedAfterLayoutChange(false);
-            first.state.set(LayoutLock.INACTIVE);
+            first.setState(LayoutLock.INACTIVE);
         } else {
             layoutLock.setCleanedAfterLayoutChange(true);
             for (int i = 0; i < n; i++) {
-                accessors[i].state.set(LayoutLock.INACTIVE);
+                accessors[i].setState(LayoutLock.INACTIVE);
             }
         }
 

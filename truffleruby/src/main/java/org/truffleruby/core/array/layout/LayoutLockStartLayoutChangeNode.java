@@ -31,7 +31,7 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
         final Accessor[] accessors = layoutLock.getAccessors();
 
         final Accessor first = accessors[0];
-        if (!casFirstProfile.profile(first.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
+        if (!casFirstProfile.profile(first.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
             waitAndCAS(first);
         }
 
@@ -49,16 +49,16 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
                     CompilerDirectives.transferToInterpreterAndInvalidate();
                     accessor = accessors[i];
                 }
-                if (!casProfile.profile(accessor.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
+                if (!casProfile.profile(accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
                     waitAndCAS(accessor);
                 }
             }
 
             for (int i = 0; i < threads; i++) {
-                accessors[i].dirty = true;
+                accessors[i].setDirty(true);
             }
         } else {
-            first.dirty = true;
+            first.setDirty(true);
         }
 
 
@@ -66,11 +66,11 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
     }
 
     private void waitAndCAS(Accessor accessor) {
-        accessor.layoutChangeIntended.getAndIncrement();
-        while (!accessor.state.compareAndSet(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE)) {
+        accessor.getAndIncrementLayoutChangeIntended();
+        while (!accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE)) {
             LayoutLock.yield();
         }
-        accessor.layoutChangeIntended.getAndDecrement();
+        accessor.getAndDecrementLayoutChangeIntended();
     }
 
 }

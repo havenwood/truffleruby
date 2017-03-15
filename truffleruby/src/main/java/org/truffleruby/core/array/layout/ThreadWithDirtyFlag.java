@@ -28,7 +28,7 @@ public class ThreadWithDirtyFlag extends Thread {
 
     private ThreadStateReference last = null;
     private LayoutLock.Accessor lastAccessor = null;
-    private Object lastObject = null;
+    private DynamicObject lastObject = null;
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
@@ -77,6 +77,7 @@ public class ThreadWithDirtyFlag extends Thread {
 
     @TruffleBoundary
     private LayoutLock.Accessor getLayoutLockAccessorSlowPath(DynamicObject array) {
+        System.err.println("slow path");
         LayoutLock.Accessor accessor = lockAccessors.get(array);
         if (accessor == null) {
             if (Layouts.ARRAY.getStore(array) instanceof LayoutLockArray) {
