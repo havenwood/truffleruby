@@ -17,8 +17,6 @@ import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
 import org.truffleruby.core.array.layout.LayoutLockStartLayoutChangeNode;
 import org.truffleruby.core.array.layout.MyBiasedLock;
-import org.truffleruby.core.array.layout.TransitioningFastLayoutLockNodes.TransitioningFastLayoutLockFinishLayoutChangeNode;
-import org.truffleruby.core.array.layout.TransitioningFastLayoutLockNodes.TransitioningFastLayoutLockStartLayoutChangeNode;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -190,20 +188,4 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             lock.finishLayoutChange(stamp);
         }
     }
-
-    @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
-    public Object transitioningFastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
-            @Cached("create()") GetThreadStateNode getThreadStateNode,
-            @Cached("create()") TransitioningFastLayoutLockStartLayoutChangeNode startLayoutChangeNode,
-            @Cached("create()") TransitioningFastLayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
-        // final TransitioningFastLayoutLock.ThreadState threadState =
-        // getThreadStateNode.executeGetThreadState(array);
-        final long stamp = startLayoutChangeNode.executeStartLayoutChange();
-        try {
-            return builtinNode.execute(frame);
-        } finally {
-            finishLayoutChangeNode.executeFinishLayoutChange(stamp);
-        }
-    }
-
 }

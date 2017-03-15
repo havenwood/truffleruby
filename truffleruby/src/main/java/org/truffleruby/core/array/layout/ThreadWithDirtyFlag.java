@@ -26,8 +26,6 @@ public class ThreadWithDirtyFlag extends Thread {
     public volatile boolean dirty = false;
     private final LayoutLock.Accessor layoutLockAccessor;
 
-    private final TransitioningFastLayoutLock transitioningFastLayoutLock;
-
     private final HashMap<DynamicObject, ThreadStateReference> lockStates = new HashMap<>();
 
     private ThreadStateReference last = null;
@@ -36,7 +34,6 @@ public class ThreadWithDirtyFlag extends Thread {
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
         this.layoutLockAccessor = LayoutLock.GLOBAL_LOCK.access();
-        this.transitioningFastLayoutLock = TransitioningFastLayoutLock.GLOBAL_LOCK;
         if (USE_GLOBAL_FLL) {
             GLOBAL_LOCK.registerThread(fllThreadState);
         }
@@ -44,20 +41,6 @@ public class ThreadWithDirtyFlag extends Thread {
 
     public LayoutLock.Accessor getLayoutLockAccessor() {
         return layoutLockAccessor;
-    }
-
-    public TransitioningFastLayoutLock getTransitioningFastLayoutLock() {
-        return transitioningFastLayoutLock;
-    }
-
-    @TruffleBoundary
-    public AtomicInteger getTransitioningThreadState(DynamicObject array) {
-        ThreadStateReference ts = lockStates.get(array);
-        if (ts == null) {
-            // ts = transitioningFastLayoutLock.registerThread(Thread.currentThread().getId());
-            lockStates.put(array, ts);
-        }
-        return null; // this code is obsolte. Should be removed.
     }
 
     public ThreadStateReference getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {

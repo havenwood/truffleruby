@@ -23,7 +23,6 @@ import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
-import org.truffleruby.core.array.ConcurrentArray.TransitioningFastLayoutLockArray;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.language.objects.shared.NoWriteBarrierNode;
@@ -188,8 +187,6 @@ public abstract class ArrayStrategy {
                 return new LayoutLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else if (concurrentArray instanceof FastLayoutLockArray) {
                 return new FastLayoutLockArrayStrategy(ofStore(concurrentArray.getStore()));
-            } else if (concurrentArray instanceof TransitioningFastLayoutLockArray) {
-                return new TransitioningFastLayoutLockArrayStrategy(ofStore(concurrentArray.getStore()));
             } else {
                 throw new UnsupportedOperationException(concurrentArray.getStore().getClass().getName());
             }
@@ -854,41 +851,6 @@ public abstract class ArrayStrategy {
 
     }
 
-    private static class TransitioningFastLayoutLockArrayStrategy extends ConcurrentArrayStrategy {
-
-        public TransitioningFastLayoutLockArrayStrategy(ArrayStrategy typeStrategy) {
-            super(typeStrategy);
-        }
-
-        @Override
-        protected Object wrap(DynamicObject array, Object store) {
-            return new TransitioningFastLayoutLockArray(store);
-        }
-
-        @Override
-        protected Object unwrap(Object store) {
-            final TransitioningFastLayoutLockArray TransitioningFastLayoutLockArray = (TransitioningFastLayoutLockArray) store;
-            return TransitioningFastLayoutLockArray.getStore();
-        }
-
-        @Override
-        public boolean matchesStore(Object store) {
-            return store instanceof TransitioningFastLayoutLockArray && typeStrategy.matchesStore(((TransitioningFastLayoutLockArray) store).getStore());
-        }
-
-        @Override
-        public ArrayStrategy generalize(ArrayStrategy other) {
-            ArrayStrategy generalizedTypeStrategy = generalizeTypeStrategy(other);
-
-            return new TransitioningFastLayoutLockArrayStrategy(generalizedTypeStrategy);
-        }
-
-        @Override
-        public String toString() {
-            return "TransitioningFastLayoutLock(" + typeStrategy + ")";
-        }
-
-    }
 
     // Fallback strategy
 

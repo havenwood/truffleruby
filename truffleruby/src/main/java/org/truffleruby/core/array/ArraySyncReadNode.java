@@ -12,12 +12,10 @@ import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
-import org.truffleruby.core.array.layout.GetTransitioningThreadStateNode;
 import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.layout.ThreadStateReference;
 import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
-import org.truffleruby.core.array.layout.TransitioningFastLayoutLock;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -155,23 +153,6 @@ public abstract class ArraySyncReadNode extends RubyNode {
             final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
             
             if (lock.finishRead(threadState, fastPathProfile)) {
-                return result;
-            }
-        }
-    }
-
-    @Specialization(guards = "isTransitioningFastLayoutLockArray(array)")
-    public Object transitioningFastLayoutLockRead(VirtualFrame frame, DynamicObject array,
-            @Cached("create()") GetTransitioningThreadStateNode getTransitioningThreadStateNode,
-            @Cached("createBinaryProfile()") ConditionProfile transitioningFastPathProfile) {
-        final AtomicInteger threadState = getTransitioningThreadStateNode.executeGetTransitioningThreadState(array);
-        Object result;
-        while (true) {
-            // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
-            // Out-of-thin-air values are prevented by the dirty flag check
-            long stamp = TransitioningFastLayoutLock.GLOBAL_LOCK.startRead();
-            result = builtinNode.execute(frame);
-            if (TransitioningFastLayoutLock.GLOBAL_LOCK.finishRead(threadState, transitioningFastPathProfile, stamp)) {
                 return result;
             }
         }
