@@ -99,9 +99,9 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
     public static final class LayoutLockArray extends ConcurrentArray {
         final LayoutLock lock;
 
-        public LayoutLockArray(Object store) {
+        public LayoutLockArray(Object store, LayoutLock lock) {
             super(store);
-            lock = new LayoutLock();
+            this.lock = lock;
         }
 
         public LayoutLock getLock() {
@@ -113,9 +113,9 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
     public static final class FastLayoutLockArray extends ConcurrentArray {
         final FastLayoutLock lock;
 
-        public FastLayoutLockArray(Object store) {
+        public FastLayoutLockArray(Object store, FastLayoutLock lock) {
             super(store);
-            lock = new FastLayoutLock();
+            this.lock = lock;
         }
 
         public FastLayoutLock getLock() {

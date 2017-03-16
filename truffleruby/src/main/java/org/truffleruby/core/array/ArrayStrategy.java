@@ -23,6 +23,8 @@ import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
+import org.truffleruby.core.array.layout.FastLayoutLock;
+import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.language.objects.shared.NoWriteBarrierNode;
@@ -787,7 +789,8 @@ public abstract class ArrayStrategy {
 
         @Override
         protected Object wrap(DynamicObject array, Object store) {
-            return new LayoutLockArray(store);
+            final LayoutLock lock = ((LayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
+            return new LayoutLockArray(store, lock);
         }
 
         @Override
@@ -823,7 +826,8 @@ public abstract class ArrayStrategy {
 
         @Override
         protected Object wrap(DynamicObject array, Object store) {
-            return new FastLayoutLockArray(store);
+            final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
+            return new FastLayoutLockArray(store, lock);
         }
 
         @Override

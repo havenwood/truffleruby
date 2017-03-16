@@ -26,6 +26,8 @@ import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
+import org.truffleruby.core.array.layout.FastLayoutLock;
+import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.MyBiasedLock;
 import org.truffleruby.Layouts;
 
@@ -103,11 +105,11 @@ public class TruffleArrayNodes {
                     Layouts.ARRAY.setStore(array, new StampedLockArray(concurrentArray.getStore(), new StampedLock()));
                     break;
                 case "LayoutLock":
-                    Layouts.ARRAY.setStore(array, new LayoutLockArray(concurrentArray.getStore()));
+                    Layouts.ARRAY.setStore(array, new LayoutLockArray(concurrentArray.getStore(), new LayoutLock()));
                     break;
                 case "FastLayoutLock":
                 case "LightweightLayoutLock":
-                    Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore()));
+                    Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore(), new FastLayoutLock()));
                     break;
                 default:
                     throw new UnsupportedOperationException("Invalid strategy " + name);

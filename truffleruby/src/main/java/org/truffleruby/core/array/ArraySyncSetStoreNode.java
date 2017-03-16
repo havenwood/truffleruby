@@ -66,7 +66,7 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
                 final Object store = Layouts.ARRAY.getStore(array);
                 if (store instanceof FixedSizeArray) { // Was not already migrated by another thread
                     FixedSizeArray fixedSizeArray = (FixedSizeArray) store;
-                    FastLayoutLockArray concurrentArray = new FastLayoutLockArray(fixedSizeArray.getStore());
+                    FastLayoutLockArray concurrentArray = new FastLayoutLockArray(fixedSizeArray.getStore(), new FastLayoutLock());
                     Layouts.ARRAY.setStore(array, concurrentArray);
                 }
             }

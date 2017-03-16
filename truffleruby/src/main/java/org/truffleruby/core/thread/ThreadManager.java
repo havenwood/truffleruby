@@ -19,7 +19,6 @@ import org.truffleruby.Layouts;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.InterruptMode;
-import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
 import org.truffleruby.core.fiber.FiberManager;
 import org.truffleruby.core.fiber.FiberNodes;
