@@ -4,17 +4,13 @@ import org.truffleruby.core.array.layout.LayoutLock.Accessor;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
-import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.nodes.ExplodeLoop;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @NodeChild("self")
 public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
-
-    private @CompilationFinal int threads = 1;
 
     public static LayoutLockStartLayoutChangeNode create() {
         return LayoutLockStartLayoutChangeNodeGen.create(null);
@@ -22,17 +18,10 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
 
     public abstract int executeStartLayoutChange(LayoutLock.Accessor accessor);
 
-    @ExplodeLoop
     @Specialization
     protected int startLayoutChange(LayoutLock.Accessor layoutLock,
-            @Cached("createBinaryProfile()") ConditionProfile casFirstProfile,
-            @Cached("createBinaryProfile()") ConditionProfile casProfile,
-            @Cached("createBinaryProfile()") ConditionProfile multiLayoutChangesProfile) {
-        final int n = layoutLock.getNextThread();
-        if (n != threads) {
-            CompilerDirectives.transferToInterpreterAndInvalidate();
-            threads = n;
-        }
+            @Cached("createBinaryProfile()") ConditionProfile casProfile) {
+        final int threads = layoutLock.getNextThread();
 
         final Accessor[] accessors = layoutLock.getAccessors();
 

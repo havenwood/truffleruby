@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.truffleruby.core.UnsafeHolder;
 import com.oracle.truffle.api.CompilerDirectives;
-import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
@@ -21,7 +20,7 @@ public class LayoutLock {
     public static final int WRITE = 1;
     public static final int LAYOUT_CHANGE = 2;
 
-    @CompilationFinal private final Accessor[] accessors = new Accessor[MAX_THREADS];
+    private final Accessor[] accessors = new Accessor[MAX_THREADS];
     private final AtomicInteger nextThread = new AtomicInteger(0);
 
     private static class Padding {

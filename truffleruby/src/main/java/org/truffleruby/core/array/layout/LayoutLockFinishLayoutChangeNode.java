@@ -1,14 +1,10 @@
 package org.truffleruby.core.array.layout;
 
-import org.truffleruby.core.array.layout.LayoutLock.Accessor;
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.NodeChildren;
 import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.nodes.ExplodeLoop;
-import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @NodeChildren({ @NodeChild("self"), @NodeChild("threads") })
 public abstract class LayoutLockFinishLayoutChangeNode extends RubyNode {
@@ -19,16 +15,9 @@ public abstract class LayoutLockFinishLayoutChangeNode extends RubyNode {
 
     public abstract int executeFinishLayoutChange(LayoutLock.Accessor accessor, int n);
 
-    @ExplodeLoop
     @Specialization
-    protected int finishLayoutChange(LayoutLock.Accessor layoutLock, int n,
-            @Cached("createBinaryProfile()") ConditionProfile multiLayoutChangesProfile) {
-        final Accessor[] accessors = layoutLock.getAccessors();
-
-        for (int i = 0; i < n; i++) {
-            accessors[i].setState(LayoutLock.INACTIVE);
-        }
-
+    protected int finishLayoutChange(LayoutLock.Accessor accessor, int n) {
+        accessor.finishLayoutChange(n);
         return n;
     }
 
