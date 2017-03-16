@@ -56,8 +56,11 @@ def run(threads=2, n=2000000)
 end
 
 puts "Starting..."
+ROUNDS=10
+ROUNDS.times {
 t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 run Integer(ARGV[0] || 1)
 t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 dt = (t1-t0)
 puts "run length: #{dt}"
+}
