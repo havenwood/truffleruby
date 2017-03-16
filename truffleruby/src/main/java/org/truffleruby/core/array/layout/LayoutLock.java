@@ -31,15 +31,19 @@ public class LayoutLock {
     private static final long STATE_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "state");
     private static final long LAYOUT_CHANGED_INTENDED_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "layoutChangeIntended");
 
-    public class Accessor {
+    private static class Padding {
+
+        // 64 bytes padding to avoid false sharing
+        @SuppressWarnings("unused")
+        private long l1, l2, l3, l4, l5, l6, l7, l8;
+
+    }
+
+    public class Accessor extends Padding {
 
         private volatile int state = INACTIVE;
         private volatile int layoutChangeIntended = 0;
         public volatile boolean dirty = false;
-
-        @SuppressWarnings("unused")
-        private long l1, l2, l3, l4, l5, l6, l7, l8; // 64 bytes padding to avoid false sharing
-
 
         void setState(int value) {
             state = value;
