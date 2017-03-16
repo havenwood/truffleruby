@@ -29,4 +29,8 @@ public final class ThreadStateReference {
         UNSAFE.putIntVolatile(store, offset, value);
     }
 
+    public void add(int val) {
+        UNSAFE.getAndAddInt(store, offset, val);
+    }
+
 }

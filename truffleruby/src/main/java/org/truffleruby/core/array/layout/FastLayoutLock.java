@@ -10,6 +10,7 @@ public final class FastLayoutLock {
     public static final int INACTIVE = 0;
     public static final int WRITER_ACTIVE = 2;
     public static final int LAYOUT_CHANGE = 4;
+    public static final int LAYOUT_CHANGE_PENDING = 1;
 
     public ThreadStateReference[] gather = new ThreadStateReference[0];
 
@@ -38,8 +39,9 @@ public final class FastLayoutLock {
         final ThreadStateReference[] gather = this.gather;
         for (int i = 0; i < gather.length; i++) {
             ThreadStateReference state = gather[i];
-            if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
-                while (!state.compareAndSet(INACTIVE, LAYOUT_CHANGE)) {
+            if (waitProfile.profile(state.get() != LAYOUT_CHANGE_PENDING)) {
+                state.add(LAYOUT_CHANGE_PENDING);
+                while (!state.compareAndSet(LAYOUT_CHANGE_PENDING, LAYOUT_CHANGE)) {
                     LayoutLock.yield();
                 }
             }
@@ -58,7 +60,7 @@ public final class FastLayoutLock {
     }
 
     public void finishWrite(ThreadStateReference ts) {
-        ts.set(INACTIVE);
+        ts.add(-WRITER_ACTIVE);
     }
 
     public boolean finishRead(ThreadStateReference ts, ConditionProfile fastPath) {

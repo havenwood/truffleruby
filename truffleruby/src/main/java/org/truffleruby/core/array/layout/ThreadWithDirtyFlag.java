@@ -59,7 +59,6 @@ public class ThreadWithDirtyFlag extends Thread {
 
     @TruffleBoundary
     private LayoutLock.Accessor getLayoutLockAccessorSlowPath(DynamicObject object) {
-        // System.err.println("slow path");
         LayoutLock.Accessor accessor = lockAccessors.get(object);
         if (accessor == null) {
             if (Layouts.ARRAY.isArray(object)) {
