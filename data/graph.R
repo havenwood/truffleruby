@@ -42,9 +42,11 @@ full = load_data("conc_write_reads_10_90_1.csv")
 full = load_data("conc_write_reads_10_90_2.csv")
 full = load_data("conc_write_reads_10_90_5.csv")
 full = load_data("conc_write_reads_10_90_6.csv")
+full = load_data("conc_write_ops_1.csv")
 
 
 base = max(subset(full, Threads=="1")$Value)
+base = max(subset(full, Threads=="2")$Value)/2
 base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
 # full$Value = full$Value / base
 
