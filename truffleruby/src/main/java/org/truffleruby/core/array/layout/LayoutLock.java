@@ -1,9 +1,6 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.truffleruby.core.UnsafeHolder;
-import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
@@ -21,7 +18,7 @@ public class LayoutLock {
     public static final int LAYOUT_CHANGE = 2;
 
     private final Accessor[] accessors = new Accessor[MAX_THREADS];
-    private final AtomicInteger nextThread = new AtomicInteger(0);
+    private volatile int nextThread = 0;
 
     private static class Padding {
 
@@ -76,7 +73,7 @@ public class LayoutLock {
         }
 
         public int getNextThread() {
-            return lock.nextThread.get();
+            return lock.nextThread;
         }
 
         public void startRead() {
@@ -109,16 +106,12 @@ public class LayoutLock {
 
         public int startLayoutChange() {
             // what if new threads?
-            final int n = lock.nextThread.get();
+            final int n = lock.nextThread;
 
             final Accessor[] accessors = getAccessors();
 
             for (int i = 0; i < n; i++) {
-                Accessor accessor = accessors[i];
-                while (accessor == null) {
-                    CompilerDirectives.transferToInterpreterAndInvalidate();
-                    accessor = accessors[i];
-                }
+                final Accessor accessor = accessors[i];
                 if (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                     accessor.waitAndCAS();
                 }
@@ -167,8 +160,9 @@ public class LayoutLock {
         final Accessor accessor = new Accessor(this);
         final int threads = accessor.startLayoutChange();
         try {
-            final int n = nextThread.getAndIncrement();
+            final int n = nextThread;
             accessors[n] = accessor;
+            nextThread = n + 1;
         } finally {
             accessor.finishLayoutChange(threads);
         }

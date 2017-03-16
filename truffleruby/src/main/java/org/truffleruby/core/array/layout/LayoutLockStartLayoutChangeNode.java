@@ -3,7 +3,6 @@ package org.truffleruby.core.array.layout;
 import org.truffleruby.core.array.layout.LayoutLock.Accessor;
 import org.truffleruby.language.RubyNode;
 
-import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -26,11 +25,7 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
         final Accessor[] accessors = layoutLock.getAccessors();
 
         for (int i = 0; i < threads; i++) {
-            Accessor accessor = accessors[i];
-            while (accessor == null) {
-                CompilerDirectives.transferToInterpreterAndInvalidate();
-                accessor = accessors[i];
-            }
+            final Accessor accessor = accessors[i];
             if (!casProfile.profile(accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
                 accessor.waitAndCAS();
             }
