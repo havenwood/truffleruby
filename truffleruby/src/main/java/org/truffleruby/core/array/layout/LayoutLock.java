@@ -17,8 +17,6 @@ public class LayoutLock {
 
     public static final boolean OPTIMIZE_LC_LC = System.getProperty("optimizeLCLC") != null; // false by default
 
-    public static final LayoutLock GLOBAL_LOCK = new LayoutLock();
-
     private static final int MAX_THREADS = 600;
 
     public static final int INACTIVE = 0;

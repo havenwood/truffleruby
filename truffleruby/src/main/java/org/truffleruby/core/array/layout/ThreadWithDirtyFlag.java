@@ -13,15 +13,7 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public class ThreadWithDirtyFlag extends Thread {
 
-    public final static boolean USE_GLOBAL_FLL = false;
-    public final static boolean USE_GLOBAL_LL = false;
-
     private final ThreadStateProvider threadStateProvider = new ThreadStateProvider();
-    private static final FastLayoutLock GLOBAL_LOCK = USE_GLOBAL_FLL ? new FastLayoutLock() : null;
-    private final ThreadStateReference fllThreadState = USE_GLOBAL_FLL ? threadStateProvider.newThreadStateReference() : null;
-
-    public volatile boolean dirty = false;
-    private final LayoutLock.Accessor layoutLockAccessor = LayoutLock.GLOBAL_LOCK.access();
 
     private final HashMap<DynamicObject, ThreadStateReference> lockStates = new HashMap<>();
     private DynamicObject lastFLLObject = null;
@@ -33,20 +25,13 @@ public class ThreadWithDirtyFlag extends Thread {
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
-        if (USE_GLOBAL_FLL) {
-            GLOBAL_LOCK.registerThread(fllThreadState);
-        }
     }
 
     public ThreadStateReference getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
-        if (USE_GLOBAL_FLL) {
-            return fllThreadState;
-        } else {
-            if (fastPathProfile.profile(lastFLLObject == array)) {
-                return last;
-            }
-            return getThreadStateSlowPath(array);
+        if (fastPathProfile.profile(lastFLLObject == array)) {
+            return last;
         }
+        return getThreadStateSlowPath(array);
     }
 
     @TruffleBoundary
@@ -65,14 +50,10 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     public LayoutLock.Accessor getLayoutLockAccessor(DynamicObject array, ConditionProfile fastPathProfile) {
-        if (USE_GLOBAL_LL) {
-            return layoutLockAccessor;
-        } else {
-            if (fastPathProfile.profile(lastLLObject == array)) {
-                return lastAccessor;
-            }
-            return getLayoutLockAccessorSlowPath(array);
+        if (fastPathProfile.profile(lastLLObject == array)) {
+            return lastAccessor;
         }
+        return getLayoutLockAccessorSlowPath(array);
     }
 
     @TruffleBoundary
@@ -80,11 +61,7 @@ public class ThreadWithDirtyFlag extends Thread {
         System.err.println("slow path");
         LayoutLock.Accessor accessor = lockAccessors.get(array);
         if (accessor == null) {
-            if (Layouts.ARRAY.getStore(array) instanceof LayoutLockArray) {
-                accessor = ((LayoutLockArray) Layouts.ARRAY.getStore(array)).getLock().access();
-            } else {
-                accessor = layoutLockAccessor;
-            }
+            accessor = ((LayoutLockArray) Layouts.ARRAY.getStore(array)).getLock().access();
             lockAccessors.put(array, accessor);
         }
         lastLLObject = array;
