@@ -43,9 +43,7 @@ public class LayoutLock {
         private int state = INACTIVE;
         private int layoutChangeIntended = 0;
         private boolean dirty = false;
-        private boolean d1, d2, d3; // fillers
-        private int i1;
-        private long l1, l2, l3, l4, l5, l6;
+        private long l1, l2, l3, l4, l5, l6, l7, l8; // 64 bytes padding
 
 
         void setState(int value) {
