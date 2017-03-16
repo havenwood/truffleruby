@@ -6,7 +6,6 @@ import java.util.Map.Entry;
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
-import org.truffleruby.core.array.layout.LayoutLock.Accessor;
 import org.truffleruby.core.hash.ConcurrentHash;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -80,6 +79,8 @@ public class ThreadWithDirtyFlag extends Thread {
         for (Entry<FastLayoutLock, ThreadStateReference> entry : lockStates.entrySet()) {
             entry.getKey().unregisterThread(entry.getValue());
         }
+        lockStates.clear();
+        lockAccessors.clear();
     }
 
 }
