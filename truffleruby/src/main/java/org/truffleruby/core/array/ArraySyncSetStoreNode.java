@@ -10,7 +10,6 @@ import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
-import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
