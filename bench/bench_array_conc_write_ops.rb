@@ -4,7 +4,7 @@ require_relative 'common'
 
 N = 100
 CHUNK = 1000
-SLICE = CHUNK + 24 # Some padding to avoid false sharingg
+SLICE = CHUNK + 24 # Some padding to avoid false sharing
 
 ary = SLICE.times.to_a * N_THREADS
 
