@@ -27,10 +27,6 @@ public class LayoutLock {
     private final AtomicInteger nextThread = new AtomicInteger(0);
     private boolean cleanedAfterLayoutChange = true;
 
-    private static final Unsafe UNSAFE = UnsafeHolder.UNSAFE;
-    private static final long STATE_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "state");
-    private static final long LAYOUT_CHANGED_INTENDED_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "layoutChangeIntended");
-
     private static class Padding {
 
         // 64 bytes padding to avoid false sharing
@@ -39,11 +35,21 @@ public class LayoutLock {
 
     }
 
-    public class Accessor extends Padding {
+    public static class Accessor extends Padding {
+
+        private static final Unsafe UNSAFE = UnsafeHolder.UNSAFE;
+        private static final long STATE_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "state");
+        private static final long LAYOUT_CHANGED_INTENDED_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "layoutChangeIntended");
+
+        private final LayoutLock lock;
 
         private volatile int state = INACTIVE;
         private volatile int layoutChangeIntended = 0;
         public volatile boolean dirty = false;
+
+        private Accessor(LayoutLock lock) {
+            this.lock = lock;
+        }
 
         void setState(int value) {
             state = value;
@@ -69,20 +75,17 @@ public class LayoutLock {
             UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, -1);
         }
 
-        private Accessor(LayoutLock layoutLock) {
-        }
-
         public Accessor[] getAccessors() {
-            return accessors;
+            return lock.accessors;
         }
 
         public int getNextThread() {
-            return nextThread.get();
+            return lock.nextThread.get();
         }
 
         public boolean getCleanedAfterLayoutChange() {
             if (OPTIMIZE_LC_LC) {
-                return cleanedAfterLayoutChange;
+                return lock.cleanedAfterLayoutChange;
             } else {
                 return true;
             }
@@ -90,7 +93,7 @@ public class LayoutLock {
 
         public void setCleanedAfterLayoutChange(boolean cleaned) {
             if (OPTIMIZE_LC_LC) {
-                cleanedAfterLayoutChange = cleaned;
+                lock.cleanedAfterLayoutChange = cleaned;
             }
         }
 
@@ -123,15 +126,16 @@ public class LayoutLock {
         }
 
         public int startLayoutChange() {
+            final Accessor[] accessors = getAccessors();
             final Accessor first = accessors[0];
             if (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                 first.waitAndCAS();
             }
 
-            final boolean cleaned = cleanedAfterLayoutChange;
+            final boolean cleaned = lock.cleanedAfterLayoutChange;
             // what if new threads?
 
-            final int n = nextThread.get();
+            final int n = lock.nextThread.get();
 
             if (cleaned) {
                 for (int i = 1; i < n; i++) {
@@ -164,12 +168,13 @@ public class LayoutLock {
         }
 
         public void finishLayoutChange(int n) {
+            final Accessor[] accessors = getAccessors();
             final Accessor first = accessors[0];
             if (OPTIMIZE_LC_LC && first.getLayoutChangeIntended() > 0) { // Another layout change is going to follow
-                cleanedAfterLayoutChange = false;
+                lock.cleanedAfterLayoutChange = false;
                 first.setState(INACTIVE);
             } else {
-                cleanedAfterLayoutChange = true;
+                lock.cleanedAfterLayoutChange = true;
                 for (int i = n - 1; i >= 0; i--) {
                     accessors[i].setState(INACTIVE);
                 }
