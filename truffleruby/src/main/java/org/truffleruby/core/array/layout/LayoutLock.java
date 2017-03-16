@@ -139,7 +139,7 @@ public class LayoutLock {
                 while (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                     yield();
                 }
-                first.getAndIncrementLayoutChangeIntended();
+                first.getAndDecrementLayoutChangeIntended();
             }
 
             final boolean cleaned = cleanedAfterLayoutChange;
