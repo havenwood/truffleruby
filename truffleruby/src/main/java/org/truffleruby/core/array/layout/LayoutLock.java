@@ -30,12 +30,9 @@ public class LayoutLock {
     private final AtomicInteger nextThread = new AtomicInteger(0);
     private boolean cleanedAfterLayoutChange = true;
 
-    private final static Unsafe UNSAFE = UnsafeHolder.UNSAFE;
-
-    private static Accessor dummyAccessor = GLOBAL_LOCK.new Accessor(null);
-
-    private static final long STATE_OFFSET = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "state");
-    private static final long LAYOUT_CHANGED_INTENDED_OFFSET = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "layoutChangeIntended");
+    private static final Unsafe UNSAFE = UnsafeHolder.UNSAFE;
+    private static final long STATE_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "state");
+    private static final long LAYOUT_CHANGED_INTENDED_OFFSET = UnsafeHolder.getFieldOffset(Accessor.class, "layoutChangeIntended");
 
     public class Accessor {
 
