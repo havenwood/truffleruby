@@ -7,6 +7,7 @@ import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
+import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
 import org.truffleruby.core.array.ConcurrentArray.SynchronizedArray;
@@ -67,8 +68,8 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
                 final Object store = Layouts.ARRAY.getStore(array);
                 if (store instanceof FixedSizeArray) { // Was not already migrated by another thread
                     FixedSizeArray fixedSizeArray = (FixedSizeArray) store;
-                    SynchronizedArray synchronizedArray = new SynchronizedArray(fixedSizeArray.getStore());
-                    Layouts.ARRAY.setStore(array, synchronizedArray);
+                    LayoutLockArray concurrentArray = new LayoutLockArray(fixedSizeArray.getStore());
+                    Layouts.ARRAY.setStore(array, concurrentArray);
                 }
             }
         });
