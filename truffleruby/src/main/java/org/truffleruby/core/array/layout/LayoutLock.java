@@ -68,12 +68,12 @@ public class LayoutLock {
             return layoutChangeIntended;
         }
 
-        int getAndIncrementLayoutChangeIntended() {
-            return UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, 1);
+        void incrementLayoutChangeIntended() {
+            UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, 1);
         }
 
-        int getAndDecrementLayoutChangeIntended() {
-            return UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, -1);
+        void decrementLayoutChangeIntended() {
+            UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, -1);
         }
 
         private Accessor(LayoutLock layoutLock) {
@@ -132,11 +132,11 @@ public class LayoutLock {
         public int startLayoutChange() {
             final Accessor first = accessors[0];
             if (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                first.getAndIncrementLayoutChangeIntended();
+                first.incrementLayoutChangeIntended();
                 while (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                     yield();
                 }
-                first.getAndDecrementLayoutChangeIntended();
+                first.decrementLayoutChangeIntended();
             }
 
             final boolean cleaned = cleanedAfterLayoutChange;
@@ -152,11 +152,11 @@ public class LayoutLock {
                         accessor = accessors[i];
                     }
                     if (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                        accessor.getAndIncrementLayoutChangeIntended();
+                        accessor.incrementLayoutChangeIntended();
                         while (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                             yield();
                         }
-                        accessor.getAndDecrementLayoutChangeIntended();
+                        accessor.decrementLayoutChangeIntended();
                     }
                 }
 

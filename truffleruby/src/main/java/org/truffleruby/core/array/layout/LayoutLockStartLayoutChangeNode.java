@@ -66,11 +66,11 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
     }
 
     private void waitAndCAS(Accessor accessor) {
-        accessor.getAndIncrementLayoutChangeIntended();
+        accessor.incrementLayoutChangeIntended();
         while (!accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE)) {
             LayoutLock.yield();
         }
-        accessor.getAndDecrementLayoutChangeIntended();
+        accessor.decrementLayoutChangeIntended();
     }
 
 }
