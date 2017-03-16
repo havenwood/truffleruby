@@ -1,7 +1,8 @@
 package org.truffleruby.core.array.layout;
 
-import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.WeakHashMap;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
@@ -16,11 +17,11 @@ public class ThreadWithDirtyFlag extends Thread {
 
     private final ThreadStateProvider threadStateProvider = new ThreadStateProvider();
 
-    private final HashMap<FastLayoutLock, ThreadStateReference> lockStates = new HashMap<>();
+    private final Map<FastLayoutLock, ThreadStateReference> lockStates = new WeakHashMap<>();
     private DynamicObject lastFLLObject = null;
     private ThreadStateReference last = null;
 
-    private final HashMap<LayoutLock, LayoutLock.Accessor> lockAccessors = new HashMap<>();
+    private final Map<LayoutLock, LayoutLock.Accessor> lockAccessors = new WeakHashMap<>();
     private DynamicObject lastLLObject = null;
     private LayoutLock.Accessor lastAccessor = null;
 
