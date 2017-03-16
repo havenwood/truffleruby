@@ -37,7 +37,7 @@ public class LayoutLock {
 
         private volatile int state = INACTIVE;
         private volatile int layoutChangeIntended = 0;
-        private volatile boolean dirty = false;
+        public volatile boolean dirty = false;
 
         @SuppressWarnings("unused")
         private long l1, l2, l3, l4, l5, l6, l7, l8; // 64 bytes padding to avoid false sharing
@@ -53,14 +53,6 @@ public class LayoutLock {
 
         boolean compareAndSwapState(int expect, int update) {
             return UNSAFE.compareAndSwapInt(this, STATE_OFFSET, expect, update);
-        }
-
-        void setDirty(boolean value) {
-            dirty = value;
-        }
-
-        boolean getDirty() {
-            return dirty;
         }
 
         int getLayoutChangeIntended() {
@@ -104,7 +96,7 @@ public class LayoutLock {
         }
 
         public boolean finishRead(ConditionProfile dirtyProfile) {
-            if (dirtyProfile.profile(getDirty())) {
+            if (dirtyProfile.profile(dirty)) {
                 resetDirty();
                 return false;
             }
@@ -112,7 +104,7 @@ public class LayoutLock {
         }
 
         public boolean finishRead() {
-            if (getDirty()) {
+            if (dirty) {
                 resetDirty();
                 return false;
             }
@@ -152,10 +144,10 @@ public class LayoutLock {
                 }
 
                 for (int i = 0; i < n; i++) {
-                    accessors[i].setDirty(true);
+                    accessors[i].dirty = true;
                 }
             } else {
-                first.setDirty(true);
+                first.dirty = true;
             }
 
             return n;

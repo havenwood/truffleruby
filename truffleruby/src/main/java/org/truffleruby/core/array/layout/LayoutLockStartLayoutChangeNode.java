@@ -55,10 +55,10 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
             }
 
             for (int i = 0; i < threads; i++) {
-                accessors[i].setDirty(true);
+                accessors[i].dirty = true;
             }
         } else {
-            first.setDirty(true);
+            first.dirty = true;
         }
 
 
