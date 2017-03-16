@@ -16,7 +16,7 @@ public class ThreadWithDirtyFlag extends Thread {
 
     private final ThreadStateProvider threadStateProvider = new ThreadStateProvider();
 
-    private final HashMap<DynamicObject, ThreadStateReference> lockStates = new HashMap<>();
+    private final HashMap<FastLayoutLock, ThreadStateReference> lockStates = new HashMap<>();
     private DynamicObject lastFLLObject = null;
     private ThreadStateReference last = null;
 
@@ -37,13 +37,13 @@ public class ThreadWithDirtyFlag extends Thread {
 
     @TruffleBoundary
     private ThreadStateReference getThreadStateSlowPath(DynamicObject array) {
-        ThreadStateReference ts = lockStates.get(array);
+        final FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
+        final FastLayoutLock lock = fastLayoutLockArray.getLock();
+        ThreadStateReference ts = lockStates.get(lock);
         if (ts == null) {
-            FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
-            FastLayoutLock lock = fastLayoutLockArray.getLock();
             ts = threadStateProvider.newThreadStateReference();
             lock.registerThread(ts);
-            lockStates.put(array, ts);
+            lockStates.put(lock, ts);
         }
         lastFLLObject = array;
         last = ts;
@@ -74,9 +74,8 @@ public class ThreadWithDirtyFlag extends Thread {
     }
 
     public void cleanup() {
-        for (Entry<DynamicObject, ThreadStateReference> entry : lockStates.entrySet()) {
-            FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(entry.getKey())).getLock();
-            lock.unregisterThread(entry.getValue());
+        for (Entry<FastLayoutLock, ThreadStateReference> entry : lockStates.entrySet()) {
+            entry.getKey().unregisterThread(entry.getValue());
         }
     }
 
