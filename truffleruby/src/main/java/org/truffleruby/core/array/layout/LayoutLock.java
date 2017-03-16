@@ -3,7 +3,6 @@ package org.truffleruby.core.array.layout;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.truffleruby.core.UnsafeHolder;
-
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -132,11 +131,7 @@ public class LayoutLock {
         public int startLayoutChange() {
             final Accessor first = accessors[0];
             if (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                first.incrementLayoutChangeIntended();
-                while (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                    yield();
-                }
-                first.decrementLayoutChangeIntended();
+                first.waitAndCAS();
             }
 
             final boolean cleaned = cleanedAfterLayoutChange;
@@ -152,11 +147,7 @@ public class LayoutLock {
                         accessor = accessors[i];
                     }
                     if (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                        accessor.incrementLayoutChangeIntended();
-                        while (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                            yield();
-                        }
-                        accessor.decrementLayoutChangeIntended();
+                        accessor.waitAndCAS();
                     }
                 }
 
@@ -168,6 +159,14 @@ public class LayoutLock {
             }
 
             return n;
+        }
+
+        public void waitAndCAS() {
+            incrementLayoutChangeIntended();
+            while (!compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE)) {
+                LayoutLock.yield();
+            }
+            decrementLayoutChangeIntended();
         }
 
         public void finishLayoutChange(int n) {
