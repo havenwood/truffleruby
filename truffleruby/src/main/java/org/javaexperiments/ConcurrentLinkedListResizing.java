@@ -4,12 +4,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.core.array.layout.LayoutLock.Accessor;
-import org.truffleruby.core.array.layout.ThreadWithDirtyFlag;
-
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 public final class ConcurrentLinkedListResizing {
+
     static final class Entry {
 
         private static final AtomicReferenceFieldUpdater<Entry, Entry> NEXT_UPDATER =
@@ -54,6 +54,18 @@ public final class ConcurrentLinkedListResizing {
     volatile AtomicReferenceArray<Entry> first = new AtomicReferenceArray<>(1);
     volatile int bucket = 0;
 
+    static final LayoutLock LAYOUT_LOCK = new LayoutLock();
+
+    static final class MyThread extends Thread {
+
+        final Accessor accessor = LAYOUT_LOCK.access();
+
+        public MyThread(Runnable runnable) {
+            super(runnable);
+        }
+
+    }
+
     public ConcurrentLinkedListResizing() {
     }
 
@@ -71,9 +83,7 @@ public final class ConcurrentLinkedListResizing {
     }
 
     private Accessor getAccessor() {
-        // FIXME return ((ThreadWithDirtyFlag) Thread.currentThread()).getLayoutLockAccessor(this,
-        // DUMMY_PROFILE);
-        return null;
+        return ((MyThread) Thread.currentThread()).accessor;
     }
 
     public void append(Object key) {
@@ -202,7 +212,7 @@ public final class ConcurrentLinkedListResizing {
         Thread[] appenders = new Thread[n];
         for (int i = 0; i < appenders.length; i++) {
             final int e = i;
-            appenders[i] = new ThreadWithDirtyFlag(() -> {
+            appenders[i] = new MyThread(() -> {
                 while (!go) {
                     Thread.yield();
                 }
@@ -219,7 +229,7 @@ public final class ConcurrentLinkedListResizing {
         Thread[] removers = new Thread[n];
         for (int i = 0; i < removers.length; i++) {
             final int e = i;
-            removers[i] = new ThreadWithDirtyFlag(() -> {
+            removers[i] = new MyThread(() -> {
                 while (!go) {
                     Thread.yield();
                 }
