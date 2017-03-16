@@ -103,15 +103,21 @@ public final class FastLayoutLock {
 
     public void registerThread(ThreadStateReference ts) {
         long stamp = baseLock.writeLock();
-        addToGather(ts);
-        needToRecover = true;
-        baseLock.unlockWrite(stamp);
+        try {
+            addToGather(ts);
+            needToRecover = true;
+        } finally {
+            baseLock.unlockWrite(stamp);
+        }
     }
 
     public void unregisterThread(ThreadStateReference ts) {
         long stamp = baseLock.writeLock();
-        removeFromGather(ts);
-        baseLock.unlockWrite(stamp);
+        try {
+            removeFromGather(ts);
+        } finally {
+            baseLock.unlockWrite(stamp);
+        }
     }
 
     private void addToGather(ThreadStateReference e) {
