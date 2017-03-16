@@ -4,6 +4,7 @@ import java.util.Set;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.UnsafeHolder;
+import org.truffleruby.core.array.layout.LayoutLock;
 import org.truffleruby.language.objects.ObjectGraphNode;
 
 import com.oracle.truffle.api.object.DynamicObject;
@@ -15,6 +16,8 @@ public final class ConcurrentHash implements ObjectGraphNode {
     private final ConcurrentEntry head;
     private final ConcurrentEntry tail;
     private volatile AtomicReferenceArray<ConcurrentEntry> buckets;
+
+    private final LayoutLock layoutLock = new LayoutLock();
 
     public void linkFirstLast(ConcurrentEntry first, ConcurrentEntry last) {
         if (first != null) {
@@ -49,6 +52,10 @@ public final class ConcurrentHash implements ObjectGraphNode {
 
     public ConcurrentEntry getTail() {
         return tail;
+    }
+
+    public LayoutLock getLayoutLock() {
+        return layoutLock;
     }
 
     /** Returns first non-removed entry, possibly tail */

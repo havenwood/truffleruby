@@ -6,6 +6,7 @@ import java.util.Map.Entry;
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
+import org.truffleruby.core.hash.ConcurrentHash;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.object.DynamicObject;
@@ -49,22 +50,26 @@ public class ThreadWithDirtyFlag extends Thread {
         return ts;
     }
 
-    public LayoutLock.Accessor getLayoutLockAccessor(DynamicObject array, ConditionProfile fastPathProfile) {
-        if (fastPathProfile.profile(lastLLObject == array)) {
+    public LayoutLock.Accessor getLayoutLockAccessor(DynamicObject object, ConditionProfile fastPathProfile) {
+        if (fastPathProfile.profile(lastLLObject == object)) {
             return lastAccessor;
         }
-        return getLayoutLockAccessorSlowPath(array);
+        return getLayoutLockAccessorSlowPath(object);
     }
 
     @TruffleBoundary
-    private LayoutLock.Accessor getLayoutLockAccessorSlowPath(DynamicObject array) {
+    private LayoutLock.Accessor getLayoutLockAccessorSlowPath(DynamicObject object) {
         System.err.println("slow path");
-        LayoutLock.Accessor accessor = lockAccessors.get(array);
+        LayoutLock.Accessor accessor = lockAccessors.get(object);
         if (accessor == null) {
-            accessor = ((LayoutLockArray) Layouts.ARRAY.getStore(array)).getLock().access();
-            lockAccessors.put(array, accessor);
+            if (Layouts.ARRAY.isArray(object)) {
+                accessor = ((LayoutLockArray) Layouts.ARRAY.getStore(object)).getLock().access();
+            } else {
+                accessor = ConcurrentHash.getStore(object).getLayoutLock().access();
+            }
+            lockAccessors.put(object, accessor);
         }
-        lastLLObject = array;
+        lastLLObject = object;
         lastAccessor = accessor;
         return accessor;
     }
