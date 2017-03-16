@@ -34,12 +34,12 @@ describe "Array#<<" do
 
   it "$LOAD_PATH" do
     $: << File.dirname(__FILE__) # Make sure $LOAD_PATH is changed
-    storage($LOAD_PATH).should == "Synchronized(Object[])"
+    storage($LOAD_PATH).should == "FastLayoutLock(Object[])"
   end
 
   it "$LOADED_FEATURES" do
     $" << __FILE__ # Make sure $LOADED_FEATURES is changed
-    storage($LOADED_FEATURES).should == "Synchronized(Object[])"
+    storage($LOADED_FEATURES).should == "FastLayoutLock(Object[])"
   end
 
   it "shares new elements written to a shared Array" do
