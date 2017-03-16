@@ -15,9 +15,7 @@ import sun.misc.Unsafe;
  */
 public class LayoutLock {
 
-    public static final boolean OPTIMIZE_LC_LC = System.getProperty("optimizeLCLC") != null; // false by default
-
-    private static final int MAX_THREADS = 600;
+    private static final int MAX_THREADS = 600; // For specs
 
     public static final int INACTIVE = 0;
     public static final int WRITE = 1;
@@ -25,7 +23,6 @@ public class LayoutLock {
 
     @CompilationFinal private final Accessor[] accessors = new Accessor[MAX_THREADS];
     private final AtomicInteger nextThread = new AtomicInteger(0);
-    private boolean cleanedAfterLayoutChange = true;
 
     private static class Padding {
 
@@ -83,20 +80,6 @@ public class LayoutLock {
             return lock.nextThread.get();
         }
 
-        public boolean getCleanedAfterLayoutChange() {
-            if (OPTIMIZE_LC_LC) {
-                return lock.cleanedAfterLayoutChange;
-            } else {
-                return true;
-            }
-        }
-
-        public void setCleanedAfterLayoutChange(boolean cleaned) {
-            if (OPTIMIZE_LC_LC) {
-                lock.cleanedAfterLayoutChange = cleaned;
-            }
-        }
-
         public void startRead() {
         }
 
@@ -126,34 +109,24 @@ public class LayoutLock {
         }
 
         public int startLayoutChange() {
-            final Accessor[] accessors = getAccessors();
-            final Accessor first = accessors[0];
-            if (!first.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                first.waitAndCAS();
-            }
-
-            final boolean cleaned = lock.cleanedAfterLayoutChange;
             // what if new threads?
-
             final int n = lock.nextThread.get();
 
-            if (cleaned) {
-                for (int i = 1; i < n; i++) {
-                    Accessor accessor = accessors[i];
-                    while (accessor == null) {
-                        CompilerDirectives.transferToInterpreterAndInvalidate();
-                        accessor = accessors[i];
-                    }
-                    if (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                        accessor.waitAndCAS();
-                    }
-                }
+            final Accessor[] accessors = getAccessors();
 
-                for (int i = 0; i < n; i++) {
-                    accessors[i].dirty = true;
+            for (int i = 0; i < n; i++) {
+                Accessor accessor = accessors[i];
+                while (accessor == null) {
+                    CompilerDirectives.transferToInterpreterAndInvalidate();
+                    accessor = accessors[i];
                 }
-            } else {
-                first.dirty = true;
+                if (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
+                    accessor.waitAndCAS();
+                }
+            }
+
+            for (int i = 0; i < n; i++) {
+                accessors[i].dirty = true;
             }
 
             return n;
@@ -169,15 +142,8 @@ public class LayoutLock {
 
         public void finishLayoutChange(int n) {
             final Accessor[] accessors = getAccessors();
-            final Accessor first = accessors[0];
-            if (OPTIMIZE_LC_LC && first.getLayoutChangeIntended() > 0) { // Another layout change is going to follow
-                lock.cleanedAfterLayoutChange = false;
-                first.setState(INACTIVE);
-            } else {
-                lock.cleanedAfterLayoutChange = true;
-                for (int i = n - 1; i >= 0; i--) {
-                    accessors[i].setState(INACTIVE);
-                }
+            for (int i = 0; i < n; i++) {
+                accessors[i].setState(LayoutLock.INACTIVE);
             }
         }
 
@@ -199,16 +165,15 @@ public class LayoutLock {
     }
 
     public Accessor access() {
-        Accessor ac = new Accessor(this);
-        final int n = nextThread.getAndIncrement();
-        accessors[n] = ac;
-        if (n > 0) {
-            // Wait for no Layout changes
-            while (accessors[0].getState() == LAYOUT_CHANGE) {
-                yield();
-            }
+        final Accessor accessor = new Accessor(this);
+        final int threads = accessor.startLayoutChange();
+        try {
+            final int n = nextThread.getAndIncrement();
+            accessors[n] = accessor;
+        } finally {
+            accessor.finishLayoutChange(threads);
         }
-        return ac;
+        return accessor;
     }
 
 }

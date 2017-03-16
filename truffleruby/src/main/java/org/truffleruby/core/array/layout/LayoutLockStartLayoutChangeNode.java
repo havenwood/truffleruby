@@ -28,37 +28,27 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile casFirstProfile,
             @Cached("createBinaryProfile()") ConditionProfile casProfile,
             @Cached("createBinaryProfile()") ConditionProfile multiLayoutChangesProfile) {
-        final Accessor[] accessors = layoutLock.getAccessors();
-
-        final Accessor first = accessors[0];
-        if (!casFirstProfile.profile(first.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
-            first.waitAndCAS();
-        }
-
-        final boolean cleaned = layoutLock.getCleanedAfterLayoutChange();
         final int n = layoutLock.getNextThread();
         if (n != threads) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             threads = n;
         }
 
-        if (multiLayoutChangesProfile.profile(cleaned)) {
-            for (int i = 1; i < threads; i++) {
-                Accessor accessor = accessors[i];
-                while (accessor == null) {
-                    CompilerDirectives.transferToInterpreterAndInvalidate();
-                    accessor = accessors[i];
-                }
-                if (!casProfile.profile(accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
-                    accessor.waitAndCAS();
-                }
-            }
+        final Accessor[] accessors = layoutLock.getAccessors();
 
-            for (int i = 0; i < threads; i++) {
-                accessors[i].dirty = true;
+        for (int i = 0; i < threads; i++) {
+            Accessor accessor = accessors[i];
+            while (accessor == null) {
+                CompilerDirectives.transferToInterpreterAndInvalidate();
+                accessor = accessors[i];
             }
-        } else {
-            first.dirty = true;
+            if (!casProfile.profile(accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
+                accessor.waitAndCAS();
+            }
+        }
+
+        for (int i = 0; i < threads; i++) {
+            accessors[i].dirty = true;
         }
 
 
