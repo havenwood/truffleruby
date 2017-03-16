@@ -38,9 +38,9 @@ def run(threads=2, n=2000000)
     threads << Thread.new {
       batch = tasks.pop
       while batch != POISON_PILL
-	result = batch.collect { |b| check_prime(b) }
+        result = batch.collect { |b| check_prime(b) }
         results << result
-	batch = tasks.pop
+        batch = tasks.pop
       end
     }
   }
@@ -58,9 +58,9 @@ end
 puts "Starting..."
 ROUNDS=10
 ROUNDS.times {
-t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-run Integer(ARGV[0] || 1)
-t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-dt = (t1-t0)
-puts "run length: #{dt}"
+  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  run Integer(ARGV[0] || 1)
+  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  dt = (t1-t0)
+  puts "run length: #{dt}"
 }
