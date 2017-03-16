@@ -30,56 +30,53 @@ public class LayoutLock {
     private final AtomicInteger nextThread = new AtomicInteger(0);
     private boolean cleanedAfterLayoutChange = true;
 
-    private final static Unsafe unsafe = UnsafeHolder.UNSAFE;
+    private final static Unsafe UNSAFE = UnsafeHolder.UNSAFE;
 
     private static Accessor dummyAccessor = GLOBAL_LOCK.new Accessor(null);
 
-    private static final long stateOffset = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "state");
-    private static final long dirtyOffset = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "dirty");
-    private static final long layoutChangeIntendedOffset = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "layoutChangeIntended");
+    private static final long STATE_OFFSET = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "state");
+    private static final long LAYOUT_CHANGED_INTENDED_OFFSET = UnsafeHolder.getFieldOffset(dummyAccessor.getClass(), "layoutChangeIntended");
 
     public class Accessor {
 
-        private int state = INACTIVE;
-        private int layoutChangeIntended = 0;
-        private boolean dirty = false;
-        private long l1, l2, l3, l4, l5, l6, l7, l8; // 64 bytes padding
+        private volatile int state = INACTIVE;
+        private volatile int layoutChangeIntended = 0;
+        private volatile boolean dirty = false;
+
+        @SuppressWarnings("unused")
+        private long l1, l2, l3, l4, l5, l6, l7, l8; // 64 bytes padding to avoid false sharing
 
 
         void setState(int value) {
-            unsafe.putIntVolatile(this, stateOffset, value);
+            state = value;
         }
 
         int getState() {
-            return unsafe.getIntVolatile(this, stateOffset);
+            return state;
         }
 
         boolean compareAndSwapState(int expect, int update) {
-            return unsafe.compareAndSwapInt(this, stateOffset, expect, update);
+            return UNSAFE.compareAndSwapInt(this, STATE_OFFSET, expect, update);
         }
 
         void setDirty(boolean value) {
-            unsafe.putBooleanVolatile(this, dirtyOffset, value);
+            dirty = value;
         }
 
         boolean getDirty() {
-            return unsafe.getBooleanVolatile(this, dirtyOffset);
+            return dirty;
         }
 
         int getLayoutChangeIntended() {
-            return unsafe.getIntVolatile(this, layoutChangeIntendedOffset);
+            return layoutChangeIntended;
         }
 
         int getAndIncrementLayoutChangeIntended() {
-            return unsafe.getAndAddInt(this, layoutChangeIntendedOffset, 1);
+            return UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, 1);
         }
 
         int getAndDecrementLayoutChangeIntended() {
-            return unsafe.getAndAddInt(this, layoutChangeIntendedOffset, -1);
-        }
-
-        void setLayoutChangeIntended(int value) {
-            unsafe.putIntVolatile(this, layoutChangeIntendedOffset, value);
+            return UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, -1);
         }
 
         private Accessor(LayoutLock layoutLock) {
