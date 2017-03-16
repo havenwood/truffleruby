@@ -41,7 +41,7 @@ public final class FastLayoutLock {
             ThreadStateReference state = gather[i];
             if (waitProfile.profile(state.get() != LAYOUT_CHANGE)) {
                 state.add(LAYOUT_CHANGE_PENDING);
-                while (!state.compareAndSet(LAYOUT_CHANGE_PENDING, LAYOUT_CHANGE)) {
+                while (!state.compareAndSet(INACTIVE + LAYOUT_CHANGE_PENDING, LAYOUT_CHANGE)) {
                     LayoutLock.yield();
                 }
             }
