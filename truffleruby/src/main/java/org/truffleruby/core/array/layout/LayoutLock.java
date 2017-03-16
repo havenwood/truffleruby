@@ -13,9 +13,9 @@ public class LayoutLock {
 
     private static final int MAX_THREADS = 600; // For specs
 
-    public static final int INACTIVE = 0;
-    public static final int WRITE = 1;
-    public static final int LAYOUT_CHANGE = 2;
+    private static final int INACTIVE = 0;
+    private static final int WRITE = 1;
+    private static final int LAYOUT_CHANGE = 2;
 
     private final Accessor[] accessors = new Accessor[MAX_THREADS];
     private volatile int nextThread = 0;
@@ -95,8 +95,13 @@ public class LayoutLock {
             return true;
         }
 
-        public void startWrite() {
-            while (getLayoutChangeIntended() > 0 || !compareAndSwapState(INACTIVE, WRITE)) {
+        public void startWrite(ConditionProfile stateProfile) {
+            while (getLayoutChangeIntended() > 0) {
+                yield();
+            }
+
+            while (!stateProfile.profile(compareAndSwapState(INACTIVE, WRITE))) {
+                yield();
             }
         }
 
@@ -104,30 +109,29 @@ public class LayoutLock {
             setState(INACTIVE);
         }
 
-        public int startLayoutChange() {
-            // what if new threads?
-            final int n = lock.nextThread;
+        public int startLayoutChange(ConditionProfile casProfile) {
+            final int threads = lock.nextThread;
 
             final Accessor[] accessors = getAccessors();
 
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; i < threads; i++) {
                 final Accessor accessor = accessors[i];
-                if (!accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
+                if (!casProfile.profile(accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE))) {
                     accessor.waitAndCAS();
                 }
             }
 
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; i < threads; i++) {
                 accessors[i].dirty = true;
             }
 
-            return n;
+            return threads;
         }
 
         public void waitAndCAS() {
             incrementLayoutChangeIntended();
-            while (!compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE)) {
-                LayoutLock.yield();
+            while (!compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
+                yield();
             }
             decrementLayoutChangeIntended();
         }
@@ -135,7 +139,7 @@ public class LayoutLock {
         public void finishLayoutChange(int n) {
             final Accessor[] accessors = getAccessors();
             for (int i = 0; i < n; i++) {
-                accessors[i].setState(LayoutLock.INACTIVE);
+                accessors[i].setState(INACTIVE);
             }
         }
 
@@ -158,7 +162,7 @@ public class LayoutLock {
 
     public Accessor access() {
         final Accessor accessor = new Accessor(this);
-        final int threads = accessor.startLayoutChange();
+        final int threads = accessor.startLayoutChange(DUMMY_PROFILE);
         try {
             final int n = nextThread;
             accessors[n] = accessor;
@@ -168,5 +172,7 @@ public class LayoutLock {
         }
         return accessor;
     }
+
+    private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
 
 }

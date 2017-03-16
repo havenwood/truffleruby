@@ -1,6 +1,5 @@
 package org.truffleruby.core.array.layout;
 
-import org.truffleruby.core.array.layout.LayoutLock.Accessor;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.Cached;
@@ -18,25 +17,9 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
     public abstract int executeStartLayoutChange(LayoutLock.Accessor accessor);
 
     @Specialization
-    protected int startLayoutChange(LayoutLock.Accessor layoutLock,
+    protected int startLayoutChange(LayoutLock.Accessor accessor,
             @Cached("createBinaryProfile()") ConditionProfile casProfile) {
-        final int threads = layoutLock.getNextThread();
-
-        final Accessor[] accessors = layoutLock.getAccessors();
-
-        for (int i = 0; i < threads; i++) {
-            final Accessor accessor = accessors[i];
-            if (!casProfile.profile(accessor.compareAndSwapState(LayoutLock.INACTIVE, LayoutLock.LAYOUT_CHANGE))) {
-                accessor.waitAndCAS();
-            }
-        }
-
-        for (int i = 0; i < threads; i++) {
-            accessors[i].dirty = true;
-        }
-
-
-        return threads;
+        return accessor.startLayoutChange(casProfile);
     }
 
 }

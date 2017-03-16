@@ -71,7 +71,7 @@ public final class ConcurrentLinkedListResizing {
 
     private void resize() {
         final Accessor accessor = getAccessor();
-        int threads = accessor.startLayoutChange();
+        int threads = accessor.startLayoutChange(DUMMY_PROFILE);
         try {
             bucket++;
             final AtomicReferenceArray<Entry> old = first;
@@ -90,7 +90,7 @@ public final class ConcurrentLinkedListResizing {
         final Entry newEntry = new Entry(key);
 
         final Accessor accessor = getAccessor();
-        accessor.startWrite();
+        accessor.startWrite(DUMMY_PROFILE);
         try {
             Entry head;
             do {
@@ -119,7 +119,7 @@ public final class ConcurrentLinkedListResizing {
         // and the thread deleting the next element will keep its write lock while waiting for full
         // removal, preventing LC, while waiting for the first thread to try to acquire a write lock
         // (which it can't as LC won the CAS for that first thread)
-        accessor.startWrite();
+        accessor.startWrite(DUMMY_PROFILE);
         try {
             // Prevent insertions after entry so adjacent concurrent deletes serialize
             Entry next, nextDeleted;
