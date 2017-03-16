@@ -24,11 +24,12 @@ public class ThreadWithDirtyFlag extends Thread {
     private final LayoutLock.Accessor layoutLockAccessor = LayoutLock.GLOBAL_LOCK.access();
 
     private final HashMap<DynamicObject, ThreadStateReference> lockStates = new HashMap<>();
-    private final HashMap<Object, LayoutLock.Accessor> lockAccessors = new HashMap<>();
-
+    private DynamicObject lastFLLObject = null;
     private ThreadStateReference last = null;
+
+    private final HashMap<Object, LayoutLock.Accessor> lockAccessors = new HashMap<>();
+    private DynamicObject lastLLObject = null;
     private LayoutLock.Accessor lastAccessor = null;
-    private DynamicObject lastObject = null;
 
     public ThreadWithDirtyFlag(Runnable runnable) {
         super(runnable);
@@ -37,24 +38,12 @@ public class ThreadWithDirtyFlag extends Thread {
         }
     }
 
-    public LayoutLock.Accessor getLayoutLockAccessor(DynamicObject array, ConditionProfile fastPathProfile) {
-        if (USE_GLOBAL_LL) {
-            return layoutLockAccessor;
-        } else {
-            if (fastPathProfile.profile(lastObject == array)) {
-                return lastAccessor;
-            }
-            return getLayoutLockAccessorSlowPath(array);
-        }
-    }
-
     public ThreadStateReference getThreadState(DynamicObject array, ConditionProfile fastPathProfile) {
         if (USE_GLOBAL_FLL) {
             return fllThreadState;
         } else {
-            if (fastPathProfile.profile(lastObject == array)) {
+            if (fastPathProfile.profile(lastFLLObject == array)) {
                 return last;
-
             }
             return getThreadStateSlowPath(array);
         }
@@ -70,9 +59,20 @@ public class ThreadWithDirtyFlag extends Thread {
             lock.registerThread(ts);
             lockStates.put(array, ts);
         }
-        lastObject = array;
+        lastFLLObject = array;
         last = ts;
         return ts;
+    }
+
+    public LayoutLock.Accessor getLayoutLockAccessor(DynamicObject array, ConditionProfile fastPathProfile) {
+        if (USE_GLOBAL_LL) {
+            return layoutLockAccessor;
+        } else {
+            if (fastPathProfile.profile(lastLLObject == array)) {
+                return lastAccessor;
+            }
+            return getLayoutLockAccessorSlowPath(array);
+        }
     }
 
     @TruffleBoundary
@@ -87,7 +87,7 @@ public class ThreadWithDirtyFlag extends Thread {
             }
             lockAccessors.put(array, accessor);
         }
-        lastObject = array;
+        lastLLObject = array;
         lastAccessor = accessor;
         return accessor;
     }
