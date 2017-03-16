@@ -171,7 +171,7 @@ public class LayoutLock {
 
         public void finishLayoutChange(int n) {
             final Accessor first = accessors[0];
-            if (first.getLayoutChangeIntended() > 0) { // Another layout change is going to follow
+            if (OPTIMIZE_LC_LC && first.getLayoutChangeIntended() > 0) { // Another layout change is going to follow
                 cleanedAfterLayoutChange = false;
                 first.setState(INACTIVE);
             } else {
