@@ -454,7 +454,7 @@ deploy-binaries: {
 # command prefix for binding a command to a certain node
 hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
 
-run-bench: ${jt} ["ruby", "--graal", "--trace", "-J-Dgraal.TruffleCompilerThreads=1", "-J-verbose:gc", "--disable-gems", "bench/pypy/mandelbrot_shared.rb"]
+run-bench: ${jt} ["ruby", "--graal", "-J-Dgraal.TruffleCompilationExceptionsAreFatal=true", "-J-Dgraal.TruffleCompilerThreads=1", "-J-verbose:gc", "--disable-gems", "bench/pypy/mandelbrot_shared.rb"]
 extra-args: ["256", "1024", "1024"]
 
 custom-bench: {
