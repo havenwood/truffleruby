@@ -4,7 +4,7 @@ require_relative 'abstract_threading'
 AMBIENT = 0.1
 
 class Vector
-  attr_accessor :x, :y, :z
+  attr_reader :x, :y, :z
 
   def initialize(x,y,z)
     @x = x
@@ -43,7 +43,7 @@ class Vector
 end
 
 class Sphere
-  attr_accessor :c, :r, :col
+  attr_reader :c, :r, :col
 
   def initialize(center, radius, color)
     @c = center
@@ -75,7 +75,7 @@ class Sphere
 end
 
 class Plane
-  attr_accessor :n, :p, :col
+  attr_reader :n, :p, :col
 
   def initialize(point, normal, color)
     @n = normal
@@ -95,7 +95,7 @@ class Plane
 end
 
 class Ray
-  attr_accessor :o, :d
+  attr_reader :o, :d
 
   def initialize(origin, direction)
     @o = origin
@@ -104,7 +104,7 @@ class Ray
 end
 
 class Intersection
-  attr_accessor :p, :d, :n, :obj
+  attr_reader :p, :d, :n, :obj
 
   def initialize(point, distance, normal, obj)
     @p = point
@@ -177,7 +177,7 @@ def run(threads = 2, w = 1024, h = 1024)
 
   image = Array.new(w) { Array.new(h, 0.0) }
 
-  pool = pool = ThreadPool.new(threads)
+  pool = ThreadPool.new(threads)
 
   t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   w.times.map { |x|
@@ -189,7 +189,8 @@ def run(threads = 2, w = 1024, h = 1024)
   dt = (t1-t0)
   puts dt
 
-  image.each { |row| puts row.inspect }
+  # image.each { |row| puts row.inspect }
+  p image.reduce(0) { |sum,row| sum + row.reduce(:+) }
 
   pool.shutdown
 end
