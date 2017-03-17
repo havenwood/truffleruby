@@ -39,7 +39,7 @@ def save_to_file(image, file = 'outrb.txt')
   File.write(file, s)
 end
 
-
+# NOTE: strips must be >> threads, because the middle stripes are more expensive than the border stripes
 def run(threads = 2, stripes = 64, width = 4096, height = 4096)
   raise unless stripes >= threads
   pool = ThreadPool.new(threads)
@@ -73,8 +73,6 @@ def run(threads = 2, stripes = 64, width = 4096, height = 4096)
   image
 end
 
-10.times do
-  image = run(Integer(ARGV[0]), Integer(ARGV[1]), Integer(ARGV[2]), Integer(ARGV[3]))
-  # save_to_file(image)
-  # save_image(image)
-end
+image = run(Integer(ARGV[0]), Integer(ARGV[1]), Integer(ARGV[2]), Integer(ARGV[3]))
+# save_to_file(image)
+# save_image(image)
