@@ -42,9 +42,9 @@ full = load_data("conc_write_reads_10_90_1.csv")
 full = load_data("conc_write_reads_10_90_2.csv")
 full = load_data("conc_write_reads_10_90_5.csv")
 full = load_data("conc_write_reads_10_90_6.csv")
-full1 = load_data("conc_write_ops_1.csv")
+full = load_data("conc_write_ops_1.csv")
 full = load_data("conc_write_ops_2.csv")
-
+full = load_data("conc_write_ops_all1.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
