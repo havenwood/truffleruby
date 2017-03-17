@@ -30,22 +30,23 @@ def run(n_threads = 2, n = 2_000_000)
   groups.each { |group| tasks << group }
   n_threads.times { tasks << nil }
 
+  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   n_threads.times.map {
     worker(tasks, results)
   }.each(&:join)
+  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  dt = (t1-t0)
 
   count = results.reduce(0) { |sum, batch_results|
     sum + batch_results.count { |is_prime, n| is_prime }
   }
+
+  puts count
+  puts dt
 end
 
 puts "Starting..."
 10.times {
   threads, n = Integer(ARGV[0]), Integer(ARGV[1])
-  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  result = run(threads, n)
-  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  dt = (t1-t0)
-  puts result
-  puts dt
+  run(threads, n)
 }
