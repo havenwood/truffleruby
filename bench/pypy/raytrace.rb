@@ -1,4 +1,5 @@
 require_relative '../compat'
+require_relative 'abstract_threading'
 
 AMBIENT = 0.1
 
@@ -149,80 +150,48 @@ def trace(ray, objects, light, maxRecur)
   col
 end
 
-def task(img, x, h, cameraPos, objs, lightSource)
+def task(image, x, h, camera_pos, objs, light_source)
   # puts "in task h=#{h}"
-  line = img[x]
+  line = image[x]
   # puts "line[0] = #{line[0]}"
   h.times { |y|
-    ray = Ray.new(cameraPos, (Vector.new(x/50.0-5, y/50.0-5, 0)-cameraPos).normal)
-    col = trace(ray, objs, lightSource, 10)
+    ray = Ray.new(camera_pos, (Vector.new(x/50.0-5, y/50.0-5, 0) - camera_pos).normal)
+    col = trace(ray, objs, light_source, 10)
     line[y] = (col.x + col.y + col.z) / 3.0
   }
-  img[x] = line
+  image[x] = line
   # STDERR.puts "line=#{line.join(', ')}"
   # puts "task done"
   x
 end
 
-def future_task(img, x, h, cameraPos, objs, lightSource)
-  ret = Queue.new
-  return [
-    Proc.new {
-      res = task(img, x, h, cameraPos, objs, lightSource); ret.push(res)
-    },
-    ret
-  ]
-end
-
-$workq = Queue.new
-$futures = []
-def future_dispatcher(ths, *args)
-  f=future_task(*args)
-  $workq.push(f)
-  $futures << f
-end
-
-def thread_pool(ths, queue)
-  ths.times.map { |t|
-    Thread.new {
-      puts "Started thread #{t}"
-      begin
-        while job = queue.pop(true)
-          #puts "poped job #{job}"
-          job[0].call
-        end
-      rescue ThreadError
-        puts "thread #{t} done"
-      end
-    }
-  }
-end
-
 def run(threads = 2, w = 1024, h = 1024)
-  objs = []
-  objs << Sphere.new(Vector.new(-2,0,-10), 2, Vector.new(0,255,0))
-  objs << Sphere.new(Vector.new(2,0,-10), 3.5, Vector.new(255,0,0))
-  objs << Sphere.new(Vector.new(0,-4,-10), 3, Vector.new(0,0,255))
-  objs << Plane.new(Vector.new(0,0,-12), Vector.new(0,0,1), Vector.new(255,255,255))
-  lightSource = Vector.new(0,10,0)
+  objs = [
+    Sphere.new(Vector.new(-2,0,-10), 2, Vector.new(0,255,0)),
+    Sphere.new(Vector.new(2,0,-10), 3.5, Vector.new(255,0,0)),
+    Sphere.new(Vector.new(0,-4,-10), 3, Vector.new(0,0,255)),
+    Plane.new(Vector.new(0,0,-12), Vector.new(0,0,1), Vector.new(255,255,255)),
+  ]
+  light_source = Vector.new(0,10,0)
+  camera_pos = Vector.new(0,0,20)
 
-  cameraPos = Vector.new(0,0,20)
-  img = Array.new(w) { Array.new(h, 0.0) }
+  image = Array.new(w) { Array.new(h, 0.0) }
 
-  pool = thread_pool(threads, $workq)
+  pool = pool = ThreadPool.new(threads)
+
   t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  w.times { |x| 
-    future_dispatcher(threads, img, x, h, cameraPos, objs, lightSource)
-  }
-  $futures.each { |f|
-    f[1].pop
-  }
+  w.times.map { |x|
+    pool << Future.new {
+      task(image, x, h, camera_pos, objs, light_source)
+    }
+  }.each(&:get)
   t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   dt = (t1-t0)
   puts dt
 
-  # shtudown current pool
-  pool.each(&:join)
+  image.each { |row| puts row.inspect }
+
+  pool.shutdown
 end
   
 run(Integer(ARGV[0]), Integer(ARGV[1]), Integer(ARGV[2]))
