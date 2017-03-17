@@ -1,12 +1,11 @@
 require_relative 'abstract_threading'
 
-def calculate(ar, ai, br, bi, width, height, max_iter=255)
+def calculate(image, ar, ai, br, bi, width, height, base_row, max_iter=255)
   # p [ar, ai, br, bi, width, height, max_iter]
   imag_step = (bi - ai) / (height - 1)
   real_step = (br - ar) / (width - 1)
   # puts "real/width:%.13f, imag/height:%.13f" % [real_step, imag_step]
 
-  result = Array.new(height) { Array.new(width, 0) }
   height.times do |y|
     zi = ai + y * imag_step
     width.times do |x|
@@ -18,14 +17,9 @@ def calculate(ar, ai, br, bi, width, height, max_iter=255)
         z = z * z + c
         i += 1
       end
-      result[y][x] = i
+      image[base_row+y][x] = i
     end
   end
-  result
-end
-
-def merge_images(images)
-  images.reduce([], :concat)
 end
 
 def save_image(image, file = 'outrb.png')
@@ -48,28 +42,34 @@ end
 
 def run(threads = 2, stripes = 64, width = 4096, height = 4096)
   raise unless stripes >= threads
-  ar, ai = -2.0, -1.5
-  br, bi = 1.0, 1.5
-
   pool = ThreadPool.new(threads)
-  step = (bi - ai) / stripes
-  ai = -1.5
-  bi = ai + step
-  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  parts = stripes.times.map { |i|
-    pool << Future.new {
-      calculate(ar, ai + i * step,
-                br, bi + i * step,
-                width, height / stripes)
-    }
-  }.map(&:get)
-  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  dt = (t1-t0)
-  puts dt
+
+  10.times do
+    ar, ai = -2.0, -1.5
+    br, bi = 1.0, 1.5
+
+    image = Array.new(height) { Array.new(width, 0) }
+    step = (bi - ai) / stripes
+    ai = -1.5
+    bi = ai + step
+    chunk = height / stripes
+
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    stripes.times.map { |i|
+      pool << Future.new {
+        calculate(image,
+                  ar, ai + i * step,
+                  br, bi + i * step,
+                  width, chunk, i * chunk)
+      }
+    }.each(&:get)
+    t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    dt = (t1-t0)
+    puts dt
+    puts image.reduce(0) { |sum,row| sum + row.reduce(:+) }
+  end
 
   pool.shutdown
-  image = merge_images(parts)
-  p image.reduce(0) { |sum,row| sum + row.reduce(:+) }
   image
 end
 
