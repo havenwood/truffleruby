@@ -1,5 +1,6 @@
 require_relative 'compat'
 require_relative 'random'
+require 'thread'
 
 class MyRandom
   def initialize(seed)
