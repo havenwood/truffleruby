@@ -6,6 +6,10 @@ AMBIENT = 0.1
 class Vector
   attr_reader :x, :y, :z
 
+  def self.zero
+    Vector.new(0.0, 0.0, 0.0)
+  end
+
   def initialize(x,y,z)
     @x = x
     @y = y
@@ -54,7 +58,7 @@ class Sphere
   def intersection(l)
     q = l.d.dot(l.o - @c)**2 - (l.o - @c).dot(l.o - @c) + @r**2
     if q < 0
-      Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
+      Intersection.new(Vector.zero, -1, Vector.zero, self)
     else
       d = -l.d.dot(l.o - @c)
       d1 = d - Math.sqrt(q)
@@ -64,7 +68,7 @@ class Sphere
       elsif 0 < d2 and (d2 < d1 or d1 < 0)
         Intersection.new(l.o+l.d*d2, d2, normal(l.o+l.d*d2), self)
       else
-        Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
+        Intersection.new(Vector.zero, -1, Vector.zero, self)
       end
     end
   end
@@ -86,7 +90,7 @@ class Plane
   def intersection(l)
     d = l.d.dot(@n)
     if d == 0
-      Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
+      Intersection.new(Vector.zero, -1, Vector.zero, self)
     else
       d = (@p - l.o).dot(@n) / d
       Intersection.new(l.o + l.d*d, d, @n, self)
@@ -115,7 +119,7 @@ class Intersection
 end
 
 def test_ray(ray, objects, ignore=nil)
-  intersect = Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), nil)
+  intersect = Intersection.new(Vector.zero, -1, Vector.zero, nil)
   objects.each { |obj|
     if obj != ignore
       current = obj.intersection(ray)
@@ -130,7 +134,7 @@ def test_ray(ray, objects, ignore=nil)
 end
 
 def trace(ray, objects, light, max_recur)
-  return Vector.new(0,0,0) if max_recur < 0
+  return Vector.zero if max_recur < 0
   intersect = test_ray(ray, objects)
   if intersect.d == -1
     Vector.new(AMBIENT, AMBIENT, AMBIENT)
