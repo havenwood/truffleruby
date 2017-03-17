@@ -108,7 +108,6 @@ public class TruffleArrayNodes {
                     Layouts.ARRAY.setStore(array, new LayoutLockArray(concurrentArray.getStore(), new LayoutLock()));
                     break;
                 case "FastLayoutLock":
-                case "LightweightLayoutLock":
                     Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore(), new FastLayoutLock()));
                     break;
                 default:

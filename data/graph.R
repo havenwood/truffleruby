@@ -10,6 +10,7 @@ load_data <- function(filename) {
   d = read.csv(filename, header=FALSE, col.names=c("Bench", "Threads", "VM", "Value"), sep=";")
   n = length(d$Value)
   d$VM = factor(d$VM)
+  d$VM = revalue(d$VM, c("FastLayoutLock"="LightweightLayoutLock"))
   #d$Iteration = seq(from = 1, to = n)
   d
 }
@@ -48,7 +49,7 @@ full = load_data("conc_write_ops_all1.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
-base_fll = subset(full, VM=="FastLayoutLock" & Threads=="1")$Value
+base_fll = subset(full, VM=="LightweightLayoutLock" & Threads=="1")$Value
 # full$Value = full$Value / base
 
 # full = subset(full, VM != "FixedSize")

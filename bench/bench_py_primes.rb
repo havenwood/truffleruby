@@ -1,7 +1,7 @@
 require 'prime'
 
 Thread.abort_on_exception = true
-strategy = :LightweightLayoutLock
+strategy = :FastLayoutLock
 
 unless defined?(Truffle)
   module Truffle
