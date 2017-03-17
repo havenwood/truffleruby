@@ -242,5 +242,5 @@ def run(ths=2, w=1024,h=1024)
   return parallel_time
 end
   
-ths=Integer(ARGV[0] || 2)
-puts "Time: #{run(ths)}"
+time = run(Integer(ARGV[0]), Integer(ARGV[1]), Integer(ARGV[2]))
+puts "Time: #{time}"
