@@ -45,6 +45,7 @@ full = load_data("conc_write_reads_10_90_5.csv")
 full = load_data("conc_write_reads_10_90_6.csv")
 full = load_data("conc_write_ops_1.csv")
 full = load_data("conc_write_ops_2.csv")
+full = load_data("conc_write_reads_10_90_8.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
@@ -57,10 +58,10 @@ base_fll = subset(full, VM=="LightweightLayoutLock" & Threads=="1")$Value
 # full = load_data("monte_carlo_pi.csv")
 # full = load_data("monte_carlo_pi_rb.csv")
 # full = load_data("monte_carlo_pi_sparc4x.csv")
-full = load_data("mandelbrot_shared1.csv")
-full$Value = 1 / full$Value
-full$Value = full$Value / subset(full, Threads=="1")$Value
-base = base_fll = 1
+# full = load_data("mandelbrot_shared1.csv")
+# full$Value = 1 / full$Value
+# full$Value = full$Value / subset(full, Threads=="1")$Value
+# base = base_fll = 1
 
 #png(file = "times.png", width=740, height=400)
 ggplot(data = full, aes(x=Threads, y=Value, group=VM, color=VM)) + geom_point() + geom_line() +
