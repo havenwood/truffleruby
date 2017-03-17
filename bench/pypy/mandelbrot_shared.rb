@@ -43,6 +43,7 @@ end
 def run(threads = 2, stripes = 64, width = 4096, height = 4096)
   raise unless stripes >= threads
   pool = ThreadPool.new(threads)
+  image = nil
 
   10.times do
     ar, ai = -2.0, -1.5

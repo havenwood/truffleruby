@@ -48,33 +48,36 @@ end
 # NOTE: strips must be >> threads, because the middle stripes are more expensive than the border stripes
 def run(threads = 2, stripes = 64, width = 4096, height = 4096)
   raise unless stripes >= threads
-  ar, ai = -2.0, -1.5
-  br, bi = 1.0, 1.5
-
   pool = ThreadPool.new(threads)
-  step = (bi - ai) / stripes
-  ai = -1.5
-  bi = ai + step
-  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  parts = stripes.times.map { |i|
-    pool << Future.new {
-      calculate(ar, ai + i * step,
-                br, bi + i * step,
-                width, height / stripes)
-    }
-  }.map(&:get)
-  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  dt = (t1-t0)
-  puts dt
+  image = nil
+
+  10.times do
+    ar, ai = -2.0, -1.5
+    br, bi = 1.0, 1.5
+
+    step = (bi - ai) / stripes
+    ai = -1.5
+    bi = ai + step
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    parts = stripes.times.map { |i|
+      pool << Future.new {
+        calculate(ar, ai + i * step,
+                  br, bi + i * step,
+                  width, height / stripes)
+      }
+    }.map(&:get)
+    t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    dt = (t1-t0)
+    puts dt
+
+    image = merge_images(parts)
+    p image.reduce(0) { |sum,row| sum + row.reduce(:+) }
+  end
 
   pool.shutdown
-  image = merge_images(parts)
-  p image.reduce(0) { |sum,row| sum + row.reduce(:+) }
   image
 end
 
-10.times do
-  image = run(Integer(ARGV[0]), Integer(ARGV[1]), Integer(ARGV[2]), Integer(ARGV[3]))
-  # save_to_file(image)
-  # save_image(image)
-end
+image = run(Integer(ARGV[0]), Integer(ARGV[1]), Integer(ARGV[2]), Integer(ARGV[3]))
+# save_to_file(image)
+# save_image(image)
