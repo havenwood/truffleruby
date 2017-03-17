@@ -164,9 +164,9 @@ end
 
 def run(threads = 2, w = 1024, h = 1024)
   objects = [
-    Sphere.new(Vector.new(-2,0,-10), 2, Vector.new(0,255,0)),
+    Sphere.new(Vector.new(-2,0,-10), 2.0, Vector.new(0,255,0)),
     Sphere.new(Vector.new(2,0,-10), 3.5, Vector.new(255,0,0)),
-    Sphere.new(Vector.new(0,-4,-10), 3, Vector.new(0,0,255)),
+    Sphere.new(Vector.new(0,-4,-10), 3.0, Vector.new(0,0,255)),
     Plane.new(Vector.new(0,0,-12), Vector.new(0,0,1), Vector.new(255,255,255)),
   ]
   light_source = Vector.new(0,10,0)
