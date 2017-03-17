@@ -454,12 +454,55 @@ deploy-binaries: {
 # command prefix for binding a command to a certain node
 hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
 
-run-bench: ${jt} ["ruby", "--graal", "-J-Dgraal.TruffleCompilationExceptionsAreFatal=true", "-J-Dgraal.TruffleCompilerThreads=1", "-J-verbose:gc", "--disable-gems", "bench/pypy/mandelbrot_shared.rb"]
-extra-args: ["256", "1024", "1024"]
+run-bench: ${jt} ["ruby", "--graal",
+"-J-Dgraal.TruffleCompilationExceptionsAreFatal=true", "-J-Dgraal.TruffleCompilerThreads=1",
+"-J-verbose:gc", "--disable-gems",
+"bench/bench_array_conc_write_reads_ops_10_90.rb", "$STRATEGY"]
+
+extra-args: []
 
 custom-bench: {
   run: [
     [export, "STRATEGY=FixedSize"],
+    ${run-bench} ["1"]  ${extra-args},
+    ${run-bench} ["2"]  ${extra-args},
+    ${run-bench} ["4"]  ${extra-args},
+    ${run-bench} ["8"]  ${extra-args},
+    ${run-bench} ["12"] ${extra-args},
+    ${run-bench} ["16"] ${extra-args},
+    ${run-bench} ["18"] ${extra-args},
+    ${run-bench} ["20"] ${extra-args},
+    ${run-bench} ["24"] ${extra-args},
+    ${run-bench} ["28"] ${extra-args},
+    ${run-bench} ["32"] ${extra-args},
+    ${run-bench} ["36"] ${extra-args},
+    [export, "STRATEGY=FastLayoutLock"],
+    ${run-bench} ["1"]  ${extra-args},
+    ${run-bench} ["2"]  ${extra-args},
+    ${run-bench} ["4"]  ${extra-args},
+    ${run-bench} ["8"]  ${extra-args},
+    ${run-bench} ["12"] ${extra-args},
+    ${run-bench} ["16"] ${extra-args},
+    ${run-bench} ["18"] ${extra-args},
+    ${run-bench} ["20"] ${extra-args},
+    ${run-bench} ["24"] ${extra-args},
+    ${run-bench} ["28"] ${extra-args},
+    ${run-bench} ["32"] ${extra-args},
+    ${run-bench} ["36"] ${extra-args},
+    [export, "STRATEGY=LayoutLock"],
+    ${run-bench} ["1"]  ${extra-args},
+    ${run-bench} ["2"]  ${extra-args},
+    ${run-bench} ["4"]  ${extra-args},
+    ${run-bench} ["8"]  ${extra-args},
+    ${run-bench} ["12"] ${extra-args},
+    ${run-bench} ["16"] ${extra-args},
+    ${run-bench} ["18"] ${extra-args},
+    ${run-bench} ["20"] ${extra-args},
+    ${run-bench} ["24"] ${extra-args},
+    ${run-bench} ["28"] ${extra-args},
+    ${run-bench} ["32"] ${extra-args},
+    ${run-bench} ["36"] ${extra-args},
+    [export, "STRATEGY=StampedLock"],
     ${run-bench} ["1"]  ${extra-args},
     ${run-bench} ["2"]  ${extra-args},
     ${run-bench} ["4"]  ${extra-args},
