@@ -53,6 +53,10 @@ class Vector
    def *(b)
      Vector.new(@x*b, @y*b, @z*b)
    end
+
+   def to_s
+     "Vector(#{@x}, #{@y}, #{@z})"
+   end
 end
 
 class Sphere
@@ -62,12 +66,18 @@ class Sphere
      @r = radius
      @col = color
    end
+   def to_s
+     "Sphere(c=#{c}, r=#{r}, col=#{col})"
+   end
 
    def intersection(l)
+#     STDERR.puts "Sphere#intersection(self=#{self}, l=#{l})"
      q = l.d.dot(l.o - @c)**2 - (l.o - @c).dot(l.o - @c) + @r**2
+#     STDERR.puts "q=#{q}"
      if q < 0
         return Intersection.new( Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
      else
+#puts "q >= 0 "
         d = -l.d.dot(l.o - @c)
         d1 = d - Math.sqrt(q)
         d2 = d + Math.sqrt(q)
@@ -110,6 +120,9 @@ class Ray
      @o = origin
      @d = direction
    end
+   def to_s
+     "Ray(o=#{o}, d=#{d})"
+   end
 end
 
 class Intersection
@@ -128,7 +141,7 @@ def testRay(ray, objects, ignore=nil)
    objects.each { |obj|
       if obj != ignore
 	currentIntersect = obj.intersection(ray)
-	if currentIntersect.d > 0 and insersect.d < 0
+	if currentIntersect.d > 0 and intersect.d < 0
 	  intersect = currentIntersect
 	elsif 0 < currentIntersect.d and currentIntersect.d < intersect.d
 	  intersect = currentIntersect
@@ -156,6 +169,7 @@ def trace(ray, objects, light, maxRecur)
        col = intersect.obj.col * AMBIENT
     end
   end
+  col
 end
 
 def task(img, x, h, cameraPos, objs, lightSource)
@@ -163,10 +177,12 @@ def task(img, x, h, cameraPos, objs, lightSource)
   line = img[x]
 #puts "line[0] = #{line[0]}"
   h.times { |y|
-     ray = Ray.new(cameraPos, Vector.new(x/50.0-5, y/50.0-5, 0).normal)
+     ray = Ray.new(cameraPos, (Vector.new(x/50.0-5, y/50.0-5, 0)-cameraPos).normal)
      col = trace(ray, objs, lightSource, 10)
      line[y] = (col.x + col.y + col.z) / 3.0
   }
+  img[x] = line
+#  STDERR.puts "line=#{line.join(', ')}"
 #puts "task done"
   x
 end
@@ -217,7 +233,7 @@ def run(ths=2, w=1024,h=1024)
     future_dispatcher(ths, img, x, h, cameraPos, objs, lightSource)
   }
   $futures.each { |f|
-    puts f[1].pop
+    f[1].pop
   }
   parallel_time = Process.clock_gettime(Process::CLOCK_MONOTONIC) - parallel_time
 
@@ -226,4 +242,5 @@ def run(ths=2, w=1024,h=1024)
   return parallel_time
 end
   
-puts "Time: #{run}"
+ths=Integer(ARGV[0] || 2)
+puts "Time: #{run(ths)}"
