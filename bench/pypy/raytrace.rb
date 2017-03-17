@@ -54,7 +54,7 @@ class Sphere
   def intersection(l)
     q = l.d.dot(l.o - @c)**2 - (l.o - @c).dot(l.o - @c) + @r**2
     if q < 0
-      Intersection.new( Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
+      Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
     else
       d = -l.d.dot(l.o - @c)
       d1 = d - Math.sqrt(q)
@@ -172,22 +172,26 @@ def run(threads = 2, w = 1024, h = 1024)
   light_source = Vector.new(0,10,0)
   camera_pos = Vector.new(0,0,20)
 
-  image = Array.new(w) { Array.new(h, 0.0) }
-
   pool = ThreadPool.new(threads)
 
-  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  w.times.map { |x|
-    pool << Future.new {
-      task(image, x, h, camera_pos, objects, light_source)
-    }
-  }.each(&:get)
-  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  dt = (t1-t0)
-  puts dt
+  10.times do
+    image = Array.new(w) { Array.new(h, 0.0) }
 
-  # image.each { |row| puts row.inspect }
-  p image.reduce(0) { |sum,row| sum + row.reduce(:+) }
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    futures = Array.new(w) { |x|
+      pool << Future.new {
+        task(image, x, h, camera_pos, objects, light_source)
+      }
+    }
+    futures.each(&:get)
+    t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    dt = (t1-t0)
+    puts dt
+
+    # image.each { |row| puts row.inspect }
+    p image.reduce(0) { |sum,row| sum + row.reduce(:+) }
+    break
+  end
 
   pool.shutdown
 end
