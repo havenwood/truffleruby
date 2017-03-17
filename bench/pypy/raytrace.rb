@@ -17,11 +17,11 @@ class Vector
   end
 
   def cross(b)
-    Vector.new(@y*b.z-@z*b.y, @z*b.x-@x*b.z, @x*b.y-@y*b.x)
+    Vector.new(@y*b.z - @z*b.y, @z*b.x - @x*b.z, @x*b.y - @y*b.x)
   end
 
   def magnitude
-    Math.sqrt(@x*@x+@y*@y+@z*@z)
+    Math.sqrt(@x*@x + @y*@y + @z*@z)
   end
 
   def normal
@@ -59,12 +59,12 @@ class Sphere
       d = -l.d.dot(l.o - @c)
       d1 = d - Math.sqrt(q)
       d2 = d + Math.sqrt(q)
-      if 0 < d1 and ( d1 < d2 or d2 < 0)
+      if 0 < d1 and (d1 < d2 or d2 < 0)
         Intersection.new(l.o+l.d*d1, d1, normal(l.o+l.d*d1), self)
       elsif 0 < d2 and (d2 < d1 or d1 < 0)
         Intersection.new(l.o+l.d*d2, d2, normal(l.o+l.d*d2), self)
       else
-        Intersection.new( Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
+        Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
       end
     end
   end
@@ -89,7 +89,7 @@ class Plane
       Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
     else
       d = (@p - l.o).dot(@n) / d
-      Intersection.new(l.o+l.d*d, d, @n, self)
+      Intersection.new(l.o + l.d*d, d, @n, self)
     end
   end
 end
@@ -114,49 +114,46 @@ class Intersection
   end
 end
 
-def testRay(ray, objects, ignore=nil)
+def test_ray(ray, objects, ignore=nil)
   intersect = Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), nil)
   objects.each { |obj|
     if obj != ignore
-      currentIntersect = obj.intersection(ray)
-      if currentIntersect.d > 0 and intersect.d < 0
-        intersect = currentIntersect
-      elsif 0 < currentIntersect.d and currentIntersect.d < intersect.d
-        intersect = currentIntersect
+      current = obj.intersection(ray)
+      if current.d > 0 and intersect.d < 0
+        intersect = current
+      elsif 0 < current.d and current.d < intersect.d
+        intersect = current
       end
     end
   }
   intersect
 end
 
-def trace(ray, objects, light, maxRecur)
-  if maxRecur < 0
-    return Vector.new(0,0,0)
-  end
-  intersect = testRay(ray, objects)
+def trace(ray, objects, light, max_recur)
+  return Vector.new(0,0,0) if max_recur < 0
+  intersect = test_ray(ray, objects)
   if intersect.d == -1
-    col = Vector.new(AMBIENT, AMBIENT, AMBIENT)
+    Vector.new(AMBIENT, AMBIENT, AMBIENT)
   elsif intersect.n.dot(light - intersect.p) < 0
-    col = intersect.obj.col * AMBIENT
+    intersect.obj.col * AMBIENT
   else
-    lightRay = Ray.new(intersect.p, (light-intersect.p).normal)
-    if testRay(lightRay, objects, intersect.obj).d == -1
-      lightIntensity = 1000.0/(4*Math::PI*(light-intersect.p).magnitude**2)
-      col = intersect.obj.col * [intersect.n.normal.dot((light - intersect.p).normal*lightIntensity), AMBIENT].max
+    light_ray = Ray.new(intersect.p, (light-intersect.p).normal)
+    if test_ray(light_ray, objects, intersect.obj).d == -1
+      light_intensity = 1000.0 / (4*Math::PI*(light-intersect.p).magnitude**2)
+      intersect.obj.col * [intersect.n.normal.dot((light - intersect.p).normal*light_intensity), AMBIENT].max
     else
-      col = intersect.obj.col * AMBIENT
+      intersect.obj.col * AMBIENT
     end
   end
-  col
 end
 
-def task(image, x, h, camera_pos, objs, light_source)
+def task(image, x, h, camera_pos, objects, light_source)
   # puts "in task h=#{h}"
   line = image[x]
   # puts "line[0] = #{line[0]}"
   h.times { |y|
     ray = Ray.new(camera_pos, (Vector.new(x/50.0-5, y/50.0-5, 0) - camera_pos).normal)
-    col = trace(ray, objs, light_source, 10)
+    col = trace(ray, objects, light_source, 10)
     line[y] = (col.x + col.y + col.z) / 3.0
   }
   image[x] = line
@@ -166,7 +163,7 @@ def task(image, x, h, camera_pos, objs, light_source)
 end
 
 def run(threads = 2, w = 1024, h = 1024)
-  objs = [
+  objects = [
     Sphere.new(Vector.new(-2,0,-10), 2, Vector.new(0,255,0)),
     Sphere.new(Vector.new(2,0,-10), 3.5, Vector.new(255,0,0)),
     Sphere.new(Vector.new(0,-4,-10), 3, Vector.new(0,0,255)),
@@ -182,7 +179,7 @@ def run(threads = 2, w = 1024, h = 1024)
   t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   w.times.map { |x|
     pool << Future.new {
-      task(image, x, h, camera_pos, objs, light_source)
+      task(image, x, h, camera_pos, objects, light_source)
     }
   }.each(&:get)
   t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
