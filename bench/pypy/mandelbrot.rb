@@ -1,0 +1,78 @@
+require_relative 'abstract_threading'
+
+def calculate(ar, ai, br, bi, width, height, max_iter=255)
+  # p [ar, ai, br, bi, width, height, max_iter]
+  imag_step = (bi - ai) / (height - 1)
+  real_step = (br - ar) / (width - 1)
+  # puts "real/width:%.13f, imag/height:%.13f" % [real_step, imag_step]
+
+  result = Array.new(height) { Array.new(width, 0) }
+  height.times do |y|
+    zi = ai + y * imag_step
+    width.times do |x|
+      zr = ar + x * real_step
+      z = Complex(zr, zi)
+      c = z
+      i = 0
+      while i < max_iter-1 and z.abs <= 2.0
+        z = z * z + c
+        i += 1
+      end
+      result[y][x] = i
+    end
+  end
+  result
+end
+
+def merge_images(images)
+  images.reduce([], :concat)
+end
+
+def save_image(image, file = 'outrb.png')
+  require 'chunky_png'
+  png = ChunkyPNG::Image.new(image[0].size, image.size)
+
+  image.each_with_index { |row, y|
+    row.each_with_index { |c, x|
+      png[x,y] = ChunkyPNG::Color.grayscale(c)
+    }
+  }
+  png.save(file)
+end
+
+def save_to_file(image, file = 'outrb.txt')
+  s = image.map(&:inspect).join("\n")
+  File.write(file, s)
+end
+
+
+def run(threads = 2, stripes = 64, width = 4096, height = 4096)
+  raise unless stripes >= threads
+  ar, ai = -2.0, -1.5
+  br, bi = 1.0, 1.5
+
+  pool = ThreadPool.new(threads)
+  step = (bi - ai) / stripes
+  ai = -1.5
+  bi = ai + step
+  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  parts = stripes.times.map { |i|
+    pool << Future.new {
+      calculate(ar, ai + i * step,
+                br, bi + i * step,
+                width, height / stripes)
+    }
+  }.map(&:get)
+  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  dt = (t1-t0)
+  puts dt
+
+  pool.shutdown
+  merge_images(parts)
+end
+
+10.times do
+  image = run(Integer(ARGV[0]), Integer(ARGV[1]), Integer(ARGV[2]), Integer(ARGV[3]))
+  # save_to_file(image)
+  # save_image(image)
+end
