@@ -1,7 +1,7 @@
 require_relative 'abstract_threading'
 
 def calculate(image, ar, ai, br, bi, width, height, base_row, max_iter=255)
-  # p [ar, ai, br, bi, width, height, max_iter]
+  # p [ar, ai, br, bi, width, height, base_row, max_iter]
   imag_step = (bi - ai) / (height - 1)
   real_step = (br - ar) / (width - 1)
   # puts "real/width:%.13f, imag/height:%.13f" % [real_step, imag_step]
