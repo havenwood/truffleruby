@@ -39,10 +39,6 @@ class Vector
   def *(b)
     Vector.new(@x*b, @y*b, @z*b)
   end
-
-  def to_s
-    "Vector(#{@x}, #{@y}, #{@z})"
-  end
 end
 
 class Sphere
@@ -52,10 +48,6 @@ class Sphere
     @c = center
     @r = radius
     @col = color
-  end
-
-  def to_s
-    "Sphere(c=#{c}, r=#{r}, col=#{col})"
   end
 
   def intersection(l)
@@ -108,10 +100,6 @@ class Ray
     @o = origin
     @d = direction
   end
-
-  def to_s
-    "Ray(o=#{o}, d=#{d})"
-  end
 end
 
 class Intersection
@@ -126,7 +114,7 @@ class Intersection
 end
 
 def testRay(ray, objects, ignore=nil)
-  intersect = Intersection.new( Vector.new(0,0,0), -1, Vector.new(0,0,0), nil)
+  intersect = Intersection.new(Vector.new(0,0,0), -1, Vector.new(0,0,0), nil)
   objects.each { |obj|
     if obj != ignore
       currentIntersect = obj.intersection(ray)
