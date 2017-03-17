@@ -86,8 +86,8 @@ class Sphere
         elsif 0 < d2 and (d2 < d1 or d1 < 0)
            return Intersection.new(l.o+l.d*d2, d2, normal(l.o+l.d*d2), self)
         else
-	   return Intersection.new( Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
-	end
+           return Intersection.new( Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
+        end
      end
    end
    def normal(b)
@@ -109,7 +109,7 @@ class Plane
         return Intersection.new( Vector.new(0,0,0), -1, Vector.new(0,0,0), self)
      else
         d = (@p - l.o).dot(@n) / d
-	return Intersection.new(l.o+l.d*d, d, @n, self)
+        return Intersection.new(l.o+l.d*d, d, @n, self)
      end
    end
 end
@@ -140,12 +140,12 @@ def testRay(ray, objects, ignore=nil)
 
    objects.each { |obj|
       if obj != ignore
-	currentIntersect = obj.intersection(ray)
-	if currentIntersect.d > 0 and intersect.d < 0
-	  intersect = currentIntersect
-	elsif 0 < currentIntersect.d and currentIntersect.d < intersect.d
-	  intersect = currentIntersect
-	end
+        currentIntersect = obj.intersection(ray)
+        if currentIntersect.d > 0 and intersect.d < 0
+          intersect = currentIntersect
+        elsif 0 < currentIntersect.d and currentIntersect.d < intersect.d
+          intersect = currentIntersect
+        end
       end
    }
    intersect
@@ -207,7 +207,7 @@ puts "Started thread #{t}"
       begin
         while job = queue.pop(true)
 #puts "poped job #{job}"
-  	job[0].call
+        job[0].call
         end
       rescue ThreadError
         puts "thread #{t} done"
