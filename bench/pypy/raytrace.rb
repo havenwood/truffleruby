@@ -194,7 +194,6 @@ def run(threads = 2, w = 1024, h = 1024)
 
     # image.each { |row| puts row.inspect }
     p image.reduce(0) { |sum,row| sum + row.reduce(:+) }
-    break
   end
 
   pool.shutdown
