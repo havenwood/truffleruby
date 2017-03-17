@@ -58,7 +58,7 @@ class Sphere
   def intersection(l)
     q = l.d.dot(l.o - @c)**2 - (l.o - @c).dot(l.o - @c) + @r**2
     if q < 0
-      Intersection.new(Vector.zero, -1, Vector.zero, self)
+      Intersection.new(Vector.zero, -1.0, Vector.zero, self)
     else
       d = -l.d.dot(l.o - @c)
       d1 = d - Math.sqrt(q)
@@ -68,7 +68,7 @@ class Sphere
       elsif 0 < d2 and (d2 < d1 or d1 < 0)
         Intersection.new(l.o+l.d*d2, d2, normal(l.o+l.d*d2), self)
       else
-        Intersection.new(Vector.zero, -1, Vector.zero, self)
+        Intersection.new(Vector.zero, -1.0, Vector.zero, self)
       end
     end
   end
@@ -90,7 +90,7 @@ class Plane
   def intersection(l)
     d = l.d.dot(@n)
     if d == 0
-      Intersection.new(Vector.zero, -1, Vector.zero, self)
+      Intersection.new(Vector.zero, -1.0, Vector.zero, self)
     else
       d = (@p - l.o).dot(@n) / d
       Intersection.new(l.o + l.d*d, d, @n, self)
@@ -119,7 +119,7 @@ class Intersection
 end
 
 def test_ray(ray, objects, ignore=nil)
-  intersect = Intersection.new(Vector.zero, -1, Vector.zero, nil)
+  intersect = Intersection.new(Vector.zero, -1.0, Vector.zero, nil)
   objects.each { |obj|
     if obj != ignore
       current = obj.intersection(ray)
@@ -156,7 +156,7 @@ def task(image, x, h, camera_pos, objects, light_source)
   line = image[x]
   # puts "line[0] = #{line[0]}"
   h.times { |y|
-    ray = Ray.new(camera_pos, (Vector.new(x/50.0-5, y/50.0-5, 0) - camera_pos).normal)
+    ray = Ray.new(camera_pos, (Vector.new(x/50.0-5.0, y/50.0-5.0, 0.0) - camera_pos).normal)
     col = trace(ray, objects, light_source, 10)
     line[y] = (col.x + col.y + col.z) / 3.0
   }
@@ -171,13 +171,13 @@ def run(threads = 2, w = 1024, h = 1024)
 
   10.times do
     objects = [
-      Sphere.new(Vector.new(-2,0,-10), 2.0, Vector.new(0,255,0)),
-      Sphere.new(Vector.new(2,0,-10), 3.5, Vector.new(255,0,0)),
-      Sphere.new(Vector.new(0,-4,-10), 3.0, Vector.new(0,0,255)),
-      Plane.new(Vector.new(0,0,-12), Vector.new(0,0,1), Vector.new(255,255,255)),
+      Sphere.new(Vector.new(-2.0, 0.0,-10.0), 2.0, Vector.new(0.0,255.0,0.0)),
+      Sphere.new(Vector.new( 2.0, 0.0,-10.0), 3.5, Vector.new(255.0,0.0,0.0)),
+      Sphere.new(Vector.new( 0.0,-4.0,-10.0), 3.0, Vector.new(0.0,0.0,255.0)),
+      Plane.new(Vector.new(  0.0, 0.0,-12.0), Vector.new(0.0,0.0,1.0), Vector.new(255.0,255.0,255.0)),
     ]
-    light_source = Vector.new(0,10,0)
-    camera_pos = Vector.new(0,0,20)
+    light_source = Vector.new(0.0,10.0,0.0)
+    camera_pos = Vector.new(0.0,0.0,20.0)
 
     image = Array.new(w) { Array.new(h, 0.0) }
 
