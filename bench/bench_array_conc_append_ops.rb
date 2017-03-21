@@ -1,6 +1,6 @@
 require_relative 'common'
 
-N = 1_000 # 10_000_000 / 100 / 100
+N = 1000
 
 ary = []
 
