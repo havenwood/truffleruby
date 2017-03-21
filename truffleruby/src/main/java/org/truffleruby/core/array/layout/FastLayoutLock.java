@@ -8,14 +8,14 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 public final class FastLayoutLock {
 
     public static final int INACTIVE = 0;
-    public static final int WRITER_ACTIVE = 2;
-    public static final int LAYOUT_CHANGE = 4;
-    public static final int LAYOUT_CHANGE_PENDING = 1;
+    private static final int WRITER_ACTIVE = 2;
+    private static final int LAYOUT_CHANGE = 4;
+    private static final int LAYOUT_CHANGE_PENDING = 1;
 
-    public ThreadStateReference[] gather = new ThreadStateReference[0];
+    private ThreadStateReference[] gather = new ThreadStateReference[0];
 
-    public final StampedLock baseLock = new StampedLock();
-    public boolean needToRecover = false; // Protected by the baseLock
+    private final StampedLock baseLock = new StampedLock();
+    private boolean needToRecover = false; // Protected by the baseLock
 
     public FastLayoutLock() {
     }
