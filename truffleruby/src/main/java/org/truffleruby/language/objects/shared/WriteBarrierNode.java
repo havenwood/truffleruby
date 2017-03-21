@@ -14,6 +14,8 @@ import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.object.Shape;
+
+import org.truffleruby.core.UnsafeHolder;
 import org.truffleruby.language.objects.ShapeCachingGuards;
 
 @ImportStatic(ShapeCachingGuards.class)
@@ -45,6 +47,10 @@ public abstract class WriteBarrierNode extends WriteBarrier {
             @Cached("createShareObjectNode(alreadyShared)") ShareObjectNode shareObjectNode) {
         if (!alreadyShared) {
             shareObjectNode.executeShare(value);
+            if (depth == 0) {
+                // We need the Shape change to be visible before publishing the object
+                UnsafeHolder.UNSAFE.storeFence();
+            }
         }
     }
 

@@ -21,6 +21,7 @@ import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.language.objects.ObjectGraph;
+import org.truffleruby.core.UnsafeHolder;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.hash.BucketsPromotionResult;
 import org.truffleruby.core.hash.ConcurrentHash;
@@ -94,6 +95,8 @@ public class SharedObjects {
                 stack.addAll(ObjectGraph.getAdjacentObjects(object));
             }
         }
+        // We need the Shape change to be visible before publishing the object
+        UnsafeHolder.UNSAFE.storeFence();
     }
 
     @TruffleBoundary
