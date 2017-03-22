@@ -41,6 +41,7 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
     public abstract DynamicObject executeAppendOne(DynamicObject array, Object value);
 
+    // TODO strategy.matches(array) is checked too early
     @Specialization(guards = { "strategy.matches(array)", "valueStrategy.specializesFor(value)" }, limit = "ARRAY_STRATEGIES")
     public DynamicObject appendOneSameType(DynamicObject array, Object value,
             @Cached("of(array)") ArrayStrategy strategy,
@@ -60,7 +61,7 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
         // This is fine because FastAppendArray is a leaf strategy and the lock is carried over
         final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
 
-        if (acceptValueProfile.profile(strategy.accepts(value))) { // TODO incorrect
+        if (acceptValueProfile.profile(strategy.accepts(value))) {
             // Append of the correct type
 
             final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
@@ -68,7 +69,7 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
             lock.startWrite(threadState, fastPathProfile);
             final int size = ConcurrentArray.getSizeAndIncrement(array);
             try {
-                final ArrayMirror storeMirror = strategy.newMirror(array);
+                final ArrayMirror storeMirror = strategy.newMirror(array); // This could fail if the store type changed between the guard and before the write lock
                 if (extendProfile.profile(size < storeMirror.getLength())) {
                     appendInBounds(array, storeMirror, size, value);
                     return array;
@@ -98,9 +99,9 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
             final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
             try {
+                final ArrayMirror currentMirror = strategy.newMirror(array);
                 final int oldSize = strategy.getSize(array);
                 final int newSize = oldSize + 1;
-                final ArrayMirror currentMirror = strategy.newMirror(array);
                 final int oldCapacity = currentMirror.getLength();
                 final int newCapacity = newSize > oldCapacity ? ArrayUtils.capacityForOneMore(getContext(), oldCapacity) : oldCapacity;
                 final ArrayMirror storeMirror = generalizedStrategy.newArray(newCapacity);
