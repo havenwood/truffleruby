@@ -57,6 +57,7 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
         writeBarrier.executeWriteBarrier(value);
 
+        // This is fine because FastAppendArray is a leaf strategy and the lock is carried over
         final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
 
         if (acceptValueProfile.profile(strategy.accepts(value))) { // TODO incorrect
