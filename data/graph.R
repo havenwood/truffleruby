@@ -59,6 +59,7 @@ load_data <- function(filename) {
 full = load_data("conc_reads_ops3.csv")
 # full = load_data("conc_write_reads_50_50_1.csv")
 # full = load_data("conc_write_reads_50_50_2.csv")
+full = load_data("conc_appends1.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
