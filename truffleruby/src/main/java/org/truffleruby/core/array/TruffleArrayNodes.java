@@ -121,6 +121,21 @@ public class TruffleArrayNodes {
 
     }
 
+    @CoreMethod(names = "set_capacity", onSingleton = true, required = 2)
+    @ImportStatic(ArrayGuards.class)
+    public abstract static class SetCapacityNode extends CoreMethodArrayArgumentsNode {
+
+        @Child ArrayEnsureCapacityNode ensureCapacityNode = ArrayEnsureCapacityNode.create();
+
+        @Specialization
+        public DynamicObject setCapacity(DynamicObject array, int capacity) {
+            // NOT thread-safe
+            ensureCapacityNode.executeEnsureCapacity(array, capacity);
+            return array;
+        }
+
+    }
+
     @CoreMethod(names = "stamped_lock_optimistic_read", onSingleton = true, required = 1)
     public abstract static class StampedLockOptimisticReadNode extends CoreMethodArrayArgumentsNode {
 
