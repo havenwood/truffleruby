@@ -413,6 +413,13 @@ public abstract class ArrayUtils {
         return copy;
     }
 
+    public static boolean[] grow(boolean[] array, int newLength) {
+        assert newLength >= array.length;
+        final boolean[] copy = new boolean[newLength];
+        System.arraycopy(array, 0, copy, 0, array.length);
+        return copy;
+    }
+
     public static int[] grow(int[] array, int newLength) {
         assert newLength >= array.length;
         final int[] copy = new int[newLength];

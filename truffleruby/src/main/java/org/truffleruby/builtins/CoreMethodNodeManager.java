@@ -20,6 +20,7 @@ import org.truffleruby.Layouts;
 import org.truffleruby.Log;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.RaiseIfFrozenNode;
+import org.truffleruby.core.array.ArraySyncAppendNodeGen;
 import org.truffleruby.core.array.ArraySyncReadNodeGen;
 import org.truffleruby.core.array.ArraySyncSetStoreNodeGen;
 import org.truffleruby.core.array.ArraySyncWriteNodeGen;
@@ -224,6 +225,8 @@ public class CoreMethodNodeManager {
             case ARRAY_CHANGE_STORE:
             case ARRAY_CHANGE_SIZE:
                 return ArraySyncSetStoreNodeGen.create(builtinNode, readSelfNode);
+            case ARRAY_APPEND:
+                return ArraySyncAppendNodeGen.create(builtinNode, readSelfNode);
             default:
                 throw new UnsupportedOperationException(sync.toString());
         }

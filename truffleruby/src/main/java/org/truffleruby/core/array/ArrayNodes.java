@@ -1334,14 +1334,22 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "<<", raiseIfFrozenSelf = true, required = 1, sync = SyncMode.ARRAY_CHANGE_STORE)
+    @CoreMethod(names = "<<", raiseIfFrozenSelf = true, required = 1, sync = SyncMode.ARRAY_APPEND)
     public abstract static class AppendNode extends ArrayCoreMethodNode {
 
         @Child private ArrayAppendOneNode appendOneNode = ArrayAppendOneNode.create();
 
-        @Specialization
-        public DynamicObject append(DynamicObject array, Object value) {
+        @Specialization(guards = { "strategy.matches(array)", "!strategy.optimizesAppends()" }, limit = "ARRAY_STRATEGIES")
+        public DynamicObject append(DynamicObject array, Object value,
+                @Cached("of(array)") ArrayStrategy strategy) {
             return appendOneNode.executeAppendOne(array, value);
+        }
+
+        @Specialization(guards = { "strategy.matches(array)", "strategy.optimizesAppends()" }, limit = "ARRAY_STRATEGIES")
+        public DynamicObject optimizedAppend(DynamicObject array, Object value,
+                @Cached("of(array)") ArrayStrategy strategy,
+                @Cached("create()") ConcurrentArrayAppendOneNode appendNode) {
+            return appendNode.executeAppendOne(array, value);
         }
 
     }

@@ -5,5 +5,6 @@ public enum SyncMode {
     ARRAY_WRITE,
     ARRAY_CHANGE_SIZE,
     ARRAY_CHANGE_STORE,
+    ARRAY_APPEND,
     NONE
 }

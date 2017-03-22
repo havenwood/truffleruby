@@ -5,17 +5,17 @@ import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
-import org.truffleruby.core.array.ConcurrentArray.FastAppendArray;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
-import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
+import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetLayoutLockAccessorNode;
 import org.truffleruby.core.array.layout.LayoutLock;
-import org.truffleruby.core.array.layout.LayoutLockStartWriteNode;
+import org.truffleruby.core.array.layout.LayoutLockFinishLayoutChangeNode;
+import org.truffleruby.core.array.layout.LayoutLockStartLayoutChangeNode;
 import org.truffleruby.core.array.layout.MyBiasedLock;
-import org.truffleruby.core.array.layout.ThreadStateReference;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -29,36 +29,60 @@ import com.oracle.truffle.api.nodes.NodeInfo;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
+// Same as ArraySyncSetStoreNode, except for ArrayFastAppend
 @NodeInfo(cost = NodeCost.NONE)
 @NodeChild("self")
 @ImportStatic(ArrayGuards.class)
-public abstract class ArraySyncWriteNode extends RubyNode {
+public abstract class ArraySyncAppend extends RubyNode {
 
     @Child RubyNode builtinNode;
 
-    public ArraySyncWriteNode(RubyNode builtinNode) {
+    public static ArraySyncAppend create(RubyNode builtinNode) {
+        return ArraySyncAppendNodeGen.create(builtinNode, null);
+    }
+
+    public ArraySyncAppend(RubyNode builtinNode) {
         this.builtinNode = builtinNode;
     }
 
+    public abstract Object executeWithSync(VirtualFrame frame, DynamicObject array);
+
     @Specialization(guards = "!isConcurrentArray(array)")
-    public Object local(VirtualFrame frame, DynamicObject array) {
+    public Object localArray(VirtualFrame frame, DynamicObject array) {
         return builtinNode.execute(frame);
     }
 
     @Specialization(guards = "isFixedSizeArray(array)")
-    public Object fixedSize(VirtualFrame frame, DynamicObject array) {
-        return builtinNode.execute(frame);
+    public Object migrateFixedSizeToSynchronized(VirtualFrame frame, DynamicObject array,
+            @Cached("create(builtinNode)") ArraySyncAppend recursiveNode) {
+        migrateInSafepoint(array);
+        return recursiveNode.executeWithSync(frame, array);
+    }
+
+    @TruffleBoundary
+    private void migrateInSafepoint(DynamicObject array) {
+        final Thread thread = Thread.currentThread();
+        getContext().getSafepointManager().pauseAllThreadsAndExecute(this, false, (rubyThread, currentNode) -> {
+            if (Thread.currentThread() == thread) {
+                final Object store = Layouts.ARRAY.getStore(array);
+                if (store instanceof FixedSizeArray) { // Was not already migrated by another thread
+                    FixedSizeArray fixedSizeArray = (FixedSizeArray) store;
+                    FastLayoutLockArray concurrentArray = new FastLayoutLockArray(fixedSizeArray.getStore(), new FastLayoutLock());
+                    Layouts.ARRAY.setStore(array, concurrentArray);
+                }
+            }
+        });
     }
 
     @Specialization(guards = "isSynchronizedArray(array)")
-    public Object synchronizedWrite(VirtualFrame frame, DynamicObject array) {
+    public Object synchronizedArray(VirtualFrame frame, DynamicObject array) {
         synchronized (array) {
             return builtinNode.execute(frame);
         }
     }
 
     @Specialization(guards = "isReentrantLockArray(array)")
-    public Object reentrantLock(VirtualFrame frame, DynamicObject array) {
+    public Object reentrantLockWrite(VirtualFrame frame, DynamicObject array) {
         final ReentrantLockArray stampedLockArray = (ReentrantLockArray) Layouts.ARRAY.getStore(array);
         final ReentrantLock lock = stampedLockArray.getLock();
         try {
@@ -80,7 +104,7 @@ public abstract class ArraySyncWriteNode extends RubyNode {
     }
 
     @Specialization(guards = { "array == cachedArray", "isCustomLockArray(cachedArray)" })
-    public Object customLockCached(VirtualFrame frame, DynamicObject array,
+    public Object customLockWriteCached(VirtualFrame frame, DynamicObject array,
             @Cached("array") DynamicObject cachedArray,
             @Cached("getCustomLock(cachedArray)") MyBiasedLock lock) {
         try {
@@ -91,8 +115,8 @@ public abstract class ArraySyncWriteNode extends RubyNode {
         }
     }
 
-    @Specialization(guards = "isCustomLockArray(array)", replaces = "customLockCached")
-    public Object customLock(VirtualFrame frame, DynamicObject array) {
+    @Specialization(guards = "isCustomLockArray(array)", replaces = "customLockWriteCached")
+    public Object customLockWrite(VirtualFrame frame, DynamicObject array) {
         final MyBiasedLock lock = getCustomLock(array);
         try {
             lock.lock(getContext());
@@ -107,68 +131,66 @@ public abstract class ArraySyncWriteNode extends RubyNode {
     }
 
     @Specialization(guards = "isStampedLockArray(array)")
-    public Object stampedLock(VirtualFrame frame, DynamicObject array) {
+    public Object stampedLockWrite(VirtualFrame frame, DynamicObject array,
+            @Cached("createBinaryProfile()") ConditionProfile contendedProfile) {
         final StampedLockArray stampedLockArray = (StampedLockArray) Layouts.ARRAY.getStore(array);
         final StampedLock lock = stampedLockArray.getLock();
-        final long stamp = stampedLockRead(lock);
+        long stamp = lock.tryWriteLock();
+        if (contendedProfile.profile(stamp == 0L)) {
+            stamp = stampedLockWrite(lock);
+        }
         try {
             return builtinNode.execute(frame);
         } finally {
-            stampedLockUnlock(lock, stamp);
+            stampedUnlockWrite(lock, stamp);
         }
     }
 
     @TruffleBoundary
-    private long stampedLockRead(StampedLock lock) {
-        return lock.readLock();
+    private long stampedLockWrite(StampedLock lock) {
+        return lock.writeLock();
     }
 
     @TruffleBoundary
-    private void stampedLockUnlock(StampedLock lock, long stamp) {
-        lock.unlockRead(stamp);
+    private void stampedUnlockWrite(StampedLock lock, long stamp) {
+        lock.unlockWrite(stamp);
     }
 
     @Specialization(guards = "isLayoutLockArray(array)")
-    public Object layoutLockWrite(VirtualFrame frame, DynamicObject array,
+    public Object layoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetLayoutLockAccessorNode getAccessorNode,
-            @Cached("create()") LayoutLockStartWriteNode startWriteNode) {
+            @Cached("create()") LayoutLockStartLayoutChangeNode startLayoutChangeNode,
+            @Cached("create()") LayoutLockFinishLayoutChangeNode finishLayoutChangeNode) {
         final LayoutLock.Accessor accessor = getAccessorNode.executeGetAccessor(array);
-        // accessor.startWrite();
-        startWriteNode.executeStartWrite(accessor);
+        // final int threads = accessor.startLayoutChange();
+        final int threads = startLayoutChangeNode.executeStartLayoutChange(accessor);
         try {
             return builtinNode.execute(frame);
         } finally {
-            accessor.finishWrite();
+            // accessor.finishLayoutChange(threads);
+            finishLayoutChangeNode.executeFinishLayoutChange(accessor, threads);
         }
     }
 
     @Specialization(guards = "isFastLayoutLockArray(array)")
-    public Object fastLayoutLockWrite(VirtualFrame frame, DynamicObject array,
+    public Object fastLayoutLockChangeLayout(VirtualFrame frame, DynamicObject array,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
-            @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
-        final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
+            @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
+            @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
 
-        lock.startWrite(threadState, fastPathProfile);
+        final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
         try {
             return builtinNode.execute(frame);
         } finally {
-            lock.finishWrite(threadState);
+            lock.finishLayoutChange(stamp);
         }
     }
 
     @Specialization(guards = "isFastAppendArray(array)")
-    public Object fastAppendWrite(VirtualFrame frame, DynamicObject array,
-            @Cached("create()") GetThreadStateNode getThreadStateNode,
-            @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
-        final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
-        final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
-        lock.startWrite(threadState, fastPathProfile);
-        try {
-            return builtinNode.execute(frame);
-        } finally {
-            lock.finishWrite(threadState);
-        }
+    public Object fastAppendPassThrough(VirtualFrame frame, DynamicObject array) {
+        // Synchronization is done directly in Array#<<
+        return builtinNode.execute(frame);
     }
 
 }

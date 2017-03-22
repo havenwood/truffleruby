@@ -119,6 +119,7 @@ public final class ConcurrentHash implements ObjectGraphNode {
     }
 
     public static int incrementAndGetSize(DynamicObject hash) {
+        // TODO: incorrect in enterprise OM!
         return (int) UnsafeHolder.UNSAFE.getAndAddLong(hash, SIZE_OFFSET, 1L) + 1;
     }
 

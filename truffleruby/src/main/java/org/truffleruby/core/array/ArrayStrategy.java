@@ -69,6 +69,10 @@ public abstract class ArrayStrategy {
         return this instanceof ConcurrentArrayStrategy;
     }
 
+    public boolean optimizesAppends() {
+        return this instanceof FastAppendArrayStrategy;
+    }
+
     public abstract ArrayMirror newArray(int size);
 
     public final ArrayMirror newMirror(DynamicObject array) {

@@ -178,7 +178,6 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
             @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
-
         final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
         try {
             return builtinNode.execute(frame);
@@ -193,7 +192,6 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
             @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
         final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
-
         final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
         try {
             return builtinNode.execute(frame);
