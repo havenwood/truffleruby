@@ -6,6 +6,7 @@ import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastAppendArray;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
@@ -157,4 +158,21 @@ public abstract class ArraySyncWriteNode extends RubyNode {
             lock.finishWrite(threadState);
         }
     }
+
+    @Specialization(guards = "isFastAppendArray(array)")
+    public Object fastAppendWrite(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
+            @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
+        final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
+        // accessor.startWrite();
+        final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
+
+        lock.startWrite(threadState, fastPathProfile);
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            lock.finishWrite(threadState);
+        }
+    }
+
 }

@@ -110,7 +110,7 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
 
     }
 
-    public static final class FastLayoutLockArray extends ConcurrentArray {
+    public static final class FastLayoutLockArray extends ConcurrentArray implements FLLArray {
         final FastLayoutLock lock;
 
         public FastLayoutLockArray(Object store, FastLayoutLock lock) {
@@ -121,6 +121,26 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
         public FastLayoutLock getLock() {
             return lock;
         }
+
+    }
+
+    public static final class FastAppendArray extends ConcurrentArray implements FLLArray {
+        final FastLayoutLock lock;
+
+        public FastAppendArray(Object store, FastLayoutLock lock) {
+            super(store);
+            this.lock = lock;
+        }
+
+        public FastLayoutLock getLock() {
+            return lock;
+        }
+
+    }
+
+    public interface FLLArray {
+
+        public FastLayoutLock getLock();
 
     }
 

@@ -1,11 +1,11 @@
 package org.truffleruby.core.array;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastAppendArray;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
 import org.truffleruby.core.array.ConcurrentArray.StampedLockArray;
@@ -152,6 +152,25 @@ public abstract class ArraySyncReadNode extends RubyNode {
 
             final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
             
+            if (lock.finishRead(threadState, fastPathProfile)) {
+                return result;
+            }
+        }
+    }
+
+    @Specialization(guards = "isFastAppendArray(array)")
+    public Object fastAppendRead(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
+            @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
+        final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
+        Object result;
+        while (true) {
+            // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
+            // Out-of-thin-air values are prevented by the dirty flag check
+            result = builtinNode.execute(frame);
+
+            final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
+
             if (lock.finishRead(threadState, fastPathProfile)) {
                 return result;
             }

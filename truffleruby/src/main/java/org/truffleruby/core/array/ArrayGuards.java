@@ -13,6 +13,7 @@ import com.oracle.truffle.api.object.DynamicObject;
 import org.truffleruby.Layouts;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastAppendArray;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
@@ -86,6 +87,11 @@ public class ArrayGuards {
     public static boolean isFastLayoutLockArray(DynamicObject array) {
         assert RubyGuards.isRubyArray(array);
         return Layouts.ARRAY.getStore(array) instanceof FastLayoutLockArray;
+    }
+
+    public static boolean isFastAppendArray(DynamicObject array) {
+        assert RubyGuards.isRubyArray(array);
+        return Layouts.ARRAY.getStore(array) instanceof FastAppendArray;
     }
 
     // Higher level properties

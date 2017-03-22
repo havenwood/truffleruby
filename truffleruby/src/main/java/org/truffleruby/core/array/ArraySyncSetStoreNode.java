@@ -5,6 +5,7 @@ import java.util.concurrent.locks.StampedLock;
 
 import org.truffleruby.Layouts;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastAppendArray;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.ReentrantLockArray;
@@ -176,8 +177,6 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
             @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
-        // final FastLayoutLock.ThreadState threadState =
-        // getThreadStateNode.executeGetThreadState(array);
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
 
         final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
@@ -187,4 +186,20 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
             lock.finishLayoutChange(stamp);
         }
     }
+
+    @Specialization(guards = "isFastAppendArray(array)")
+    public Object fastAppendChangeLayout(VirtualFrame frame, DynamicObject array,
+            @Cached("create()") GetThreadStateNode getThreadStateNode,
+            @Cached("createBinaryProfile()") ConditionProfile tryLockProfile,
+            @Cached("createBinaryProfile()") ConditionProfile waitProfile) {
+        final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
+
+        final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
+        try {
+            return builtinNode.execute(frame);
+        } finally {
+            lock.finishLayoutChange(stamp);
+        }
+    }
+
 }

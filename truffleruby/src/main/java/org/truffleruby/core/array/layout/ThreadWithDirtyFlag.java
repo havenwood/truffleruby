@@ -5,7 +5,7 @@ import java.util.Map.Entry;
 import java.util.WeakHashMap;
 
 import org.truffleruby.Layouts;
-import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FLLArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
 import org.truffleruby.core.hash.ConcurrentHash;
 
@@ -38,8 +38,7 @@ public class ThreadWithDirtyFlag extends Thread {
 
     @TruffleBoundary
     private ThreadStateReference getThreadStateSlowPath(DynamicObject array) {
-        final FastLayoutLockArray fastLayoutLockArray = (FastLayoutLockArray) Layouts.ARRAY.getStore(array);
-        final FastLayoutLock lock = fastLayoutLockArray.getLock();
+        final FastLayoutLock lock = ((FLLArray) Layouts.ARRAY.getStore(array)).getLock();
         ThreadStateReference ts = lockStates.get(lock);
         if (ts == null) {
             ts = threadStateProvider.newThreadStateReference();

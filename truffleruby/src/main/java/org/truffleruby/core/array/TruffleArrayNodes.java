@@ -20,6 +20,7 @@ import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
 import org.truffleruby.language.objects.shared.SharedObjects;
 import org.truffleruby.core.array.ConcurrentArray.CustomLockArray;
+import org.truffleruby.core.array.ConcurrentArray.FastAppendArray;
 import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
 import org.truffleruby.core.array.ConcurrentArray.LayoutLockArray;
@@ -109,6 +110,9 @@ public class TruffleArrayNodes {
                     break;
                 case "FastLayoutLock":
                     Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore(), new FastLayoutLock()));
+                    break;
+                case "FastAppend":
+                    Layouts.ARRAY.setStore(array, new FastAppendArray(concurrentArray.getStore(), new FastLayoutLock()));
                     break;
                 default:
                     throw new UnsupportedOperationException("Invalid strategy " + name);
