@@ -112,7 +112,7 @@ public class TruffleArrayNodes {
                     Layouts.ARRAY.setStore(array, new FastLayoutLockArray(concurrentArray.getStore(), new FastLayoutLock()));
                     break;
                 case "FastAppend":
-                    Layouts.ARRAY.setStore(array, new FastAppendArray(concurrentArray.getStore(), new FastLayoutLock()));
+                    Layouts.ARRAY.setStore(array, new FastAppendArray(concurrentArray.getStore(), new FastLayoutLock(), new boolean[ArrayOperations.getStoreCapacity(array)]));
                     break;
                 default:
                     throw new UnsupportedOperationException("Invalid strategy " + name);

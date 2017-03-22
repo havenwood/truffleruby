@@ -9,6 +9,7 @@
  */
 package org.truffleruby.core.array;
 
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.NodeChild;
@@ -40,13 +41,13 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
     public abstract DynamicObject executeAppendOne(DynamicObject array, Object value);
 
-    // Append of the correct type
-
-    // TODO: guards are not protected by the lock and strategy could change between checking and acting!
-    @Specialization(guards = { "strategy.matches(array)", "strategy.accepts(value)" }, limit = "ARRAY_STRATEGIES")
+    @Specialization(guards = { "strategy.matches(array)", "valueStrategy.specializesFor(value)" }, limit = "ARRAY_STRATEGIES")
     public DynamicObject appendOneSameType(DynamicObject array, Object value,
             @Cached("of(array)") ArrayStrategy strategy,
+            @Cached("forValue(value)") ArrayStrategy valueStrategy,
+            @Cached("strategy.generalize(valueStrategy)") ArrayStrategy generalizedStrategy,
             @Cached("strategy.createWriteBarrier()") WriteBarrier writeBarrier,
+            @Cached("createCountingProfile()") ConditionProfile acceptValueProfile,
             @Cached("createCountingProfile()") ConditionProfile extendProfile,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile,
@@ -56,72 +57,72 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
         writeBarrier.executeWriteBarrier(value);
 
-        final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
         final FastAppendArray fastAppendArray = (FastAppendArray) Layouts.ARRAY.getStore(array);
         final FastLayoutLock lock = fastAppendArray.getLock();
 
-        final int size = ConcurrentArray.getSizeAndIncrement(array);
-        lock.startWrite(threadState, fastPathProfile);
-        try {
-            final ArrayMirror storeMirror = strategy.newMirror(array);
-            if (extendProfile.profile(size < storeMirror.getLength())) {
-                appendInBounds(fastAppendArray, storeMirror, size, value);
-                return array;
-            }
-        } finally {
-            lock.finishWrite(threadState);
-        }
+        if (acceptValueProfile.profile(strategy.accepts(value))) { // TODO incorrect
+            // Append of the correct type
 
-        final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
-        try {
-            final ArrayMirror storeMirror = strategy.newMirror(array);
-            if (extendInLCProfile.profile(size < storeMirror.getLength())) {
-                appendInBounds(fastAppendArray, storeMirror, size, value);
-            } else {
-                final int capacity = ArrayUtils.capacityForOneMore(getContext(), storeMirror.getLength());
-                final ArrayMirror newStoreMirror = storeMirror.copyArrayAndMirror(capacity);
-                newStoreMirror.set(size, value);
-                strategy.setStore(array, newStoreMirror.getArray());
-                final boolean[] newTags = ArrayUtils.grow(fastAppendArray.getTags(), capacity);
-                newTags[size] = true;
-                fastAppendArray.setTags(newTags);
+            final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
+
+            final int size = ConcurrentArray.getSizeAndIncrement(array);
+            lock.startWrite(threadState, fastPathProfile);
+            try {
+                final ArrayMirror storeMirror = strategy.newMirror(array);
+                if (extendProfile.profile(size < storeMirror.getLength())) {
+                    appendInBounds(fastAppendArray, storeMirror, size, value);
+                    return array;
+                }
+            } finally {
+                lock.finishWrite(threadState);
             }
-        } finally {
-            lock.finishLayoutChange(stamp);
+
+            final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
+            try {
+                final ArrayMirror storeMirror = strategy.newMirror(array);
+                if (extendInLCProfile.profile(size < storeMirror.getLength())) {
+                    appendInBounds(fastAppendArray, storeMirror, size, value);
+                } else {
+                    final int capacity = ArrayUtils.capacityForOneMore(getContext(), storeMirror.getLength());
+                    final ArrayMirror newStoreMirror = storeMirror.copyArrayAndMirror(capacity);
+                    newStoreMirror.set(size, value);
+                    strategy.setStore(array, newStoreMirror.getArray());
+                    ((FastAppendArray) Layouts.ARRAY.getStore(array)).getTags()[size] = true;
+                }
+            } finally {
+                lock.finishLayoutChange(stamp);
+            }
+
+        } else {
+            // Append forcing a generalization
+
+            final long stamp = lock.startLayoutChange(tryLockProfile, waitProfile);
+            try {
+                final int oldSize = strategy.getSize(array);
+                final int newSize = oldSize + 1;
+                final ArrayMirror currentMirror = strategy.newMirror(array);
+                final int oldCapacity = currentMirror.getLength();
+                final int newCapacity = newSize > oldCapacity ? ArrayUtils.capacityForOneMore(getContext(), oldCapacity) : oldCapacity;
+                final ArrayMirror storeMirror = generalizedStrategy.newArray(newCapacity);
+                currentMirror.copyTo(storeMirror, 0, 0, oldSize);
+                storeMirror.set(oldSize, value);
+                generalizedStrategy.setStore(array, storeMirror.getArray());
+                ((FastAppendArray) Layouts.ARRAY.getStore(array)).getTags()[oldSize] = true;
+                setSize(array, newSize);
+            } finally {
+                lock.finishLayoutChange(stamp);
+            }
+
         }
 
         return array;
+
     }
 
     private void appendInBounds(FastAppendArray fastAppendArray, ArrayMirror storeMirror, int index, Object value) {
         storeMirror.set(index, value);
         UnsafeHolder.UNSAFE.storeFence();
         fastAppendArray.getTags()[index] = true;
-    }
-
-    // Append forcing a generalization
-
-    // TODO
-    @Specialization(guards = {
-            "strategy.matches(array)", "!strategy.accepts(value)", "valueStrategy.specializesFor(value)",
-    }, limit = "ARRAY_STRATEGIES")
-    public DynamicObject appendOneGeneralize(DynamicObject array, Object value,
-            @Cached("of(array)") ArrayStrategy strategy,
-            @Cached("forValue(value)") ArrayStrategy valueStrategy,
-            @Cached("strategy.generalize(valueStrategy)") ArrayStrategy generalizedStrategy,
-            @Cached("generalizedStrategy.createWriteBarrier()") WriteBarrier writeBarrier) {
-        final int oldSize = strategy.getSize(array);
-        final int newSize = oldSize + 1;
-        final ArrayMirror currentMirror = strategy.newMirror(array);
-        final int oldCapacity = currentMirror.getLength();
-        final int newCapacity = newSize > oldCapacity ? ArrayUtils.capacityForOneMore(getContext(), oldCapacity) : oldCapacity;
-        final ArrayMirror storeMirror = generalizedStrategy.newArray(newCapacity);
-        currentMirror.copyTo(storeMirror, 0, 0, oldSize);
-        writeBarrier.executeWriteBarrier(value);
-        storeMirror.set(oldSize, value);
-        generalizedStrategy.setStore(array, storeMirror.getArray());
-        setSize(array, newSize);
-        return array;
     }
 
 }

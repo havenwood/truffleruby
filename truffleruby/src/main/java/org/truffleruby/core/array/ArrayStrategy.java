@@ -12,6 +12,8 @@ package org.truffleruby.core.array;
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.object.DynamicObject;
 
+import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
@@ -870,8 +872,18 @@ public abstract class ArrayStrategy {
 
         @Override
         protected Object wrap(DynamicObject array, Object store) {
-            final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
-            return new FastAppendArray(store, lock);
+            final FastAppendArray fastAppendArray = (FastAppendArray) Layouts.ARRAY.getStore(array);
+            final FastLayoutLock lock = fastAppendArray.getLock();
+            final boolean[] newTags = Arrays.copyOf(fastAppendArray.getTags(), getStoreCapacity(store));
+            return new FastAppendArray(store, lock, newTags);
+        }
+
+        private int getStoreCapacity(Object store) {
+            if (store == null) {
+                return 0;
+            } else {
+                return Array.getLength(store);
+            }
         }
 
         @Override

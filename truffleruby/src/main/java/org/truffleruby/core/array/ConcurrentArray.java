@@ -1,6 +1,5 @@
 package org.truffleruby.core.array;
 
-import java.lang.reflect.Array;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
@@ -143,20 +142,12 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
     public static final class FastAppendArray extends ConcurrentArray implements FLLArray {
 
         private final FastLayoutLock lock;
-        private boolean[] tags;
+        private final boolean[] tags;
 
-        public FastAppendArray(Object store, FastLayoutLock lock) {
+        public FastAppendArray(Object store, FastLayoutLock lock, boolean[] tags) {
             super(store);
             this.lock = lock;
-            this.tags = new boolean[getStoreCapacity(store)];
-        }
-
-        private int getStoreCapacity(Object store) {
-            if (store == null) {
-                return 0;
-            } else {
-                return Array.getLength(store);
-            }
+            this.tags = tags;
         }
 
         public FastLayoutLock getLock() {
@@ -165,10 +156,6 @@ public abstract class ConcurrentArray implements ObjectGraphNode {
 
         public boolean[] getTags() {
             return tags;
-        }
-
-        public void setTags(boolean[] tags) {
-            this.tags = tags;
         }
 
     }
