@@ -6,6 +6,15 @@ if (sys.nframe() > 0) {
 library(ggplot2)
 library(plyr)
 
+old_load_data <- function(filename) {
+  d = read.csv(filename, header=FALSE, col.names=c("Bench", "Threads", "VM", "Value"), sep=";")
+  n = length(d$Value)
+  d$VM = factor(d$VM)
+  d$VM = revalue(d$VM, c("FastLayoutLock"="LightweightLayoutLock"))
+  d$Median = d$Value
+  d
+}
+
 load_data <- function(filename) {
   d = read.csv(filename, header=FALSE, col.names=c("Bench", "Threads", "VM", "Iteration", "Value"), sep=";")
   n = length(d$Value)
@@ -59,6 +68,7 @@ load_data <- function(filename) {
 full = load_data("conc_reads_ops3.csv")
 # full = load_data("conc_write_reads_50_50_1.csv")
 # full = load_data("conc_write_reads_50_50_2.csv")
+full = old_load_data("conc_appends_1_64_updated.csv")
 full = load_data("conc_appends1.csv")
 
 base = max(subset(full, Threads=="1")$Value)
