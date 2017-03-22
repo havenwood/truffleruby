@@ -4,9 +4,10 @@ out = File.basename(file, ".*") + ".csv"
 c = File.readlines(file)
 c.reject! { |line|
   line.start_with?('$ ') ||
-  line.include?('Running export ')
+  line.include?('Running export ') ||
+  line.include?('Run with strategy')
 }
-c = c.slice_before(/\[INFO\]/).to_a
+c = c.slice_before(/tool\/jt\.rb ruby /).to_a
 
 File.open(out, "w") do |f|
   c.each { |run|
