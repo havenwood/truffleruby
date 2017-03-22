@@ -57,20 +57,19 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
         writeBarrier.executeWriteBarrier(value);
 
-        final FastAppendArray fastAppendArray = (FastAppendArray) Layouts.ARRAY.getStore(array);
-        final FastLayoutLock lock = fastAppendArray.getLock();
+        final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
 
         if (acceptValueProfile.profile(strategy.accepts(value))) { // TODO incorrect
             // Append of the correct type
 
             final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
 
-            final int size = ConcurrentArray.getSizeAndIncrement(array);
             lock.startWrite(threadState, fastPathProfile);
+            final int size = ConcurrentArray.getSizeAndIncrement(array);
             try {
                 final ArrayMirror storeMirror = strategy.newMirror(array);
                 if (extendProfile.profile(size < storeMirror.getLength())) {
-                    appendInBounds(fastAppendArray, storeMirror, size, value);
+                    appendInBounds(array, storeMirror, size, value);
                     return array;
                 }
             } finally {
@@ -81,7 +80,7 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
             try {
                 final ArrayMirror storeMirror = strategy.newMirror(array);
                 if (extendInLCProfile.profile(size < storeMirror.getLength())) {
-                    appendInBounds(fastAppendArray, storeMirror, size, value);
+                    appendInBounds(array, storeMirror, size, value);
                 } else {
                     final int capacity = ArrayUtils.capacityForOneMore(getContext(), storeMirror.getLength());
                     final ArrayMirror newStoreMirror = storeMirror.copyArrayAndMirror(capacity);
@@ -119,10 +118,10 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
     }
 
-    private void appendInBounds(FastAppendArray fastAppendArray, ArrayMirror storeMirror, int index, Object value) {
+    private void appendInBounds(DynamicObject array, ArrayMirror storeMirror, int index, Object value) {
         storeMirror.set(index, value);
         UnsafeHolder.UNSAFE.storeFence();
-        fastAppendArray.getTags()[index] = true;
+        ((FastAppendArray) Layouts.ARRAY.getStore(array)).getTags()[index] = true;
     }
 
 }
