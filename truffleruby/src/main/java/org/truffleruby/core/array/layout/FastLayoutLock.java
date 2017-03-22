@@ -26,7 +26,7 @@ public final class FastLayoutLock {
             markLCFlags(waitProfile);
             return stamp;
         } else {
-            long stamp1 = getWriteLock();
+            long stamp1 = acquireExclusiveLock();
             if (needToRecover) {
                 markLCFlags(waitProfile);
                 needToRecover = false;
@@ -50,7 +50,7 @@ public final class FastLayoutLock {
     }
 
     public void finishLayoutChange(long stamp) {
-        unlockWrite(stamp);
+        releaseExclusiveLock(stamp);
     }
 
     public void startWrite(ThreadStateReference ts, ConditionProfile fastPath) {
@@ -73,53 +73,54 @@ public final class FastLayoutLock {
 
     @TruffleBoundary
     public void changeThreadState(ThreadStateReference ts, int state) {
-        long stamp = getReadLock();
+        long stamp = acquireSharedLock();
         try {
             System.err.println("SLOW PATH changeThreadState " + ts.get() + " to " + state);
             ts.set(state);
             needToRecover = true;
         } finally {
-            unlockRead(stamp);
+            releaseSharedLock(stamp);
         }
     }
 
+
     @TruffleBoundary
-    private long getWriteLock() {
+    private long acquireExclusiveLock() {
         return baseLock.writeLock();
     }
 
     @TruffleBoundary
-    private void unlockWrite(long stamp) {
+    private void releaseExclusiveLock(long stamp) {
         baseLock.unlockWrite(stamp);
     }
 
     @TruffleBoundary
-    private long getReadLock() {
+    private long acquireSharedLock() {
         return baseLock.readLock();
     }
 
     @TruffleBoundary
-    private void unlockRead(long stamp) {
+    private void releaseSharedLock(long stamp) {
         baseLock.unlockRead(stamp);
     }
 
 
     public void registerThread(ThreadStateReference ts) {
-        long stamp = baseLock.writeLock();
+        long stamp = acquireExclusiveLock();
         try {
             addToGather(ts);
             needToRecover = true;
         } finally {
-            baseLock.unlockWrite(stamp);
+            releaseExclusiveLock(stamp);
         }
     }
 
     public void unregisterThread(ThreadStateReference ts) {
-        long stamp = baseLock.writeLock();
+        long stamp = acquireExclusiveLock();
         try {
             removeFromGather(ts);
         } finally {
-            baseLock.unlockWrite(stamp);
+            releaseExclusiveLock(stamp);
         }
     }
 
