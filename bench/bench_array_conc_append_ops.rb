@@ -5,7 +5,6 @@ N = 1000
 ary = []
 
 def bench(ary, t)
-  ary[0] = 0
   i = 0
   while i < N
     ary << i
