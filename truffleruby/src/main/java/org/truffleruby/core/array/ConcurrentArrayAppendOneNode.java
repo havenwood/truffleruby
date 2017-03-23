@@ -99,8 +99,8 @@ public abstract class ConcurrentArrayAppendOneNode extends RubyNode {
 
     private void appendInBounds(DynamicObject array, ArrayMirror storeMirror, int index, Object value) {
         storeMirror.set(index, value);
-        UnsafeHolder.UNSAFE.storeFence();
-        ((FastAppendArray) Layouts.ARRAY.getStore(array)).getTags()[index] = true;
+        // UnsafeHolder.UNSAFE.storeFence();
+        // ((FastAppendArray) Layouts.ARRAY.getStore(array)).getTags()[index] = true;
     }
 
     private void slowPathAppend(DynamicObject array, Object value, ArrayStrategy strategy, ArrayStrategy generalizedStrategy, int size) {
