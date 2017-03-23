@@ -75,7 +75,7 @@ public final class FastLayoutLock {
     public void changeThreadState(ThreadStateReference ts, int state) {
         long stamp = acquireSharedLock();
         try {
-            System.err.println("SLOW PATH changeThreadState " + ts.get() + " to " + state);
+            // System.err.println("SLOW PATH changeThreadState " + ts.get() + " to " + state);
             ts.set(state);
             needToRecover = true;
         } finally {
