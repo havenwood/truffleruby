@@ -471,12 +471,6 @@ custom-bench: {
     ${run-bench} ["8"]  ${extra-args},
     ${run-bench} ["12"] ${extra-args},
     ${run-bench} ["16"] ${extra-args},
-    ${run-bench} ["18"] ${extra-args},
-    ${run-bench} ["20"] ${extra-args},
-    ${run-bench} ["24"] ${extra-args},
-    ${run-bench} ["28"] ${extra-args},
-    ${run-bench} ["32"] ${extra-args},
-    ${run-bench} ["36"] ${extra-args},
     [export, "STRATEGY=FastLayoutLock"],
     ${run-bench} ["1"]  ${extra-args},
     ${run-bench} ["2"]  ${extra-args},
@@ -484,18 +478,17 @@ custom-bench: {
     ${run-bench} ["8"]  ${extra-args},
     ${run-bench} ["12"] ${extra-args},
     ${run-bench} ["16"] ${extra-args},
-    ${run-bench} ["18"] ${extra-args},
-    ${run-bench} ["20"] ${extra-args},
-    ${run-bench} ["24"] ${extra-args},
-    ${run-bench} ["28"] ${extra-args},
-    ${run-bench} ["32"] ${extra-args},
-    ${run-bench} ["36"] ${extra-args},
   ]
-  timelimit: "01:30:00"
+  timelimit: "01:00:00"
+}
+
+paper-bench-caps: {
+  capabilities: [x62, linux, amd64, no_frequency_scaling]
+  targets: [gate] # , post-push
 }
 
 builds: [
-  {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
+  {name: bench-shared-arrays} ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench}
 ]
 
 // Disable overlays
