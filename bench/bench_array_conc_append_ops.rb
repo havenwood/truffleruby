@@ -5,6 +5,7 @@ N = 1000
 ary = []
 
 def bench(ary, t)
+  ary[0] = 0
   i = 0
   while i < N
     ary << i
@@ -18,6 +19,5 @@ p measure_ops(ary) {
   ary.clear
   ary << 0
   Truffle::Array.set_capacity(ary, 40_000 * N * THROUGHPUT_TIME)
-  ary[0] = 0
   ary
 }
