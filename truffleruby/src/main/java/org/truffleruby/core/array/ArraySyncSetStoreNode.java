@@ -64,11 +64,15 @@ public abstract class ArraySyncSetStoreNode extends RubyNode {
         final Thread thread = Thread.currentThread();
         getContext().getSafepointManager().pauseAllThreadsAndExecute(this, false, (rubyThread, currentNode) -> {
             if (Thread.currentThread() == thread) {
-                final Object store = Layouts.ARRAY.getStore(array);
-                if (store instanceof FixedSizeArray) { // Was not already migrated by another thread
-                    FixedSizeArray fixedSizeArray = (FixedSizeArray) store;
-                    FastLayoutLockArray concurrentArray = new FastLayoutLockArray(fixedSizeArray.getStore(), new FastLayoutLock());
-                    Layouts.ARRAY.setStore(array, concurrentArray);
+                final Object concurrentArray = Layouts.ARRAY.getStore(array);
+                if (concurrentArray instanceof FixedSizeArray) { // Was not already migrated by another thread
+                    FixedSizeArray fixedSizeArray = (FixedSizeArray) concurrentArray;
+                    // Copy the array so Array#each and others can keep iterating safely,
+                    // as a GLSP could happen during #each and other iterators.
+                    // FIXME: what about size?
+                    Object store = ArrayUtils.copy(fixedSizeArray.getStore());
+                    FastLayoutLockArray newStrategy = new FastLayoutLockArray(store, new FastLayoutLock());
+                    Layouts.ARRAY.setStore(array, newStrategy);
                 }
             }
         });

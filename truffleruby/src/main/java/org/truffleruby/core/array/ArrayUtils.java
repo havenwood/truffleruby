@@ -330,6 +330,24 @@ public abstract class ArrayUtils {
         return boxed;
     }
 
+    public static Object copy(Object array) {
+        CompilerAsserts.neverPartOfCompilation();
+
+        if (array == null) {
+            return EMPTY_ARRAY;
+        } else if (array instanceof int[]) {
+            return ((int[]) array).clone();
+        } else if (array instanceof long[]) {
+            return ((long[]) array).clone();
+        } else if (array instanceof double[]) {
+            return ((double[]) array).clone();
+        } else if (array.getClass() == Object[].class) {
+            return ((Object[]) array).clone();
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
     public static void copy(Object source, Object[] destination, int destinationStart, int length) {
         if (length == 0) {
             return;
