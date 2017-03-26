@@ -594,7 +594,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "delete", required = 1, needsBlock = true)
+    @CoreMethod(names = "delete", required = 1, needsBlock = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     @ImportStatic(ArrayGuards.class)
     public abstract static class DeleteNode extends YieldingCoreMethodNode {
 
@@ -683,7 +683,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "each", needsBlock = true, enumeratorSize = "size")
+    @CoreMethod(names = "each", needsBlock = true, enumeratorSize = "size") // TODO: sync
     @ImportStatic(ArrayGuards.class)
     public abstract static class EachNode extends YieldingCoreMethodNode {
 
@@ -710,7 +710,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "each_with_index", needsBlock = true, enumeratorSize = "size")
+    @CoreMethod(names = "each_with_index", needsBlock = true, enumeratorSize = "size") // TODO: sync
     @ImportStatic(ArrayGuards.class)
     public abstract static class EachWithIndexNode extends YieldingCoreMethodNode {
 
@@ -735,7 +735,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "fill", rest = true, needsBlock = true, raiseIfFrozenSelf = true)
+    @CoreMethod(names = "fill", rest = true, needsBlock = true, raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     public abstract static class FillNode extends ArrayCoreMethodNode {
 
         @Specialization(guards = { "args.length == 1", "strategy.matches(array)", "strategy.accepts(value(args))" }, limit = "ARRAY_STRATEGIES")
@@ -808,7 +808,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "include?", required = 1)
+    @CoreMethod(names = "include?", required = 1) // TODO: sync
     public abstract static class IncludeNode extends ArrayCoreMethodNode {
 
         @Child private KernelNodes.SameOrEqualNode equalNode = KernelNodesFactory.SameOrEqualNodeFactory.create(null);
@@ -1416,7 +1416,7 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "reject!", needsBlock = true, enumeratorSize = "size", raiseIfFrozenSelf = true)
+    @CoreMethod(names = "reject!", needsBlock = true, enumeratorSize = "size", raiseIfFrozenSelf = true, sync = SyncMode.ARRAY_CHANGE_STORE)
     @ImportStatic(ArrayGuards.class)
     public abstract static class RejectInPlaceNode extends YieldingCoreMethodNode {
 
