@@ -16,7 +16,6 @@ import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetThreadStateNode;
 import org.truffleruby.core.array.layout.ThreadStateReference;
 
-import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -62,12 +61,11 @@ public abstract class ConcurrentArrayEachNode extends YieldingCoreMethodNode {
             @Cached("of(array)") ArrayStrategy strategy,
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile,
-            @Cached("createBinaryProfile()") ConditionProfile strategyMatchesProfile) {
+            @Cached("createBinaryProfile()") ConditionProfile strategyMatchesProfile,
+            @Cached("create()") ConcurrentArrayEachNode recurNode) {
 
         final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
-
-        ArrayMirror store = strategy.newMirror(array);
 
         int i = 0;
         try {
@@ -78,6 +76,7 @@ public abstract class ConcurrentArrayEachNode extends YieldingCoreMethodNode {
                         break;
                     }
 
+                    final ArrayMirror store = strategy.newMirror(array);
                     final Object value = store.get(i);
                     if (lock.finishRead(threadState, fastPathProfile)) {
                         yield(frame, block, value);
@@ -86,11 +85,8 @@ public abstract class ConcurrentArrayEachNode extends YieldingCoreMethodNode {
                     }
                 }
 
-                if (strategyMatchesProfile.profile(strategy.matches(array))) {
-                    store = strategy.newMirror(array);
-                } else {
-                    strategy = getStrategy(array);
-                    store = newMirror(array, strategy);
+                if (!strategyMatchesProfile.profile(strategy.matches(array))) {
+                    return recurNode.executeEach(frame, array, block, i);
                 }
             }
         } finally {
@@ -98,16 +94,6 @@ public abstract class ConcurrentArrayEachNode extends YieldingCoreMethodNode {
         }
 
         return array;
-    }
-
-    @TruffleBoundary
-    private ArrayStrategy getStrategy(DynamicObject array) {
-        return ArrayStrategy.of(array);
-    }
-
-    @TruffleBoundary
-    private ArrayMirror newMirror(DynamicObject array, ArrayStrategy strategy) {
-        return strategy.newMirror(array);
     }
 
 }
