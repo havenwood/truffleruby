@@ -683,34 +683,14 @@ public abstract class ArrayNodes {
 
     }
 
-    @CoreMethod(names = "each", needsBlock = true, enumeratorSize = "size") // TODO: sync
+    @CoreMethod(names = "each", needsBlock = true, enumeratorSize = "size")
     @ImportStatic(ArrayGuards.class)
     public abstract static class EachNode extends YieldingCoreMethodNode {
 
-        @Child ArrayReadNormalizedNode readNode = ArrayReadNormalizedNodeGen.create(null, null);
-
-        @Specialization(guards = { "strategy.matches(array)", "!strategy.isConcurrent()" }, limit = "ARRAY_STRATEGIES")
-        public Object eachLocal(VirtualFrame frame, DynamicObject array, DynamicObject block,
-                @Cached("of(array)") ArrayStrategy strategy) {
-            int n = 0;
-            try {
-                for (; n < strategy.getSize(array); n++) {
-                    yield(frame, block, readNode.executeRead(array, n));
-                }
-            } finally {
-                if (CompilerDirectives.inInterpreter()) {
-                    LoopNode.reportLoopCount(this, n);
-                }
-            }
-
-            return array;
-        }
-
-        @Specialization(guards = { "strategy.matches(array)", "strategy.isConcurrent()" }, limit = "ARRAY_STRATEGIES")
-        public Object eachConcurrent(VirtualFrame frame, DynamicObject array, DynamicObject block,
-                @Cached("of(array)") ArrayStrategy strategy,
-                @Cached("create()") ConcurrentArrayEachNode concurrentEachNode) {
-            return concurrentEachNode.executeEach(frame, array, block, 0);
+        @Specialization
+        public Object each(VirtualFrame frame, DynamicObject array, DynamicObject block,
+                @Cached("create()") ArrayEachNode eachNode) {
+            return eachNode.executeEach(frame, array, block, 0);
         }
 
     }

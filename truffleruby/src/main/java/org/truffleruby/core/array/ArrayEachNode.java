@@ -25,21 +25,36 @@ import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
 @ImportStatic(ArrayGuards.class)
-public abstract class ConcurrentArrayEachNode extends YieldingCoreMethodNode {
+public abstract class ArrayEachNode extends YieldingCoreMethodNode {
 
-    public static ConcurrentArrayEachNode create() {
-        return ConcurrentArrayEachNodeFactory.create(null);
+    public static ArrayEachNode create() {
+        return ArrayEachNodeFactory.create(null);
     }
 
     public abstract DynamicObject executeEach(VirtualFrame frame, DynamicObject array, DynamicObject block, int from);
 
     @Child ArrayReadNormalizedNode readNode = ArrayReadNormalizedNodeGen.create(null, null);
 
+    @Specialization(guards = { "strategy.matches(array)", "!strategy.isConcurrent()" }, limit = "ARRAY_STRATEGIES")
+    public Object eachLocal(VirtualFrame frame, DynamicObject array, DynamicObject block, int from,
+            @Cached("of(array)") ArrayStrategy strategy) {
+        int i = from;
+        try {
+            for (; i < strategy.getSize(array); i++) {
+                yield(frame, block, readNode.executeRead(array, i));
+            }
+        } finally {
+            LoopNode.reportLoopCount(this, i - from);
+        }
+
+        return array;
+    }
+
     @Specialization(guards = { "strategy.matches(array)", "isFixedSizeArray(array)" }, limit = "ARRAY_STRATEGIES")
     public DynamicObject eachFixedSize(VirtualFrame frame, DynamicObject array, DynamicObject block, int from,
             @Cached("of(array)") ArrayStrategy strategy,
             @Cached("createCountingProfile()") ConditionProfile strategyMatchesProfile,
-            @Cached("create()") ConcurrentArrayEachNode recurNode) {
+            @Cached("create()") ArrayEachNode recurNode) {
         int i = from;
         try {
             for (; i < strategy.getSize(array); i++) {
@@ -62,7 +77,7 @@ public abstract class ConcurrentArrayEachNode extends YieldingCoreMethodNode {
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile,
             @Cached("createBinaryProfile()") ConditionProfile strategyMatchesProfile,
-            @Cached("create()") ConcurrentArrayEachNode recurNode) {
+            @Cached("create()") ArrayEachNode recurNode) {
 
         final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
         final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
