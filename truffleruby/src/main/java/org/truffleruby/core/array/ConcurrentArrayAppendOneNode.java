@@ -18,7 +18,6 @@ import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 import org.truffleruby.Layouts;
-import org.truffleruby.core.UnsafeHolder;
 import org.truffleruby.core.array.ConcurrentArray.FastAppendArray;
 import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.array.layout.GetThreadStateNode;

@@ -706,6 +706,13 @@ public abstract class ArrayNodes {
             return array;
         }
 
+        @Specialization(guards = { "strategy.matches(array)", "strategy.isConcurrent()" }, limit = "ARRAY_STRATEGIES")
+        public Object eachConcurrent(VirtualFrame frame, DynamicObject array, DynamicObject block,
+                @Cached("of(array)") ArrayStrategy strategy,
+                @Cached("create()") ConcurrentArrayEachNode concurrentEachNode) {
+            return concurrentEachNode.executeEach(frame, array, block, 0);
+        }
+
     }
 
     @CoreMethod(names = "each_with_index", needsBlock = true, enumeratorSize = "size") // TODO: sync
