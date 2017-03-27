@@ -687,17 +687,15 @@ public abstract class ArrayNodes {
     @ImportStatic(ArrayGuards.class)
     public abstract static class EachNode extends YieldingCoreMethodNode {
 
-        @Child private CallDispatchHeadNode toEnumNode;
+        @Child ArrayReadNormalizedNode readNode = ArrayReadNormalizedNodeGen.create(null, null);
 
-        @Specialization(guards = "strategy.matches(array)", limit = "ARRAY_STRATEGIES")
-        public Object eachOther(VirtualFrame frame, DynamicObject array, DynamicObject block,
+        @Specialization(guards = { "strategy.matches(array)", "!strategy.isConcurrent()" }, limit = "ARRAY_STRATEGIES")
+        public Object eachLocal(VirtualFrame frame, DynamicObject array, DynamicObject block,
                 @Cached("of(array)") ArrayStrategy strategy) {
-            final ArrayMirror store = strategy.newMirror(array);
-
             int n = 0;
             try {
                 for (; n < strategy.getSize(array); n++) {
-                    yield(frame, block, store.get(n));
+                    yield(frame, block, readNode.executeRead(array, n));
                 }
             } finally {
                 if (CompilerDirectives.inInterpreter()) {
