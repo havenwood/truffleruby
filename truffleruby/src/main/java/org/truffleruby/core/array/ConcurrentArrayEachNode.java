@@ -82,14 +82,15 @@ public abstract class ConcurrentArrayEachNode extends YieldingCoreMethodNode {
                     if (lock.finishRead(threadState, fastPathProfile)) {
                         yield(frame, block, value);
                         i++;
+                        continue;
                     }
+                }
+
+                if (strategyMatchesProfile.profile(strategy.matches(array))) {
+                    store = strategy.newMirror(array);
                 } else {
-                    if (strategyMatchesProfile.profile(strategy.matches(array))) {
-                        store = strategy.newMirror(array);
-                    } else {
-                        strategy = getStrategy(array);
-                        store = newMirror(array, strategy);
-                    }
+                    strategy = getStrategy(array);
+                    store = newMirror(array, strategy);
                 }
             }
         } finally {
