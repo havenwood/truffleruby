@@ -71,6 +71,10 @@ public abstract class ArrayStrategy {
         return this instanceof ConcurrentArrayStrategy;
     }
 
+    public boolean isFixedSize() {
+        return this instanceof FixedSizeSafepointArrayStrategy;
+    }
+
     public boolean optimizesAppends() {
         return this instanceof FastAppendArrayStrategy;
     }

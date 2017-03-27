@@ -35,25 +35,10 @@ public abstract class ArrayEachNode extends YieldingCoreMethodNode {
 
     @Child ArrayReadNormalizedNode readNode = ArrayReadNormalizedNodeGen.create(null, null);
 
-    @Specialization(guards = { "strategy.matches(array)", "!strategy.isConcurrent()" }, limit = "ARRAY_STRATEGIES")
+    @Specialization(guards = { "strategy.matches(array)", "!strategy.isConcurrent() || strategy.isFixedSize()" }, limit = "ARRAY_STRATEGIES")
     public Object eachLocal(VirtualFrame frame, DynamicObject array, DynamicObject block, int from,
-            @Cached("of(array)") ArrayStrategy strategy) {
-        int i = from;
-        try {
-            for (; i < strategy.getSize(array); i++) {
-                yield(frame, block, readNode.executeRead(array, i));
-            }
-        } finally {
-            LoopNode.reportLoopCount(this, i - from);
-        }
-
-        return array;
-    }
-
-    @Specialization(guards = { "strategy.matches(array)", "isFixedSizeArray(array)" }, limit = "ARRAY_STRATEGIES")
-    public DynamicObject eachFixedSize(VirtualFrame frame, DynamicObject array, DynamicObject block, int from,
             @Cached("of(array)") ArrayStrategy strategy,
-            @Cached("createCountingProfile()") ConditionProfile strategyMatchesProfile,
+            @Cached("createBinaryProfile()") ConditionProfile strategyMatchesProfile,
             @Cached("create()") ArrayEachNode recurNode) {
         int i = from;
         try {
