@@ -144,13 +144,13 @@ public abstract class ArraySyncReadNode extends RubyNode {
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
         final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
+        final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
+
         Object result;
         while (true) {
             // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
             // Out-of-thin-air values are prevented by the dirty flag check
             result = builtinNode.execute(frame);
-
-            final FastLayoutLock lock = ((FastLayoutLockArray) Layouts.ARRAY.getStore(array)).getLock();
             
             if (lock.finishRead(threadState, fastPathProfile)) {
                 return result;
@@ -163,13 +163,13 @@ public abstract class ArraySyncReadNode extends RubyNode {
             @Cached("create()") GetThreadStateNode getThreadStateNode,
             @Cached("createBinaryProfile()") ConditionProfile fastPathProfile) {
         final ThreadStateReference threadState = getThreadStateNode.executeGetThreadState(array);
+        final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
+
         Object result;
         while (true) {
             // TODO: this might throw ArrayIndexOutOfBoundsException, or we need StoreStore+LoadLoad
             // Out-of-thin-air values are prevented by the dirty flag check
             result = builtinNode.execute(frame);
-
-            final FastLayoutLock lock = ((FastAppendArray) Layouts.ARRAY.getStore(array)).getLock();
 
             if (lock.finishRead(threadState, fastPathProfile)) {
                 return result;
