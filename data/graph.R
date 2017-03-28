@@ -74,6 +74,8 @@ full = load_data("conc_appends1.csv")
 # full = load_data("conc_appends_opt_no_tags1.csv")
 full = load_data("histo_x62_1.csv")
 full = load_data("histo_x62_2.csv")
+full = load_data("histo1.csv")
+# full = load_data("histo2.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
