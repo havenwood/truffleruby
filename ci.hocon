@@ -482,11 +482,12 @@ custom-bench: {
 
 paper-bench-caps: {
   capabilities: [x62, linux, amd64, no_frequency_scaling]
-  targets: [gate] # , post-push
+  targets: [gate, post-push]
 }
 
 builds: [
   {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
+  {name: bench-shared-arrays-x62} ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench}
 ]
 
 // Disable overlays
