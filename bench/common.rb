@@ -134,7 +134,7 @@ def measure_one_op(input, &prepare_input)
   # Wait for all threads to start
   threads.each { |q,ret| ret.pop }
 
-  results = ROUNDS.times.map do
+  results = (ROUNDS*3).times.map do
     prepare_input.call if prepare_input
 
     $go = false
