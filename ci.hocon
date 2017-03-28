@@ -457,6 +457,7 @@ hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
 run-bench: ${jt} ["ruby", "--graal",
 "-J-Dgraal.TruffleCompilationExceptionsAreFatal=true", "-J-Dgraal.TruffleCompilerThreads=1",
 "-J-verbose:gc", "--disable-gems",
+"-J-Dgraal.TruffleOSR=false",
 "bench/bench_histogram.rb", "$STRATEGY"]
 
 extra-args: []
