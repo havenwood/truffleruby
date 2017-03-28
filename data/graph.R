@@ -76,6 +76,7 @@ full = load_data("histo_x62_1.csv")
 full = load_data("histo_x62_2.csv")
 full = load_data("histo1.csv")
 # full = load_data("histo2.csv")
+full = load_data("histo_65Kkeys1.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
