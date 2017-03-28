@@ -486,8 +486,8 @@ paper-bench-caps: {
 }
 
 builds: [
-  // {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
-  {name: bench-shared-arrays-x62} ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench}
+  {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
+  // {name: bench-shared-arrays-x62} ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench}
 ]
 
 // Disable overlays

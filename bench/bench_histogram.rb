@@ -3,7 +3,7 @@ require_relative 'common'
 # Fixed workload distributed between threads
 
 DATA_ELEMENTS = 4_000_000
-RAND_MAX = 10_000 # 65_536
+RAND_MAX = 65_536
 
 def bench(hist, t)
   from, to = thread_partition(t, DATA_ELEMENTS)
