@@ -76,8 +76,9 @@ full = load_data("histo_x62_1.csv")
 full = load_data("histo_x62_2.csv")
 full = load_data("histo1.csv")
 # full = load_data("histo2.csv")
-full = load_data("histo_65Kkeys1.csv")
+# full = load_data("histo_65Kkeys1.csv")
 # full = load_data("histo_65Kkeys2.csv")
+full = load_data("histo_5Kkeys1.csv")
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
@@ -101,7 +102,7 @@ ggplot(data = full, aes(x=Threads, y=Median, group=VM, color=VM)) +
   geom_abline(size=0.2, slope = base_fll) +
   geom_point(size=2, aes(shape=VM)) +
   geom_line(size=0.7) +
-  # geom_errorbar(aes(ymin=Min, ymax=Max)) +
+  geom_errorbar(aes(ymin=Min, ymax=Max)) +
   xlab("Threads") + ylab("Throughput") +
   scale_x_continuous(breaks = c(0, 1, 2, 4, 8, 12, 16, 18, 20, 24, 28, 32, 36, 48), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
   scale_y_continuous(limits = c(0, max(full$Value))) +
