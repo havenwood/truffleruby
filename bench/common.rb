@@ -20,9 +20,9 @@ end
 def thread_partition(t, total_size)
   chunk = total_size / N_THREADS
   if t == N_THREADS-1
-    [t*chunk, (t+1)*chunk]
-  else
     [t*chunk, total_size]
+  else
+    [t*chunk, (t+1)*chunk]
   end
 end
 
