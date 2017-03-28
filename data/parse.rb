@@ -5,7 +5,8 @@ c = File.readlines(file)
 c.reject! { |line|
   line.start_with?('$ ') ||
   line.include?('Running export ') ||
-  line.include?('Run with strategy')
+  line.include?('Run with strategy') ||
+  line.start_with?('RESIZE')
 }
 c = c.slice_before(/tool\/jt\.rb ruby /).to_a
 
