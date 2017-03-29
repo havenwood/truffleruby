@@ -73,6 +73,7 @@ graal-core: ${labsjdk8} {
   setup: ${common.setup} [
     ${mx_sclone} ["https://github.com/graalvm/graal-core.git", ../graal-core],
     [cd, ../graal-core],
+    [git, reset, "--hard", "acbd6634910f"],
     [mx, sversions],
     [mx, build],
     [cd, ../main]
