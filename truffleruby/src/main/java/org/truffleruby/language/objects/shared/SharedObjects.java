@@ -14,6 +14,7 @@ import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.object.Shape;
+import com.oracle.truffle.api.profiles.ConditionProfile;
 import com.oracle.truffle.api.source.SourceSection;
 import org.truffleruby.Layouts;
 import org.truffleruby.Log;
@@ -150,7 +151,7 @@ public class SharedObjects {
 
     public static void onShareHook(DynamicObject object) {
         if (RubyGuards.isRubyArray(object)) {
-            shareArray(object);
+            shareArray(object, DUMMY_PROFILE);
         } else if (RubyGuards.isRubyHash(object)) {
             shareHash(object);
         }
@@ -165,10 +166,10 @@ public class SharedObjects {
         shareObjects(context, stack);
     }
 
-    public static void shareArray(DynamicObject array) {
+    public static void shareArray(DynamicObject array, ConditionProfile isEmptyProfile) {
         // Trying a fixed-size strategy first, unless it's an empty array
         // TODO: should learn from the allocation site
-        if (Layouts.ARRAY.getSize(array) == 0) {
+        if (isEmptyProfile.profile(Layouts.ARRAY.getSize(array) == 0)) {
             Layouts.ARRAY.setStore(array, new FastLayoutLockArray(Layouts.ARRAY.getStore(array), new FastLayoutLock()));
         } else {
             Layouts.ARRAY.setStore(array, new FixedSizeArray(Layouts.ARRAY.getStore(array)));
@@ -191,5 +192,7 @@ public class SharedObjects {
         buckets.applyConcurrent(hash);
         assert HashOperations.verifyStore(RubyContext.getInstance(), hash);
     }
+
+    private static final ConditionProfile DUMMY_PROFILE = ConditionProfile.createBinaryProfile();
 
 }

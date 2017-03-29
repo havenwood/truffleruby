@@ -46,22 +46,24 @@ public abstract class ShareInternalFieldsNode extends RubyBaseNode {
             assumptions = "cachedShape.getValidAssumption()", limit = "CACHE_LIMIT")
     protected void shareCachedObjectArray(DynamicObject array,
             @Cached("array.getShape()") Shape cachedShape,
-            @Cached("createWriteBarrierNode()") WriteBarrierNode writeBarrierNode) {
+            @Cached("createWriteBarrierNode()") WriteBarrierNode writeBarrierNode,
+            @Cached("createBinaryProfile()") ConditionProfile isEmptyProfile) {
         final int size = Layouts.ARRAY.getSize(array);
         final Object[] store = (Object[]) Layouts.ARRAY.getStore(array);
         for (int i = 0; i < size; i++) {
             writeBarrierNode.executeWriteBarrier(store[i]);
         }
-        SharedObjects.shareArray(array);
+        SharedObjects.shareArray(array, isEmptyProfile);
     }
 
     @Specialization(
             guards = {"array.getShape() == cachedShape", "isArrayShape(cachedShape)", "!isObjectArray(array)"},
             assumptions = "cachedShape.getValidAssumption()", limit = "CACHE_LIMIT")
     protected void shareCachedOtherArray(DynamicObject array,
-            @Cached("array.getShape()") Shape cachedShape) {
+            @Cached("array.getShape()") Shape cachedShape,
+            @Cached("createBinaryProfile()") ConditionProfile isEmptyProfile) {
         /* null, int[], long[] or double[] storage */
-        SharedObjects.shareArray(array);
+        SharedObjects.shareArray(array, isEmptyProfile);
     }
 
     @Specialization(
