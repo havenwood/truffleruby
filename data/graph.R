@@ -1,6 +1,6 @@
 if (sys.nframe() > 0) {
-  script.dir <- dirname(sys.frame(1)$ofile)
-  setwd(script.dir)
+  # script.dir <- dirname(sys.frame(1)$ofile)
+  # setwd(script.dir)
 }
 
 library(ggplot2)
@@ -15,17 +15,22 @@ old_load_data <- function(filename) {
   d
 }
 
-load_data <- function(filename) {
+load_data <- function(filename, invert=FALSE) {
   d = read.csv(filename, header=FALSE, col.names=c("Bench", "Threads", "VM", "Iteration", "Value"), sep=";")
   n = length(d$Value)
   d$VM = factor(d$VM)
   d$VM = revalue(d$VM, c("FastLayoutLock"="LightweightLayoutLock"))
   
   # Remove warmup
-  no_warmup = subset(d, d$Iteration>=2)
-  # no_warmup = subset(d, d$Iteration>=10)
+  d = subset(d, d$Iteration>=2)
+  # d = subset(d, d$Iteration>=10)
 
-  with_median = ddply(no_warmup, .(Bench, Threads, VM), transform,
+  if (invert) {
+    base = median(subset(d, Threads=="1" & VM=="LightweightLayoutLock")$Value)
+    d$Value = d$Value / base
+  }
+  
+  with_median = ddply(d, .(Bench, Threads, VM), transform,
                       Median = median(Value),
                       Min = min(Value),
                       Max = max(Value))
@@ -81,7 +86,7 @@ full = load_data("histo1.csv")
 # full = load_data("histo_65Kkeys2.csv")
 full = load_data("histo_5Kkeys1.csv")
 full = load_data("histo_5Kkeys_noOSR_1.csv")
-full = load_data("histo_5Kkeys_noOSR_2.csv")
+full = load_data("histo_5Kkeys_noOSR_2.csv", invert=TRUE)
 
 
 base = max(subset(full, Threads=="1")$Value)
