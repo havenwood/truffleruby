@@ -22,7 +22,8 @@ load_data <- function(filename) {
   d$VM = revalue(d$VM, c("FastLayoutLock"="LightweightLayoutLock"))
   
   # Remove warmup
-  no_warmup = subset(d, d$Iteration!=1)
+  no_warmup = subset(d, d$Iteration>=2)
+  # no_warmup = subset(d, d$Iteration>=10)
 
   with_median = ddply(no_warmup, .(Bench, Threads, VM), transform,
                       Median = median(Value),
@@ -79,6 +80,9 @@ full = load_data("histo1.csv")
 # full = load_data("histo_65Kkeys1.csv")
 # full = load_data("histo_65Kkeys2.csv")
 full = load_data("histo_5Kkeys1.csv")
+full = load_data("histo_5Kkeys_noOSR_1.csv")
+full = load_data("histo_5Kkeys_noOSR_2.csv")
+
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
