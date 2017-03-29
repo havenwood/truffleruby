@@ -22,7 +22,9 @@ import org.truffleruby.RubyLanguage;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.language.objects.ObjectGraph;
 import org.truffleruby.core.UnsafeHolder;
+import org.truffleruby.core.array.ConcurrentArray.FastLayoutLockArray;
 import org.truffleruby.core.array.ConcurrentArray.FixedSizeArray;
+import org.truffleruby.core.array.layout.FastLayoutLock;
 import org.truffleruby.core.hash.BucketsPromotionResult;
 import org.truffleruby.core.hash.ConcurrentHash;
 import org.truffleruby.core.hash.HashGuards;
@@ -164,9 +166,13 @@ public class SharedObjects {
     }
 
     public static void shareArray(DynamicObject array) {
-        // Trying a fixed-size strategy first
+        // Trying a fixed-size strategy first, unless it's an empty array
         // TODO: should learn from the allocation site
-        Layouts.ARRAY.setStore(array, new FixedSizeArray(Layouts.ARRAY.getStore(array)));
+        if (Layouts.ARRAY.getSize(array) == 0) {
+            Layouts.ARRAY.setStore(array, new FastLayoutLockArray(Layouts.ARRAY.getStore(array), new FastLayoutLock()));
+        } else {
+            Layouts.ARRAY.setStore(array, new FixedSizeArray(Layouts.ARRAY.getStore(array)));
+        }
     }
 
     public static void shareHash(DynamicObject hash) {
