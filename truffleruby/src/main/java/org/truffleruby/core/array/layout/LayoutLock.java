@@ -28,6 +28,12 @@ public class LayoutLock {
 
     }
 
+    private Accessor lockAccessor = new Accessor(this);
+
+    public LayoutLock() {
+        accessors[nextThread++] = lockAccessor;
+    }
+
     public static class Accessor extends Padding {
 
         private static final Unsafe UNSAFE = UnsafeHolder.UNSAFE;
@@ -162,13 +168,13 @@ public class LayoutLock {
 
     public Accessor access() {
         final Accessor accessor = new Accessor(this);
-        final int threads = accessor.startLayoutChange(DUMMY_PROFILE);
+        final int threads = lockAccessor.startLayoutChange(DUMMY_PROFILE);
         try {
             final int n = nextThread;
             accessors[n] = accessor;
             nextThread = n + 1;
         } finally {
-            accessor.finishLayoutChange(threads);
+            lockAccessor.finishLayoutChange(threads);
         }
         return accessor;
     }
