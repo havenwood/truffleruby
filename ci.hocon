@@ -215,7 +215,7 @@ daily-gate-caps: {
 
 bench-caps: {
   capabilities: [x52, linux, amd64, no_frequency_scaling]
-  targets: [bench, post-push]
+  targets: [bench, post-push, gate]
   timelimit: "02:00:00"
 }
 
