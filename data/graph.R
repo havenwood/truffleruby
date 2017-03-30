@@ -113,7 +113,7 @@ ggplot(data = full, aes(x=Threads, y=Median, group=VM, color=VM)) +
   geom_line(size=0.7) +
   # geom_errorbar(aes(ymin=Min, ymax=Max)) +
   xlab("Threads") + ylab("Throughput") +
-  scale_x_continuous(breaks = c(0, 1, 2, 4, 8, 12, 16, 18, 20, 24, 28, 32, 36, 48), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
+  scale_x_continuous(breaks = unique(full$Threads), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
   scale_y_continuous(limits = c(0, max(full$Value))) +
   #scale_y_continuous(breaks = seq(0, max(full$Value), 10000)) +
   theme(text = element_text(size=20), legend.position="bottom",
