@@ -19,7 +19,7 @@ public abstract class LayoutLockStartLayoutChangeNode extends RubyNode {
     @Specialization
     protected int startLayoutChange(LayoutLock.Accessor accessor,
             @Cached("createBinaryProfile()") ConditionProfile casProfile) {
-        return accessor.startLayoutChange(casProfile);
+        return accessor.getLock().startLayoutChange(casProfile);
     }
 
 }

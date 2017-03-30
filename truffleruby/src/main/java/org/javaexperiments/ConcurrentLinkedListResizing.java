@@ -70,15 +70,15 @@ public final class ConcurrentLinkedListResizing {
     }
 
     private void resize() {
-        final Accessor accessor = getAccessor();
-        int threads = accessor.startLayoutChange(DUMMY_PROFILE);
+        final LayoutLock lock = getAccessor().getLock();
+        int threads = lock.startLayoutChange(DUMMY_PROFILE);
         try {
             bucket++;
             final AtomicReferenceArray<Entry> old = first;
             first = new AtomicReferenceArray<>(bucket + 1);
             first.set(bucket, old.get(bucket - 1));
         } finally {
-            accessor.finishLayoutChange(threads);
+            lock.finishLayoutChange(threads);
         }
     }
 

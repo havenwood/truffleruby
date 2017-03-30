@@ -17,7 +17,7 @@ public abstract class LayoutLockFinishLayoutChangeNode extends RubyNode {
 
     @Specialization
     protected int finishLayoutChange(LayoutLock.Accessor accessor, int n) {
-        accessor.finishLayoutChange(n);
+        accessor.getLock().finishLayoutChange(n);
         return n;
     }
 

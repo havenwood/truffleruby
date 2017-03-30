@@ -49,6 +49,10 @@ public class LayoutLock {
             this.lock = lock;
         }
 
+        public LayoutLock getLock() {
+            return lock;
+        }
+
         boolean compareAndSwapState(int expect, int update) {
             return UNSAFE.compareAndSwapInt(this, STATE_OFFSET, expect, update);
         }
@@ -77,6 +81,16 @@ public class LayoutLock {
             return true;
         }
 
+        private void resetDirty() {
+            while (state == LAYOUT_CHANGE) {
+                yield();
+            }
+            dirty = false;
+            if (state == LAYOUT_CHANGE) {
+                dirty = true;
+            }
+        }
+
         public void startWrite(ConditionProfile stateProfile) {
             while (layoutChangeIntended > 0) {
                 yield();
@@ -91,32 +105,7 @@ public class LayoutLock {
             state = INACTIVE;
         }
 
-        public int startLayoutChange(ConditionProfile casProfile) {
-            final Accessor lockAccessor = lock.lockAccessor;
-            if (!casProfile.profile(lockAccessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE))) {
-                while (!lockAccessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
-                    yield();
-                }
-            }
-
-            final int threads = lock.nextThread;
-            final Accessor[] accessors = lock.accessors;
-
-            for (int i = 0; i < threads; i++) {
-                final Accessor accessor = accessors[i];
-                if (!casProfile.profile(accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE))) {
-                    accessor.waitAndCAS();
-                }
-            }
-
-            for (int i = 0; i < threads; i++) {
-                accessors[i].dirty = true;
-            }
-
-            return threads;
-        }
-
-        public void waitAndCAS() {
+        private void waitAndCAS() {
             incrementLayoutChangeIntended();
             while (!compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                 yield();
@@ -124,24 +113,39 @@ public class LayoutLock {
             decrementLayoutChangeIntended();
         }
 
-        public void finishLayoutChange(int n) {
-            lock.lockAccessor.state = INACTIVE;
-            final Accessor[] accessors = lock.accessors;
-            for (int i = 0; i < n; i++) {
-                accessors[i].state = INACTIVE;
-            }
-        }
+    }
 
-        private void resetDirty() {
-            while (state == LAYOUT_CHANGE) {
+    public int startLayoutChange(ConditionProfile casProfile) {
+        final Accessor lockAccessor = this.lockAccessor;
+        if (!casProfile.profile(lockAccessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE))) {
+            while (!lockAccessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
                 yield();
             }
-            dirty = false;
-            if (state == LAYOUT_CHANGE) {
-                dirty = true;
+        }
+
+        final int threads = nextThread;
+        final Accessor[] accessors = this.accessors;
+
+        for (int i = 0; i < threads; i++) {
+            final Accessor accessor = accessors[i];
+            if (!casProfile.profile(accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE))) {
+                accessor.waitAndCAS();
             }
         }
 
+        for (int i = 0; i < threads; i++) {
+            accessors[i].dirty = true;
+        }
+
+        return threads;
+    }
+
+    public void finishLayoutChange(int n) {
+        lockAccessor.state = INACTIVE;
+        final Accessor[] accessors = this.accessors;
+        for (int i = 0; i < n; i++) {
+            accessors[i].state = INACTIVE;
+        }
     }
 
     @TruffleBoundary
@@ -151,13 +155,13 @@ public class LayoutLock {
 
     public Accessor access() {
         final Accessor accessor = new Accessor(this);
-        final int threads = lockAccessor.startLayoutChange(DUMMY_PROFILE);
+        final int threads = startLayoutChange(DUMMY_PROFILE);
         try {
             final int n = nextThread;
             accessors[n] = accessor;
             nextThread = n + 1;
         } finally {
-            lockAccessor.finishLayoutChange(threads);
+            finishLayoutChange(threads);
         }
         return accessor;
     }
