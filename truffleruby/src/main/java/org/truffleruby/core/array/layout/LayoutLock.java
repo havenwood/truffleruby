@@ -49,20 +49,8 @@ public class LayoutLock {
             this.lock = lock;
         }
 
-        void setState(int value) {
-            state = value;
-        }
-
-        int getState() {
-            return state;
-        }
-
         boolean compareAndSwapState(int expect, int update) {
             return UNSAFE.compareAndSwapInt(this, STATE_OFFSET, expect, update);
-        }
-
-        int getLayoutChangeIntended() {
-            return layoutChangeIntended;
         }
 
         void incrementLayoutChangeIntended() {
@@ -71,17 +59,6 @@ public class LayoutLock {
 
         void decrementLayoutChangeIntended() {
             UNSAFE.getAndAddInt(this, LAYOUT_CHANGED_INTENDED_OFFSET, -1);
-        }
-
-        public Accessor[] getAccessors() {
-            return lock.accessors;
-        }
-
-        public int getNextThread() {
-            return lock.nextThread;
-        }
-
-        public void startRead() {
         }
 
         public boolean finishRead(ConditionProfile dirtyProfile) {
@@ -101,7 +78,7 @@ public class LayoutLock {
         }
 
         public void startWrite(ConditionProfile stateProfile) {
-            while (getLayoutChangeIntended() > 0) {
+            while (layoutChangeIntended > 0) {
                 yield();
             }
 
@@ -111,7 +88,7 @@ public class LayoutLock {
         }
 
         public void finishWrite() {
-            setState(INACTIVE);
+            state = INACTIVE;
         }
 
         public int startLayoutChange(ConditionProfile casProfile) {
@@ -123,7 +100,7 @@ public class LayoutLock {
             }
 
             final int threads = lock.nextThread;
-            final Accessor[] accessors = getAccessors();
+            final Accessor[] accessors = lock.accessors;
 
             for (int i = 0; i < threads; i++) {
                 final Accessor accessor = accessors[i];
@@ -148,19 +125,19 @@ public class LayoutLock {
         }
 
         public void finishLayoutChange(int n) {
-            lock.lockAccessor.setState(INACTIVE);
-            final Accessor[] accessors = getAccessors();
+            lock.lockAccessor.state = INACTIVE;
+            final Accessor[] accessors = lock.accessors;
             for (int i = 0; i < n; i++) {
-                accessors[i].setState(INACTIVE);
+                accessors[i].state = INACTIVE;
             }
         }
 
         private void resetDirty() {
-            while (getState() == LAYOUT_CHANGE) {
+            while (state == LAYOUT_CHANGE) {
                 yield();
             }
             dirty = false;
-            if (getState() == LAYOUT_CHANGE) {
+            if (state == LAYOUT_CHANGE) {
                 dirty = true;
             }
         }
