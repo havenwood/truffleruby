@@ -141,11 +141,11 @@ public class LayoutLock {
     }
 
     public void finishLayoutChange(int n) {
-        lockAccessor.state = INACTIVE;
         final Accessor[] accessors = this.accessors;
         for (int i = 0; i < n; i++) {
             accessors[i].state = INACTIVE;
         }
+        lockAccessor.state = INACTIVE;
     }
 
     @TruffleBoundary
