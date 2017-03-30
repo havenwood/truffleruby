@@ -17,6 +17,8 @@ public class LayoutLock {
     private static final int WRITE = 1;
     private static final int LAYOUT_CHANGE = 2;
 
+    // Protect access to nextThread and the accessors array
+    private final Accessor lockAccessor = new Accessor(this);
     private final Accessor[] accessors = new Accessor[MAX_THREADS];
     private volatile int nextThread = 0;
 
@@ -28,10 +30,7 @@ public class LayoutLock {
 
     }
 
-    private Accessor lockAccessor = new Accessor(this);
-
     public LayoutLock() {
-        accessors[nextThread++] = lockAccessor;
     }
 
     public static class Accessor extends Padding {
@@ -116,8 +115,14 @@ public class LayoutLock {
         }
 
         public int startLayoutChange(ConditionProfile casProfile) {
-            final int threads = lock.nextThread;
+            final Accessor lockAccessor = lock.lockAccessor;
+            if (!casProfile.profile(lockAccessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE))) {
+                while (!lockAccessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE)) {
+                    yield();
+                }
+            }
 
+            final int threads = lock.nextThread;
             final Accessor[] accessors = getAccessors();
 
             for (int i = 0; i < threads; i++) {
@@ -143,6 +148,7 @@ public class LayoutLock {
         }
 
         public void finishLayoutChange(int n) {
+            lock.lockAccessor.setState(INACTIVE);
             final Accessor[] accessors = getAccessors();
             for (int i = 0; i < n; i++) {
                 accessors[i].setState(INACTIVE);
