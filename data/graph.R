@@ -100,7 +100,7 @@ full = load_data("x62_conc_writes1.csv")
 full = load_data("x62_conc_reads2.csv")
 full = load_data("x62_conc_rw10_90_2.csv")
 full = load_data("x62_conc_rw50_50_2.csv")
-full = load_data("x62_conc_writes2.csv")
+# full = load_data("x62_conc_writes2.csv")
 
 base = max(subset(full, VM=="FixedSize" & Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
