@@ -553,9 +553,9 @@ paper-bench-caps: {
 
 builds: [
   // {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-ro}
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw1090}
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw5050}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-ro}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw1090}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw5050}
   ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-wo}
 ]
 
