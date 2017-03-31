@@ -470,12 +470,14 @@ run-on-all-cores: [
   ${run-bench} ["8"]  ${extra-args},
   ${run-bench} ["12"] ${extra-args},
   ${run-bench} ["16"] ${extra-args},
-  ${run-bench} ["18"] ${extra-args},
   ${run-bench} ["20"] ${extra-args},
+  ${run-bench} ["22"] ${extra-args},
   ${run-bench} ["24"] ${extra-args},
   ${run-bench} ["28"] ${extra-args},
   ${run-bench} ["32"] ${extra-args},
   ${run-bench} ["36"] ${extra-args},
+  ${run-bench} ["40"] ${extra-args},
+  ${run-bench} ["44"] ${extra-args},
 ]
 
 custom-bench: {
@@ -501,8 +503,8 @@ paper-bench-caps: {
 }
 
 builds: [
-  {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
-  // {name: bench-shared-arrays-x62} ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench}
+  // {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
+  {name: bench-shared-arrays-x62} ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench}
 ]
 
 // Disable overlays
