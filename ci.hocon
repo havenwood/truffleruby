@@ -548,7 +548,7 @@ custom-bench-wo: {
 paper-bench-caps: {
   capabilities: [x62, linux, amd64, no_frequency_scaling]
   targets: [gate, post-push]
-  timelimit: "01:30:00"
+  timelimit: "02:00:00"
 }
 
 builds: [
