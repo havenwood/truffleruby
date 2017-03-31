@@ -92,9 +92,14 @@ full = load_data("histo_5Kkeys_noOSR_all_2.csv", invert=TRUE)
 full = load_data("x62_histo_5Kkeys_noOSR_all.csv", invert=TRUE)
 full = load_data("x62_histo_5Kkeys_noOSR_all_2.csv", invert=TRUE)
 
-base = max(subset(full, Threads=="1")$Value)
+full = load_data("x62_conc_reads1.csv")
+full = load_data("x62_conc_rw10_90_1.csv")
+full = load_data("x62_conc_rw50_50_1.csv")
+full = load_data("x62_conc_writes1.csv")
+
+base = max(subset(full, VM=="FixedSize" & Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
-base_fll = max(subset(full, VM=="LightweightLayoutLock" & Threads=="1")$Value)
+base_fll = median(subset(full, VM=="LightweightLayoutLock" & Threads=="1")$Value)
 # full$Value = full$Value / base
 
 # full = subset(full, VM != "FixedSize")
@@ -114,7 +119,7 @@ ggplot(data = full, aes(x=Threads, y=Median, group=VM, color=VM)) +
   geom_abline(size=0.2, slope = base_fll) +
   geom_point(size=2, aes(shape=VM)) +
   geom_line(size=0.7) +
-  # geom_errorbar(aes(ymin=Min, ymax=Max)) +
+  geom_errorbar(aes(ymin=Min, ymax=Max)) +
   xlab("Threads") + ylab("Throughput") +
   scale_x_continuous(breaks = unique(full$Threads), minor_breaks = NULL, limits = c(0, max(full$Threads))) +
   scale_y_continuous(limits = c(0, max(full$Value))) +
