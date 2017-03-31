@@ -457,9 +457,10 @@ hwloc.node0 : ["hwloc-bind", "--cpubind", "node:0", "--membind", "node:0", "--"]
 
 run-bench: ${jt} ["ruby", "--graal",
 "-J-Dgraal.TruffleCompilationExceptionsAreFatal=true", "-J-Dgraal.TruffleCompilerThreads=1",
-"-J-verbose:gc", "--disable-gems",
 "-J-Dgraal.TruffleOSR=false",
-"bench/bench_histogram.rb", "$STRATEGY"]
+"-J-verbose:gc",
+"--disable-gems",
+"$BENCH", "$STRATEGY"]
 
 extra-args: []
 
@@ -480,31 +481,82 @@ run-on-all-cores: [
   ${run-bench} ["44"] ${extra-args},
 ]
 
-custom-bench: {
+custom-bench-histo: {
+  name: "custom-bench-histo-fixed",
   run: [
     [lscpu],
+    [export, "BENCH=bench/bench_histogram.rb"]
     [export, "STRATEGY=FastLayoutLock"]
   ] ${run-on-all-cores} [
     [export, "STRATEGY=LayoutLock"]
   ] ${run-on-all-cores} [
-    [export, "STRATEGY=Synchronized"],
+    [export, "STRATEGY=Synchronized"]
   ] ${run-on-all-cores} [
-    [export, "STRATEGY=ReentrantLock"],
+    [export, "STRATEGY=ReentrantLock"]
   ] ${run-on-all-cores} [
-    [export, "STRATEGY=StampedLock"],
+    [export, "STRATEGY=StampedLock"]
   ] ${run-on-all-cores} [
   ]
-  timelimit: "01:30:00"
+}
+
+custom-bench-base: {
+  run: [
+    [lscpu],
+    [export, "STRATEGY=FixedSize"]
+  ] ${run-on-all-cores} [
+    [export, "STRATEGY=FastLayoutLock"]
+  ] ${run-on-all-cores} [
+    [export, "STRATEGY=LayoutLock"]
+  ] ${run-on-all-cores} [
+    [export, "STRATEGY=Synchronized"]
+  ] ${run-on-all-cores} [
+    [export, "STRATEGY=ReentrantLock"]
+  ] ${run-on-all-cores} [
+    [export, "STRATEGY=StampedLock"]
+  ] ${run-on-all-cores} [
+  ]
+}
+
+custom-bench-ro: {
+  name: "custom-bench-ro",
+  run: [
+    [export, "BENCH=bench/bench_array_conc_reads_ops.rb"]
+  ] ${custom-bench-base.run}
+}
+
+custom-bench-rw1090: {
+  name: "custom-bench-rw1090",
+  run: [
+    [export, "BENCH=bench/bench_array_conc_write_reads_ops_10_90.rb"]
+  ] ${custom-bench-base.run}
+}
+
+custom-bench-rw5050: {
+  name: "custom-bench-rw5050",
+  run: [
+    [export, "BENCH=bench/bench_array_conc_write_reads_ops_50_50.rb"]
+  ] ${custom-bench-base.run}
+}
+
+custom-bench-wo: {
+  name: "custom-bench-wo",
+  run: [
+    [export, "BENCH=bench/bench_array_conc_reads_ops.rb"]
+  ] ${custom-bench-base.run}
 }
 
 paper-bench-caps: {
   capabilities: [x62, linux, amd64, no_frequency_scaling]
   targets: [gate, post-push]
+  timelimit: "01:30:00"
 }
 
 builds: [
   // {name: bench-shared-arrays} ${common} ${graal-core} ${bench-caps} ${truffleruby} ${custom-bench}
-  {name: bench-shared-arrays-x62} ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench}
+  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-ro}
+  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw1090}
+  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw5050}
+  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-wo}
 ]
 
 // Disable overlays
