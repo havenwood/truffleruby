@@ -90,6 +90,7 @@ full = load_data("histo_5Kkeys_noOSR_2.csv", invert=TRUE)
 full = load_data("histo_5Kkeys_noOSR_all_1.csv", invert=TRUE)
 full = load_data("histo_5Kkeys_noOSR_all_2.csv", invert=TRUE)
 full = load_data("x62_histo_5Kkeys_noOSR_all.csv", invert=TRUE)
+full = load_data("x62_histo_5Kkeys_noOSR_all_2.csv", invert=TRUE)
 
 base = max(subset(full, Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
