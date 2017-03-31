@@ -482,11 +482,9 @@ run-on-all-cores: [
   ${run-bench} ["44"] ${extra-args},
 ]
 
-custom-bench-histo: {
-  name: "custom-bench-histo-fixed",
+custom-bench-histo-base: {
   run: [
     [lscpu],
-    [export, "BENCH=bench/bench_histogram.rb"]
     [export, "STRATEGY=FastLayoutLock"]
   ] ${run-on-all-cores} [
     [export, "STRATEGY=LayoutLock"]
@@ -517,6 +515,22 @@ custom-bench-base: {
   ] ${run-on-all-cores} [
   ]
 }
+
+
+custom-bench-histo-fixed: {
+  name: "custom-bench-histo-fixed",
+  run: [
+    [export, "BENCH=bench/bench_histogram.rb"]
+  ] ${custom-bench-histo-base.run}
+}
+
+custom-bench-histo-gaussian: {
+  name: "custom-bench-histo-gaussian",
+  run: [
+    [export, "BENCH=bench/bench_histogram_gaussian.rb"]
+  ] ${custom-bench-histo-base.run}
+}
+
 
 custom-bench-ro: {
   name: "custom-bench-ro",
@@ -565,8 +579,11 @@ builds: [
   // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-ro}
   // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw1090}
   // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw5050}
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-wo}
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-appends}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-wo}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-appends}
+
+  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-histo-fixed}
+  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-histo-gaussian}
 ]
 
 // Disable overlays
