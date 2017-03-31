@@ -541,7 +541,7 @@ custom-bench-rw5050: {
 custom-bench-wo: {
   name: "custom-bench-wo",
   run: [
-    [export, "BENCH=bench/bench_array_conc_reads_ops.rb"]
+    [export, "BENCH=bench/bench_array_conc_write_ops.rb"]
   ] ${custom-bench-base.run}
 }
 
