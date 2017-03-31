@@ -11,16 +11,13 @@ import sun.misc.Unsafe;
  */
 public class LayoutLock {
 
-    private static final int MAX_THREADS = 600; // For specs
-
     private static final int INACTIVE = 0;
     private static final int WRITE = 1;
     private static final int LAYOUT_CHANGE = 2;
 
-    // Protect access to nextThread and the accessors array
+    // Protect access to the accessors array
     private final Accessor lockAccessor = new Accessor(this);
-    private final Accessor[] accessors = new Accessor[MAX_THREADS];
-    private volatile int nextThread = 0;
+    private Accessor[] accessors = new Accessor[0];
 
     private static class Padding {
 
@@ -123,26 +120,25 @@ public class LayoutLock {
             }
         }
 
-        final int threads = nextThread;
         final Accessor[] accessors = this.accessors;
 
-        for (int i = 0; i < threads; i++) {
+        for (int i = 0; i < accessors.length; i++) {
             final Accessor accessor = accessors[i];
             if (!casProfile.profile(accessor.compareAndSwapState(INACTIVE, LAYOUT_CHANGE))) {
                 accessor.waitAndCAS();
             }
         }
 
-        for (int i = 0; i < threads; i++) {
+        for (int i = 0; i < accessors.length; i++) {
             accessors[i].dirty = true;
         }
 
-        return threads;
+        return accessors.length;
     }
 
     public void finishLayoutChange(int n) {
         final Accessor[] accessors = this.accessors;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < accessors.length; i++) {
             accessors[i].state = INACTIVE;
         }
         lockAccessor.state = INACTIVE;
@@ -153,13 +149,18 @@ public class LayoutLock {
         Thread.yield();
     }
 
+    private void addAccessor(Accessor accessor) {
+        Accessor[] newAccessors = new Accessor[accessors.length + 1];
+        System.arraycopy(accessors, 0, newAccessors, 0, accessors.length);
+        newAccessors[accessors.length] = accessor;
+        accessors = newAccessors;
+    }
+
     public Accessor access() {
         final Accessor accessor = new Accessor(this);
         final int threads = startLayoutChange(DUMMY_PROFILE);
         try {
-            final int n = nextThread;
-            accessors[n] = accessor;
-            nextThread = n + 1;
+            addAccessor(accessor);
         } finally {
             finishLayoutChange(threads);
         }
