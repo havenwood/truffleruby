@@ -562,7 +562,7 @@ custom-bench-wo: {
 custom-bench-appends: {
   name: "custom-bench-appends",
   run: [
-    [export, "JAVA_OPTS=-J-Xmx30g"],
+    [export, "JAVA_OPTS=-Xmx30g"],
     [export, "BENCH=bench/bench_array_conc_append_ops.rb"]
   ] ${custom-bench-base.run}
 }
@@ -578,11 +578,11 @@ builds: [
   // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-ro}
   // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw1090}
   // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-rw5050}
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-wo}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-wo}
   ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-appends}
 
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-histo-fixed}
-  ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-histo-gaussian}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-histo-fixed}
+  // ${common} ${graal-core} ${paper-bench-caps} ${truffleruby} ${custom-bench-histo-gaussian}
 ]
 
 // Disable overlays
