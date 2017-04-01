@@ -1,5 +1,6 @@
 package org.truffleruby.core.array.layout;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -16,17 +17,35 @@ public final class FastLayoutLock {
 
     private final StampedLock baseLock = new StampedLock();
     private boolean needToRecover = false; // Protected by the baseLock
+    public static AtomicInteger maxLCpressure = new AtomicInteger(0);
+    AtomicInteger pendingLCs = new AtomicInteger(0);
+    public final static boolean DETECT_PENDING_LC_PRESSURE = true;
 
     public FastLayoutLock() {
     }
 
+    public static int getMaxLCPressure() {
+        return maxLCpressure.get();
+    }
     public long startLayoutChange(ConditionProfile tryLock, ConditionProfile waitProfile) {
+        if (DETECT_PENDING_LC_PRESSURE) {
+            int waiting = pendingLCs.incrementAndGet();
+            int c = 0;
+            while ((waiting > (c = pendingLCs.get()) && !pendingLCs.compareAndSet(c, waiting)))
+                ;
+        }
         long stamp = baseLock.tryWriteLock();
         if (tryLock.profile(stamp != 0)) {
+            if (DETECT_PENDING_LC_PRESSURE) {
+                pendingLCs.decrementAndGet();
+            }
             markLCFlags(waitProfile);
             return stamp;
         } else {
             long stamp1 = acquireExclusiveLock();
+            if (DETECT_PENDING_LC_PRESSURE) {
+                pendingLCs.decrementAndGet();
+            }
             if (needToRecover) {
                 markLCFlags(waitProfile);
                 needToRecover = false;
