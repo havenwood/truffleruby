@@ -103,6 +103,9 @@ full = load_data("x62_conc_rw50_50_2.csv")
 # full = load_data("x62_conc_writes2.csv")
 full = load_data("x62_conc_appends1.csv")
 
+full = load_data("x62_histo5k_1.csv", invert=TRUE)
+full = load_data("x62_histo_gaussian_1.csv", invert=TRUE)
+
 base = max(subset(full, VM=="FixedSize" & Threads=="1")$Value)
 # base = max(subset(full, Threads=="2")$Value)/2
 base_fll = median(subset(full, VM=="LightweightLayoutLock" & Threads=="1")$Value)
