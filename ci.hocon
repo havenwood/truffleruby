@@ -460,7 +460,6 @@ run-bench: ${jt} ["ruby", "--graal",
 // "-J-Dgraal.TruffleOSR=false",
 "-J-verbose:gc",
 "--disable-gems",
-"$EXTRA_FLAGS",
 "$BENCH", "$STRATEGY"]
 
 extra-args: []
@@ -563,7 +562,7 @@ custom-bench-wo: {
 custom-bench-appends: {
   name: "custom-bench-appends",
   run: [
-    [export, "EXTRA_FLAGS=-J-Xmx30g"],
+    [export, "JAVA_OPTS=-J-Xmx30g"],
     [export, "BENCH=bench/bench_array_conc_append_ops.rb"]
   ] ${custom-bench-base.run}
 }
