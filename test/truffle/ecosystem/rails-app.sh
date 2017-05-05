@@ -5,7 +5,7 @@ set -x
 
 truffle_ruby=$(pwd)
 JTR="${truffle_ruby}/bin/truffleruby ${truffle_ruby}/lib/truffleruby-tool/bin/truffleruby-tool"
-rails_app="${truffle_ruby}/truffleruby-gem-test-pack/gem-testing/rails-app"
+rails_app="${truffle_ruby}/test/truffle/ecosystem/rails-app"
 
 cd "${rails_app}"
 
