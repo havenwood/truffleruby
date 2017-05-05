@@ -598,7 +598,7 @@ public abstract class KernelNodes {
                 @Cached("createCallTarget(cachedRootNode)") CallTarget cachedCallTarget,
                 @Cached("create(cachedCallTarget)") DirectCallNode callNode) {
             final MaterializedFrame parentFrame = BindingNodes.getTopFrame(binding);
-            final Object callerSelf = RubyArguments.getSelf(frame);
+            final Object bindingSelf = RubyArguments.getSelf(parentFrame);
 
             final InternalMethod method = new InternalMethod(
                     getContext(),
@@ -609,7 +609,7 @@ public abstract class KernelNodes {
                     Visibility.PUBLIC,
                     cachedCallTarget);
 
-            return callNode.call(RubyArguments.pack(parentFrame, null, method, RubyArguments.getDeclarationContext(parentFrame), null, callerSelf, null, new Object[]{}));
+            return callNode.call(RubyArguments.pack(parentFrame, null, method, RubyArguments.getDeclarationContext(parentFrame), null, bindingSelf, null, new Object[]{}));
         }
 
         @Specialization(guards = {
