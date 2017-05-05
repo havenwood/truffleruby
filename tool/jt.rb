@@ -995,8 +995,8 @@ module Commands
   private :test_gems
 
   def test_ecosystem(env={}, *args)
-    unless File.exist? "#{JRUBY_DIR}/../jruby-truffle-gem-test-pack/gem-testing"
-      raise 'missing ../jruby-truffle-gem-test-pack/gem-testing directory'
+    unless File.exist? "#{JRUBY_DIR}/truffleruby-gem-test-pack/gem-testing"
+      raise 'missing truffleruby-gem-test-pack/gem-testing directory'
     end
 
     tests_path             = "#{JRUBY_DIR}/test/truffle/ecosystem"

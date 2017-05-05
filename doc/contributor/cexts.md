@@ -23,14 +23,14 @@ $ SULONG_HOME=/absolute/path/to/sulong JT_OPT=opt-3.8 JT_CLANG=clang-3.8 \
 
 ## Testing
 
-Get the `all-ruby-benchmarks` repository at 
-https://github.com/jruby/all-ruby-benchmarks
+Get the `truffleruby-gem-test-pack-n.tar.gz` file and extract into the root
+of the TruffleRuby repository.
 
 You can then test C extension support.
 
 ```
 $ SULONG_HOME=/absolute/path/to/sulong JT_OPT=opt-3.8 JT_CLANG=clang-3.8 \
-    GEM_HOME=../all-ruby-benchmarks/gems \
+    GEM_HOME=truffleruby-gem-test-pack/gems \
     jt test cexts --no-libxml --no-openssl
 ```
 
